@@ -1,3 +1,9 @@
+# ignore build directories
 build*/
+
+# ignore non-essential GLib enum build files
+uca-pcoclhs-enums.[ch]
+
+# other
 .vscode/
 .temp/

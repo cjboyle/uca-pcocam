@@ -1,0 +1,1387 @@
+#include <glib.h>
+#include <gmodule.h>
+#include <gio/gio.h>
+#include <string.h>
+#include <math.h>
+#include <signal.h>
+
+// #include <clser.h>
+// #include <fgrab_define.h>
+// #include <fgrab_struct.h>
+// #include <fgrab_prototyp.h>
+
+#include "pcoclhs.h"
+#include "uca-pcoclhs-camera.h"
+
+
+#define UCA_PCO_CLHS_CAMERA_GET_PRIVATE(obj) (G_TYPE_INSTANCE_GET_PRIVATE((obj), UCA_TYPE_PCO_CLHS_CAMERA, UcaPcoClhsCameraPrivate))
+
+#define CHECK_AND_RETURN_VOID_ON_PCO_ERROR(err)               \
+    if ((err) != 0)                                           \
+    {                                                         \
+        g_set_error(error, UCA_PCO_CLHS_CAMERA_ERROR,         \
+                    UCA_PCO_CLHS_CAMERA_ERROR_PCOSDK_GENERAL, \
+                    "libpcoclhs error %x", err);              \
+        return;                                               \
+    }
+
+#define CHECK_AND_RETURN_VAL_ON_PCO_ERROR(err, val)           \
+    if ((err) != 0)                                           \
+    {                                                         \
+        g_set_error(error, UCA_PCO_CLHS_CAMERA_ERROR,         \
+                    UCA_PCO_CLHS_CAMERA_ERROR_PCOSDK_GENERAL, \
+                    "libpcoclhs error %x", err);              \
+        return val;                                           \
+    }
+
+static void uca_pco_clhs_initable_iface_init(GInitableIface *iface);
+
+G_DEFINE_TYPE_WITH_CODE(UcaPcoClhsCamera, uca_pco_clhs_camera, UCA_TYPE_CAMERA,
+                        G_IMPLEMENT_INTERFACE(G_TYPE_INITABLE, uca_pco_clhs_initable_iface_init))
+
+GQuark uca_pco_clhs_camera_error_quark()
+{
+    return g_quark_from_static_string("uca-pco-clhs-camera-error-quark");
+}
+
+enum
+{
+    PROP_SENSOR_EXTENDED = N_BASE_PROPERTIES,
+    PROP_SENSOR_WIDTH_EXTENDED,
+    PROP_SENSOR_HEIGHT_EXTENDED,
+    PROP_SENSOR_TEMPERATURE,
+    PROP_SENSOR_PIXELRATES,
+    PROP_SENSOR_PIXELRATE,
+    PROP_HAS_DOUBLE_IMAGE_MODE,
+    PROP_DOUBLE_IMAGE_MODE,
+    PROP_OFFSET_MODE,
+    PROP_ACQUIRE_MODE,
+    PROP_FAST_SCAN,
+    PROP_NOISE_FILTER,
+    PROP_TIMESTAMP_MODE,
+    PROP_VERSION,
+    PROP_EDGE_GLOBAL_SHUTTER,
+    PROP_FRAME_GRABBER_TIMEOUT,
+    N_PROPERTIES
+};
+
+static gint base_overrideables[] = {
+    PROP_NAME,
+    PROP_SENSOR_WIDTH,
+    PROP_SENSOR_HEIGHT,
+    PROP_SENSOR_PIXEL_WIDTH,
+    PROP_SENSOR_PIXEL_HEIGHT,
+    PROP_SENSOR_BITDEPTH,
+    PROP_SENSOR_HORIZONTAL_BINNING,
+    PROP_SENSOR_VERTICAL_BINNING,
+    PROP_EXPOSURE_TIME,
+    PROP_FRAMES_PER_SECOND,
+    PROP_TRIGGER_SOURCE,
+    PROP_ROI_X,
+    PROP_ROI_Y,
+    PROP_ROI_WIDTH,
+    PROP_ROI_HEIGHT,
+    PROP_ROI_WIDTH_MULTIPLIER,
+    PROP_ROI_HEIGHT_MULTIPLIER,
+    PROP_HAS_STREAMING,
+    PROP_HAS_CAMRAM_RECORDING,
+    PROP_RECORDED_FRAMES,
+    PROP_IS_RECORDING,
+    0,
+};
+
+static GParamSpec *pco_clhs_properties[N_PROPERTIES] = {
+    NULL,
+};
+
+static const gchar *DEFAULT_VERSION = "0, 0.0, 0.0";
+
+static GMutex signal_mutex;
+static GCond signal_cond;
+
+typedef struct
+{
+    int type;
+    int cl_type;
+    int cl_format;
+    gfloat max_fram_rate;
+    gboolean has_camram;
+} pco_clhs_map_entry;
+
+struct _UcaPcoClhsCameraPrivate
+{
+    GError *construct_error;
+    pcoclhs_handle *pco;
+    pco_clhs_map_entry *description;
+
+    guint16 board;
+    guint16 port;
+
+    guint frame_width, frame_height;
+    gsize buffer_size;
+    guint16 *grab_buffer;
+    gfloat max_frame_rate;
+
+    guint16 width, height;
+    guint16 width_ex, height_ex;
+    guint16 binning_h, binning_v;
+    guint16 roi_x, roi_y;
+    guint16 roi_width, roi_height;
+    guint16 roi_horizontal_steps, roi_vertical_steps;
+    GValueArray *pixelrates;
+
+    frameindex_t last_frame;
+    guint16 active_segment;
+    guint num_recorded_images;
+    guint current_image;
+
+    guint16 delay_timebase;
+    guint16 exposure_timebase;
+    gchar *version;
+    guint timeout;
+
+    UcaCameraTriggerSource trigger_source;
+};
+
+static pco_clhs_map_entry pco_clhs_map[] = {
+    {CAMERATYPE_PCO_EDGE_HS, FG_CL_8BIT_FULL_10, FG_GRAY, 100.0f, FALSE},
+    {0, 0, 0, 0.0f, FALSE},
+};
+
+static pco_clhs_map_entry *get_pco_clhs_map_entry(int camera_type)
+{
+    pco_clhs_map_entry *entry = pco_clhs_map;
+
+    while (entry->type != 0)
+    {
+        if (entry->type == camera_type)
+            return entry;
+        entry++;
+    }
+
+    return NULL;
+}
+
+static gdouble convert_timebase(guint16 timebase)
+{
+    switch (timebase)
+    {
+    case TIMEBASE_NS:
+        return 1e-9;
+    case TIMEBASE_US:
+        return 1e-6;
+    case TIMEBASE_MS:
+        return 1e-3;
+    default:
+        g_warning("Unknown timebase");
+    }
+    return 1e-3;
+}
+
+static guint read_timebase(UcaPcoClhsCameraPrivate *priv)
+{
+    return pcoclhs_get_timebase(priv->pco, &priv->delay_timebase, &priv->exposure_timebase);
+}
+
+static void fill_pixelrates(UcaPcoClhsCameraPrivate *priv, guint32 rates[4], gint num_rates)
+{
+    GValue val = {0};
+    g_value_init(&val, G_TYPE_UINT);
+    priv->pixelrates = g_value_array_new(num_rates);
+
+    for (gint i = 0; i < num_rates; i++)
+    {
+        g_value_set_uint(&val, (guint)rates[i]);
+        g_value_array_append(priv->pixelrates, &val);
+    }
+}
+
+static void property_override_default_guint_value(GObjectClass *oclass, const gchar *property_name, guint new_default)
+{
+    GParamSpecUInt *pspec = G_PARAM_SPEC_UINT(g_object_class_find_property(oclass, property_name));
+    if (pspec != NULL)
+        pspec->default_value = new_default;
+    else
+        g_warning("pspec for %s not found\n", property_name);
+}
+
+static guint read_timebase(UcaPcoClhsCameraPrivate *priv)
+{
+    return pcoclhs_get_timebase(priv->pco, &priv->delay_timebase, &priv->exposure_timebase);
+}
+
+static gboolean check_timebase(gdouble time, gdouble scale)
+{
+    const gdouble EPSILON = 1e-3;
+    gdouble scaled = time * scale;
+    return scaled >= 1.0 && (scaled - ((int)scaled)) < EPSILON;
+}
+
+static guint16 get_suitable_timebase(gdouble time)
+{
+    if (check_timebase(time, 1e3))
+        return TIMEBASE_MS;
+    if (check_timebase(time, 1e6))
+        return TIMEBASE_US;
+    if (check_timebase(time, 1e9))
+        return TIMEBASE_NS;
+    return 0xDEAD;
+}
+
+static gdouble get_internal_delay(UcaPcoClhsCamera *camera)
+{
+    if (camera->priv->description->type == CAMERATYPE_PCO_DIMAX_STD)
+    {
+        guint sensor_rate;
+        g_object_get(camera, "sensor-pixelrate", &sensor_rate, NULL);
+
+        if (sensor_rate == 55000000.0)
+            return 0.000079;
+        else if (sensor_rate == 62500000.0)
+            return 0.000036;
+    }
+
+    return 0.0;
+}
+
+static gboolean is_edge(UcaPcoClhsCameraPrivate *priv)
+{
+    const int type = priv->description->type;
+    return type == CAMERATYPE_PCO_EDGE || type == CAMERATYPE_PCO_EDGE_GL || type == CAMERATYPE_PCO_EDGE_HS;
+}
+
+static int fg_callback(frameindex_t fram, struct fg_apc_data *apc)
+{
+    UcaCamera *camera = UCA_CAMERA(apc);
+    UcaPcoClhsCameraPrivate *priv = UCA_PCO_CLHS_CAMERA_GET_PRIVATE(camera);
+    //TODO
+}
+
+static gboolean setup_fg_callback(UcaCamera *camera)
+{
+    //TODO
+}
+
+static void check_pco_clhs_property_error(guint err, guint property_id)
+{
+    if (err != 0)
+    {
+        g_warning("Call to libpcoclhs wrapper failed with error code %x for property `%s'",
+                  err, pco_clhs_properties[property_id]->name);
+    }
+}
+
+static gboolean is_type(UcaPcoClhsCameraPrivate *priv, int type)
+{
+    return priv->description->type == type;
+}
+
+static gboolean check_and_resize_memory(UcaPcoClhsCameraPrivate *priv, GError **error)
+{
+    //TODO
+}
+
+static void uca_pco_clhs_camera_start_recording(UcaCamera *camera, GError **error)
+{
+    UcaPcoClhsCameraPrivate *priv;
+    guint16 binned_width;
+    guint16 binned_height;
+    gboolean use_extended;
+    gboolean transfer_async;
+    guint err;
+
+    g_return_if_fail(UCA_IS_PCO_CLHS_CAMERA(camera));
+    priv = UCA_PCO_CLHS_CAMERA_GET_PRIVATE(camera);
+
+    g_object_get(camera,
+                 "trigger-source", &priv->trigger_source,
+                 "sensor-extended", &use_extended,
+                 "transfer-asynchronously", &transfer_async,
+                 NULL);
+
+    if (use_extended)
+    {
+        binned_width = priv->width_ex;
+        binned_height = priv->height_ex;
+    }
+    else
+    {
+        binned_width = priv->width;
+        binned_height = priv->height;
+    }
+
+    binned_width /= priv->binning_h;
+    binned_height /= priv->binning_v;
+
+    if ((priv->roi_x + priv->roi_width > binned_width) || (priv->roi_y + priv->roi_height > binned_height))
+    {
+        g_set_error(error, UCA_PCO_CLHS_CAMERA_ERROR, UCA_PCO_CLHS_CAMERA_ERROR_UNSUPPORTED,
+                    "ROI of size %ix%i @ (%i, %i) is outside of (binned) sensor size %ix%i\n",
+                    priv->roi_width, priv->roi_height, priv->roi_x, priv->roi_y, binned_width, binned_height);
+    }
+
+    guint16 roi[4] = {
+        priv->roi_x + 1,
+        priv->roi_y + 1,
+        priv->roi_x + priv->roi_width,
+        priv->roi_y + priv->roi_height,
+    };
+
+    err = pcoclhs_set_roi(priv->pco, roi);
+    CHECK_AND_RETURN_VOID_ON_PCO_ERROR(err);
+
+    if (!check_and_resize_memory(priv, error))
+    {
+        return;
+    }
+
+    if (transfer_async)
+    {
+        setup_fg_callback(camera);
+    }
+
+    err = pcoclhs_arm_camera(priv->pco);
+    CHECK_AND_RETURN_VOID_ON_PCO_ERROR(err);
+
+    err = pcoclhs_start_recording(priv->pco);
+    CHECK_AND_RETURN_VOID_ON_PCO_ERROR(err);
+}
+
+static void uca_pco_clhs_camera_stop_recording(UcaCamera *camera, GError **error)
+{
+    UcaPcoClhsCameraPrivate *priv;
+    guint err;
+
+    g_return_if_fail(UCA_IS_PCO_CLHS_CAMERA(camera));
+
+    priv = UCA_PCO_CLHS_CAMERA_GET_PRIVATE(camera);
+
+    err = pcoclhs_stop_recording(priv->pco);
+    CHECK_AND_RETURN_VOID_ON_PCO_ERROR(err);
+}
+
+static void uca_pco_clhs_camera_trigger(UcaCamera *camera, GError **error)
+{
+    UcaPcoClhsCameraPrivate *priv;
+    guint32 success;
+    guint err;
+
+    g_return_if_fail(UCA_IS_PCO_CLHS_CAMERA(camera));
+
+    priv = UCA_PCO_CLHS_CAMERA_GET_PRIVATE(camera);
+
+    /* TODO: Check if we can trigger */
+    err = pcoclhs_force_trigger(priv->pco, &success);
+    CHECK_AND_RETURN_VOID_ON_PCO_ERROR(err);
+
+    if (!success)
+    {
+        g_set_error(error, UCA_PCO_CLHS_CAMERA_ERROR, UCA_PCO_CLHS_CAMERA_ERROR_PCOSDK_GENERAL,
+                    "Could not trigger frame acquisition");
+    }
+}
+
+static gint get_max_timeout(UcaPcoClhsCameraPrivate *priv)
+{
+    return priv->trigger_source == UCA_CAMERA_TRIGGER_SOURCE_EXTERNAL ? G_MAXINT32 : (gint)priv->timeout;
+}
+
+static gboolean uca_pco_clhs_camera_grab(UcaCamera *camera, gpointer data, GError **error)
+{
+    UcaPcoClhsCameraPrivate *priv;
+    gboolean is_readout;
+    guint16 *frame;
+    guint err;
+
+    g_return_val_if_fail(UCA_IS_PCO_CLHS_CAMERA(camera), FALSE);
+
+    priv = UCA_PCO_CLHS_CAMERA_GET_PRIVATE(camera);
+
+    g_object_get(G_OBJECT(camera), "is-readout", &is_readout, NULL);
+
+    if (is_readout)
+    {
+        if (priv->current_image == priv->num_recorded_images)
+            return FALSE;
+
+        /*
+         * No joke, the pco firmware allows to read a range of images but
+         * implements only reading single images ...
+         */
+        err = pcoclhs_read_images(priv->pco, priv->active_segment, priv->current_image, priv->current_image);
+        CHECK_AND_RETURN_VAL_ON_PCO_ERROR(err, FALSE);
+        priv->current_image++;
+    }
+    else
+    {
+        err = pcoclhs_request_image(priv->pco, priv->);
+        CHECK_AND_RETURN_VAL_ON_PCO_ERROR(err, FALSE);
+    }
+
+    /*// ! CALL TO FGLIB5-RELATED FUNCTION ! //*/
+    // priv->last_frame = Fg_getLastPicNumberBlockingEx(priv->fg, priv->last_frame + 1,
+    //                                                  priv->fg_port, get_max_timeout(priv), priv->fg_mem);
+    //TODO
+    pcoclhs_get_last_frame_number(priv->pco, &priv->last_frame);
+
+    /*// ! CALL TO FGLIB5-RELATED FUNCTION ! //*/
+    if (priv->last_frame <= 0)
+    {
+        g_set_error(error, UCA_PCO_CLHS_CAMERA_ERROR,
+                    UCA_PCO_CLHS_CAMERA_ERROR_FG_GENERAL,
+                    "%s", Fg_getLastErrorDescription(priv->fg));
+        return FALSE;
+    }
+
+    /*// ! CALL TO FGLIB5-RELATED FUNCTION ! //*/
+    frame = Fg_getImagePtrEx(priv->fg, priv->last_frame, priv->fg_port, priv->fg_mem);
+
+    if (frame == NULL)
+    {
+        g_set_error(error, UCA_PCO_CLHS_CAMERA_ERROR,
+                    UCA_PCO_CLHS_CAMERA_ERROR_FG_GENERAL,
+                    "Frame data is NULL");
+        return FALSE;
+    }
+
+    if (is_edge(priv))
+        pcoclhs_get_reorder_func(priv->pco)((guint16 *)data, frame, priv->frame_width, priv->frame_height);
+    else
+        memcpy((gchar *)data, (gchar *)frame, priv->buffer_size);
+
+    return TRUE;
+}
+
+static void uca_pco_clhs_camera_set_property(GObject *object, guint property_id, const GValue *value, GParamSpec *pspec)
+{
+    g_return_if_fail(UCA_IS_PCO_CLHS_CAMERA(object));
+    UcaPcoClhsCameraPrivate *priv = UCA_PCO_CLHS_CAMERA_GET_PRIVATE(object);
+    guint err = PCO_NOERROR;
+
+    if (uca_camera_is_recording(UCA_CAMERA(object)) && !uca_camera_is_writable_during_acquisition(UCA_CAMERA(object), pspec->name))
+    {
+        g_warning("Property '%s' cant be changed during acquisition", pspec->name);
+        return;
+    }
+
+    switch (property_id)
+    {
+    case PROP_SENSOR_EXTENDED:
+    {
+        guint16 format = g_value_get_boolean(value) ? SENSORFORMAT_EXTENDED : SENSORFORMAT_STANDARD;
+        err = pco_set_sensor_format(priv->pco, format);
+    }
+    break;
+
+    case PROP_ROI_X:
+        priv->roi_x = g_value_get_uint(value);
+        break;
+
+    case PROP_ROI_Y:
+        priv->roi_y = g_value_get_uint(value);
+        break;
+
+    case PROP_ROI_WIDTH:
+    {
+        guint width = g_value_get_uint(value);
+
+        if (width % priv->roi_horizontal_steps)
+            g_warning("ROI width %i is not a multiple of %i", width, priv->roi_horizontal_steps);
+        else
+            priv->roi_width = width;
+    }
+    break;
+
+    case PROP_ROI_HEIGHT:
+    {
+        guint height = g_value_get_uint(value);
+
+        if (height % priv->roi_vertical_steps)
+            g_warning("ROI height %i is not a multiple of %i", height, priv->roi_vertical_steps);
+        else
+            priv->roi_height = height;
+    }
+    break;
+
+    case PROP_SENSOR_HORIZONTAL_BINNING:
+        priv->binning_h = g_value_get_uint(value);
+        break;
+
+    case PROP_SENSOR_VERTICAL_BINNING:
+        priv->binning_v = g_value_get_uint(value);
+        break;
+
+    case PROP_EXPOSURE_TIME:
+    {
+        if (priv->description->type == CAMERATYPE_PCO4000)
+        {
+            /* PCO4000 is not CLHS */
+        }
+        else
+        {
+            uint32_t exposure;
+            uint32_t framerate;
+
+            err = pcoclhs_get_framerate(priv->pco, &framerate, &exposure);
+            exposure = (uint32_t)(g_value_get_double(value) * 1000 * 1000 * 1000);
+            err = pcoclhs_set_framerate(priv->pco, framerate, exposure, false);
+        }
+    }
+    break;
+
+    case PROP_FRAMES_PER_SECOND:
+    {
+        if (priv->description->type == CAMERATYPE_PCO4000)
+        {
+            gdouble n_frames_per_second;
+            gdouble exposure_time;
+            gdouble delay;
+
+            /*
+                     * We want to expose n frames in one second, each frame takes
+                     * exposure time + delay time. Thus we have
+                     *
+                     * 1s = n * (t_exp + t_delay) <=> t_exp = 1s/n - t_delay.
+                     */
+            delay = get_internal_delay(UCA_PCO_CLHS_CAMERA(object));
+            n_frames_per_second = g_value_get_double(value);
+            exposure_time = 1.0 / n_frames_per_second - delay;
+
+            if (exposure_time <= 0.0)
+                g_warning("Too many frames per second requested.");
+            else
+                g_object_set(object, "exposure-time", exposure_time, NULL);
+        }
+        else
+        {
+            uint32_t exposure;
+            uint32_t framerate;
+
+            err = pcoclhs_get_framerate(priv->pco, &framerate, &exposure);
+            framerate = (uint32_t)(g_value_get_double(value) * 1000);
+            err = pcoclhs_set_framerate(priv->pco, framerate, exposure, true);
+        }
+    }
+    break;
+
+    case PROP_SENSOR_PIXELRATE:
+    {
+        guint desired_pixel_rate = g_value_get_uint(value);
+        guint32 pixel_rate = 0;
+
+        for (guint i = 0; i < priv->pixelrates->n_values; i++)
+        {
+            if (g_value_get_uint(g_value_array_get_nth(priv->pixelrates, i)) == desired_pixel_rate)
+            {
+                pixel_rate = desired_pixel_rate;
+                break;
+            }
+        }
+
+        if (pixel_rate != 0)
+        {
+            err = pcoclhs_set_pixelrate(priv->pco, pixel_rate);
+
+            if (err != PCO_NOERROR)
+                err = pcoclhs_reset(priv->pco);
+        }
+        else
+            g_warning("%i Hz is not possible. Please check the \"sensor-pixelrates\" property", desired_pixel_rate);
+    }
+    break;
+
+    case PROP_DOUBLE_IMAGE_MODE:
+        if (pcoclhs_is_double_image_mode_available(priv->pco))
+            err = pcoclhs_set_double_image_mode(priv->pco, g_value_get_boolean(value));
+
+    case PROP_OFFSET_MODE:
+        err = pcoclhs_set_offset_mode(priv->pco, g_value_get_boolean(value));
+        break;
+
+    case PROP_ACQUIRE_MODE:
+    {
+        UcaPcoClhsCameraAcquireMode mode = (UcaPcoClhsCameraAcquireMode)g_value_get_enum(value);
+
+        if (mode == UCA_PCO_CLHS_CAMERA_ACQUIRE_MODE_AUTO)
+            err = pcoclhs_set_acquire_mode(priv->pco, ACQUIRE_MODE_AUTO);
+        else if (mode == UCA_PCO_CLHS_CAMERA_ACQUIRE_MODE_EXTERNAL)
+            err = pcoclhs_set_acquire_mode(priv->pco, ACQUIRE_MODE_EXTERNAL);
+        else
+            g_warning("Unknown acquire mode");
+    }
+    break;
+
+    case PROP_FAST_SCAN:
+    {
+        guint32 mode;
+
+        mode = g_value_get_boolean(value) ? PCO_SCANMODE_FAST : PCO_SCANMODE_SLOW;
+        err = pcoclhs_set_scan_mode(priv->pco, mode);
+    }
+    break;
+
+    case PROP_TRIGGER_SOURCE:
+    {
+        UcaCameraTriggerSource trigger_source = g_value_get_enum(value);
+
+        switch (trigger_source)
+        {
+        case UCA_CAMERA_TRIGGER_SOURCE_AUTO:
+            err = pcoclhs_set_trigger_mode(priv->pco, TRIGGER_MODE_AUTOTRIGGER);
+            break;
+        case UCA_CAMERA_TRIGGER_SOURCE_SOFTWARE:
+            err = pcoclhs_set_trigger_mode(priv->pco, TRIGGER_MODE_SOFTWARETRIGGER);
+            break;
+        case UCA_CAMERA_TRIGGER_SOURCE_EXTERNAL:
+            err = pcoclhs_set_trigger_mode(priv->pco, TRIGGER_MODE_EXTERNALTRIGGER);
+            break;
+        }
+    }
+    break;
+
+    case PROP_NOISE_FILTER:
+    {
+        guint16 filter_mode = g_value_get_boolean(value) ? NOISE_FILTER_MODE_ON : NOISE_FILTER_MODE_OFF;
+        err = pcoclhs_set_noise_filter_mode(priv->pco, filter_mode);
+    }
+    break;
+
+    case PROP_TIMESTAMP_MODE:
+    {
+        guint16 table[] = {
+            TIMESTAMP_MODE_OFF,
+            TIMESTAMP_MODE_BINARY,
+            TIMESTAMP_MODE_BINARYANDASCII,
+            TIMESTAMP_MODE_ASCII,
+        };
+
+        err = pcoclhs_set_timestamp_mode(priv->pco, table[g_value_get_enum(value)]);
+    }
+    break;
+
+    case PROP_EDGE_GLOBAL_SHUTTER:
+    {
+        pco_edge_shutter shutter;
+
+        shutter = g_value_get_boolean(value) ? PCO_EDGE_GLOBAL_SHUTTER : PCO_EDGE_ROLLING_SHUTTER;
+        err = pcoclhs_edge_set_shutter(priv->pco, shutter);
+    }
+    break;
+
+    case PROP_FRAME_GRABBER_TIMEOUT:
+        priv->timeout = g_value_get_uint(value);
+        break;
+
+    default:
+        G_OBJECT_WARN_INVALID_PROPERTY_ID(object, property_id, pspec);
+        return;
+    }
+
+    check_pco_clhs_property_error(err, property_id);
+}
+
+static void uca_pco_clhs_camera_get_property(GObject *object, guint property_id, GValue *value, GParamSpec *pspec)
+{
+    UcaPcoClhsCameraPrivate *priv;
+    guint err = PCO_NOERROR;
+
+    priv = UCA_PCO_CLHS_CAMERA_GET_PRIVATE(object);
+
+    /* Should fix #20 */
+    if (uca_camera_is_recording(UCA_CAMERA(object)))
+    {
+        if (priv->description->type == CAMERATYPE_PCO4000)
+        {
+            return;
+        }
+    }
+
+    switch (property_id)
+    {
+    case PROP_SENSOR_EXTENDED:
+    {
+        guint16 format;
+        err = pcoclhs_get_sensor_format(priv->pco, &format);
+        g_value_set_boolean(value, format == SENSORFORMAT_EXTENDED);
+    }
+    break;
+
+    case PROP_SENSOR_WIDTH:
+        g_value_set_uint(value, priv->width);
+        break;
+
+    case PROP_SENSOR_HEIGHT:
+        g_value_set_uint(value, priv->height);
+        break;
+
+    case PROP_SENSOR_PIXEL_WIDTH:
+        switch (priv->description->type)
+        {
+        case CAMERATYPE_PCO_EDGE:
+            g_value_set_double(value, 0.0000065);
+            break;
+        case CAMERATYPE_PCO_EDGE_GL:
+            g_value_set_double(value, 0.0000065);
+            break;
+        case CAMERATYPE_PCO_EDGE_HS:
+            g_value_set_double(value, 0.0000065);
+            break;
+        case CAMERATYPE_PCO_DIMAX_STD:
+            g_value_set_double(value, 0.0000110);
+            break;
+        case CAMERATYPE_PCO4000:
+            g_value_set_double(value, 0.0000090);
+            break;
+        }
+        break;
+
+    case PROP_SENSOR_PIXEL_HEIGHT:
+        switch (priv->description->type)
+        {
+        case CAMERATYPE_PCO_EDGE:
+            g_value_set_double(value, 0.0000065);
+            break;
+        case CAMERATYPE_PCO_EDGE_GL:
+            g_value_set_double(value, 0.0000065);
+            break;
+        case CAMERATYPE_PCO_EDGE_HS:
+            g_value_set_double(value, 0.0000065);
+            break;
+        case CAMERATYPE_PCO_DIMAX_STD:
+            g_value_set_double(value, 0.0000110);
+            break;
+        case CAMERATYPE_PCO4000:
+            g_value_set_double(value, 0.0000090);
+            break;
+        }
+        break;
+
+    case PROP_SENSOR_WIDTH_EXTENDED:
+        g_value_set_uint(value, priv->width_ex < priv->width ? priv->width : priv->width_ex);
+        break;
+
+    case PROP_SENSOR_HEIGHT_EXTENDED:
+        g_value_set_uint(value, priv->height_ex < priv->height ? priv->height : priv->height_ex);
+        break;
+
+    case PROP_SENSOR_HORIZONTAL_BINNING:
+        g_value_set_uint(value, priv->binning_h);
+        break;
+
+    case PROP_SENSOR_VERTICAL_BINNING:
+        g_value_set_uint(value, priv->binning_v);
+        break;
+
+    case PROP_SENSOR_BITDEPTH:
+        switch (priv->description->type)
+        {
+        case CAMERATYPE_PCO4000:
+            g_value_set_uint(value, 14);
+            break;
+        case CAMERATYPE_PCO_EDGE:
+            g_value_set_uint(value, 16);
+            break;
+        case CAMERATYPE_PCO_EDGE_GL:
+            g_value_set_uint(value, 16);
+            break;
+        case CAMERATYPE_PCO_EDGE_HS:
+            g_value_set_uint(value, 16);
+            break;
+        case CAMERATYPE_PCO_DIMAX_STD:
+            g_value_set_uint(value, 12);
+            break;
+        }
+        break;
+
+    case PROP_SENSOR_TEMPERATURE:
+    {
+        gint32 ccd, camera, power;
+        err = pcoclhs_get_temperature(priv->pco, &ccd, &camera, &power);
+        g_value_set_double(value, ccd / 10.0);
+    }
+    break;
+
+    case PROP_SENSOR_PIXELRATES:
+        g_value_set_boxed(value, priv->pixelrates);
+        break;
+
+    case PROP_SENSOR_PIXELRATE:
+    {
+        guint32 pixelrate;
+        err = pcoclhs_get_pixelrate(priv->pco, &pixelrate);
+        g_value_set_uint(value, pixelrate);
+    }
+    break;
+
+    case PROP_EXPOSURE_TIME:
+    {
+        if (priv->description->type == CAMERATYPE_PCO4000)
+        {
+            //
+        }
+        else
+        {
+            uint32_t exposure;
+            uint32_t framerate;
+
+            err = pcoclhs_get_framerate(priv->pco, &framerate, &exposure);
+            g_value_set_double(value, exposure / 1000. / 1000. / 1000.);
+        }
+    }
+    break;
+
+    case PROP_FRAMES_PER_SECOND:
+    {
+        if (priv->description->type == CAMERATYPE_PCO4000)
+        {
+            //
+        }
+        else
+        {
+            uint32_t exposure;
+            uint32_t framerate;
+
+            err = pcoclhs_get_framerate(priv->pco, &framerate, &exposure);
+            g_value_set_double(value, framerate / 1000.);
+        }
+    }
+    break;
+
+    case PROP_HAS_DOUBLE_IMAGE_MODE:
+        g_value_set_boolean(value, pcoclhs_is_double_image_mode_available(priv->pco));
+        break;
+
+    case PROP_DOUBLE_IMAGE_MODE:
+        if (pcoclhs_is_double_image_mode_available(priv->pco))
+        {
+            bool on;
+            err = pcoclhs_get_double_image_mode(priv->pco, &on);
+            g_value_set_boolean(value, on);
+        }
+        break;
+
+    case PROP_OFFSET_MODE:
+    {
+        bool on;
+        err = pcoclhs_get_offset_mode(priv->pco, &on);
+        g_value_set_boolean(value, on);
+    }
+    break;
+
+    case PROP_HAS_STREAMING:
+        g_value_set_boolean(value, TRUE);
+        break;
+
+    case PROP_HAS_CAMRAM_RECORDING:
+        g_value_set_boolean(value, priv->description->has_camram);
+        break;
+
+    case PROP_RECORDED_FRAMES:
+        err = pcoclhs_get_num_images(priv->pco, priv->active_segment, &priv->num_recorded_images);
+        g_value_set_uint(value, priv->num_recorded_images);
+        break;
+
+    case PROP_ACQUIRE_MODE:
+    {
+        guint16 mode;
+        err = pcoclhs_get_acquire_mode(priv->pco, &mode);
+
+        if (mode == ACQUIRE_MODE_AUTO)
+            g_value_set_enum(value, UCA_PCO_CLHS_CAMERA_ACQUIRE_MODE_AUTO);
+        else if (mode == ACQUIRE_MODE_EXTERNAL)
+            g_value_set_enum(value, UCA_PCO_CLHS_CAMERA_ACQUIRE_MODE_EXTERNAL);
+        else
+            g_warning("pco acquire mode not handled");
+    }
+    break;
+
+    case PROP_FAST_SCAN:
+    {
+        guint32 mode;
+        err = pcoclhs_get_scan_mode(priv->pco, &mode);
+        g_value_set_boolean(value, mode == PCO_SCANMODE_FAST);
+    }
+    break;
+
+    case PROP_TRIGGER_SOURCE:
+    {
+        guint16 mode;
+        err = pcoclhs_get_trigger_mode(priv->pco, &mode);
+
+        switch (mode)
+        {
+        case TRIGGER_MODE_AUTOTRIGGER:
+            g_value_set_enum(value, UCA_CAMERA_TRIGGER_SOURCE_AUTO);
+            break;
+        case TRIGGER_MODE_SOFTWARETRIGGER:
+            g_value_set_enum(value, UCA_CAMERA_TRIGGER_SOURCE_SOFTWARE);
+            break;
+        case TRIGGER_MODE_EXTERNALTRIGGER:
+            g_value_set_enum(value, UCA_CAMERA_TRIGGER_SOURCE_EXTERNAL);
+            break;
+        default:
+            g_warning("pco trigger mode not handled");
+        }
+    }
+    break;
+
+    case PROP_ROI_X:
+        g_value_set_uint(value, priv->roi_x);
+        break;
+
+    case PROP_ROI_Y:
+        g_value_set_uint(value, priv->roi_y);
+        break;
+
+    case PROP_ROI_WIDTH:
+        g_value_set_uint(value, priv->roi_width);
+        break;
+
+    case PROP_ROI_HEIGHT:
+        g_value_set_uint(value, priv->roi_height);
+        break;
+
+    case PROP_ROI_WIDTH_MULTIPLIER:
+        g_value_set_uint(value, priv->roi_horizontal_steps);
+        break;
+
+    case PROP_ROI_HEIGHT_MULTIPLIER:
+        g_value_set_uint(value, priv->roi_vertical_steps);
+        break;
+
+    case PROP_NAME:
+        g_value_set_string(value, "pco");
+        break;
+
+    case PROP_NOISE_FILTER:
+    {
+        guint16 mode;
+        err = pcoclhs_get_noise_filter_mode(priv->pco, &mode);
+        g_value_set_boolean(value, mode != NOISE_FILTER_MODE_OFF);
+    }
+    break;
+
+    case PROP_TIMESTAMP_MODE:
+    {
+        guint16 mode;
+        UcaPcoClhsCameraTimestamp table[] = {
+            UCA_PCO_CLHS_CAMERA_TIMESTAMP_NONE,
+            UCA_PCO_CLHS_CAMERA_TIMESTAMP_BINARY,
+            UCA_PCO_CLHS_CAMERA_TIMESTAMP_BOTH,
+            UCA_PCO_CLHS_CAMERA_TIMESTAMP_ASCII};
+
+        err = pcoclhs_get_timestamp_mode(priv->pco, &mode);
+        g_value_set_enum(value, table[mode]);
+    }
+    break;
+
+    case PROP_VERSION:
+        g_value_set_string(value, priv->version);
+        break;
+
+    case PROP_EDGE_GLOBAL_SHUTTER:
+    {
+        pco_edge_shutter shutter;
+        err = pcoclhs_edge_get_shutter(priv->pco, &shutter);
+        g_value_set_boolean(value, shutter == PCO_EDGE_GLOBAL_SHUTTER);
+    }
+    break;
+
+    case PROP_IS_RECORDING:
+    {
+        bool is_recording;
+
+        err = pcoclhs_is_recording(priv->pco, &is_recording);
+        g_value_set_boolean(value, (gboolean)is_recording);
+    }
+    break;
+
+    case PROP_FRAME_GRABBER_TIMEOUT:
+        g_value_set_uint(value, priv->timeout);
+        break;
+
+    default:
+        G_OBJECT_WARN_INVALID_PROPERTY_ID(object, property_id, pspec);
+        return;
+    }
+
+    check_pco_clhs_property_error(err, property_id);
+}
+
+static void uca_pco_clhs_camera_finalize(GObject *object)
+{
+    UcaPcoClhsCameraPrivate *priv = UCA_PCO_CLHS_CAMERA_GET_PRIVATE(object);
+
+    if (priv->pixelrates)
+        g_value_array_free(priv->pixelrates);
+
+    if (priv->version)
+    {
+        g_free(priv->version);
+        priv->version = NULL;
+    }
+
+    if (priv->pco)
+        pcoclhs_destroy(priv->pco);
+
+    g_free(priv->grab_buffer);
+    g_clear_error(&priv->construct_error);
+
+    G_OBJECT_CLASS(uca_pco_clhs_camera_parent_class)->finalize(object);
+}
+
+static gboolean uca_pco_clhs_camera_initable_init(GInitable *initable, GCancellable *cancellable, GError **error)
+{
+    UcaPcoClhsCamera *camera;
+    UcaPcoClhsCameraPrivate *priv;
+
+    g_return_val_if_fail(UCA_IS_PCO_CLHS_CAMERA(initable), FALSE);
+
+    if (cancellable != NULL)
+    {
+        g_set_error_literal(error, G_IO_ERROR, G_IO_ERROR_NOT_SUPPORTED,
+                            "Cancellable initialization not supported");
+        return FALSE;
+    }
+
+    camera = UCA_PCO_CLHS_CAMERA(initable);
+    priv = camera->priv;
+
+    if (priv->construct_error != NULL)
+    {
+        if (error)
+            *error = g_error_copy(priv->construct_error);
+
+        return FALSE;
+    }
+
+    return TRUE;
+}
+
+static void uca_pco_clhs_camera_initable_iface_init(GInitableIface *iface)
+{
+    iface->init = uca_pco_clhs_camera_initable_init;
+}
+
+static void uca_pco_camera_class_init(UcaPcoClhsCameraClass *klass)
+{
+    GObjectClass *gobject_class = G_OBJECT_CLASS(klass);
+    gobject_class->set_property = uca_pco_clhs_camera_set_property;
+    gobject_class->get_property = uca_pco_clhs_camera_get_property;
+    gobject_class->finalize = uca_pco_clhs_camera_finalize;
+
+    UcaCameraClass *camera_class = UCA_CAMERA_CLASS(klass);
+    camera_class->start_recording = uca_pco_clhs_camera_start_recording;
+    camera_class->stop_recording = uca_pco_clhs_camera_stop_recording;
+    // camera_class->start_readout = uca_pco_clhs_camera_start_readout;
+    // camera_class->stop_readout = uca_pco_clhs_camera_stop_readout;
+    camera_class->trigger = uca_pco_clhs_camera_trigger;
+    camera_class->grab = uca_pco_clhs_camera_grab;
+    // camera_class->readout = uca_pco_clhs_camera_readout;
+
+    for (guint i = 0; base_overrideables[i] != 0; i++)
+        g_object_class_override_property(gobject_class, base_overrideables[i], uca_camera_props[base_overrideables[i]]);
+
+    /**
+     * UcaPcoClhsCamera:sensor-extended:
+     *
+     * Activate larger sensor area that contains surrounding pixels for dark
+     * references and dummies. Use #UcaPcoClhsCamera:sensor-width-extended and
+     * #UcaPcoClhsCamera:sensor-height-extended to query the resolution of the
+     * larger area.
+     */
+    pco_properties[PROP_SENSOR_EXTENDED] =
+        g_param_spec_boolean("sensor-extended",
+                             "Use extended sensor format",
+                             "Use extended sensor format",
+                             FALSE, G_PARAM_READWRITE);
+
+    pco_properties[PROP_SENSOR_WIDTH_EXTENDED] =
+        g_param_spec_uint("sensor-width-extended",
+                          "Width of extended sensor",
+                          "Width of the extended sensor in pixels",
+                          1, G_MAXUINT, 1,
+                          G_PARAM_READABLE);
+
+    pco_properties[PROP_SENSOR_HEIGHT_EXTENDED] =
+        g_param_spec_uint("sensor-height-extended",
+                          "Height of extended sensor",
+                          "Height of the extended sensor in pixels",
+                          1, G_MAXUINT, 1,
+                          G_PARAM_READABLE);
+
+    /**
+     * UcaPcoClhsCamera:sensor-pixelrate:
+     *
+     * Read and write the pixel rate or clock of the sensor in terms of Hertz.
+     * Make sure to query the possible pixel rates through the
+     * #UcaPcoClhsCamera:sensor-pixelrates property. Any other value will be
+     * rejected by the camera.
+     */
+    pco_properties[PROP_SENSOR_PIXELRATE] =
+        g_param_spec_uint("sensor-pixelrate",
+                          "Pixel rate",
+                          "Pixel rate",
+                          1, G_MAXUINT, 1,
+                          G_PARAM_READWRITE);
+
+    pco_properties[PROP_SENSOR_PIXELRATES] =
+        g_param_spec_value_array("sensor-pixelrates",
+                                 "Array of possible sensor pixel rates",
+                                 "Array of possible sensor pixel rates",
+                                 pco_properties[PROP_SENSOR_PIXELRATE],
+                                 G_PARAM_READABLE);
+
+    pco_properties[PROP_NAME] =
+        g_param_spec_string("name",
+                            "Name of the camera",
+                            "Name of the camera",
+                            "", G_PARAM_READABLE);
+
+    pco_properties[PROP_SENSOR_TEMPERATURE] =
+        g_param_spec_double("sensor-temperature",
+                            "Temperature of the sensor",
+                            "Temperature of the sensor in degree Celsius",
+                            -G_MAXDOUBLE, G_MAXDOUBLE, 0.0,
+                            G_PARAM_READABLE);
+
+    pco_properties[PROP_HAS_DOUBLE_IMAGE_MODE] =
+        g_param_spec_boolean("has-double-image-mode",
+                             "Is double image mode supported by this model",
+                             "Is double image mode supported by this model",
+                             FALSE, G_PARAM_READABLE);
+
+    pco_properties[PROP_DOUBLE_IMAGE_MODE] =
+        g_param_spec_boolean("double-image-mode",
+                             "Use double image mode",
+                             "Use double image mode",
+                             FALSE, G_PARAM_READWRITE);
+
+    pco_properties[PROP_OFFSET_MODE] =
+        g_param_spec_boolean("offset-mode",
+                             "Use offset mode",
+                             "Use offset mode",
+                             FALSE, G_PARAM_READWRITE);
+
+    pco_properties[PROP_RECORD_MODE] =
+        g_param_spec_enum("record-mode",
+                          "Record mode",
+                          "Record mode",
+                          UCA_TYPE_PCO_CLHS_CAMERA_RECORD_MODE, UCA_PCO_CLHS_CAMERA_RECORD_MODE_SEQUENCE,
+                          G_PARAM_READWRITE);
+
+    pco_properties[PROP_STORAGE_MODE] =
+        g_param_spec_enum("storage-mode",
+                          "Storage mode",
+                          "Storage mode",
+                          UCA_TYPE_PCO_CLHS_CAMERA_STORAGE_MODE, UCA_PCO_CLHS_CAMERA_STORAGE_MODE_FIFO_BUFFER,
+                          G_PARAM_READWRITE);
+
+    pco_properties[PROP_ACQUIRE_MODE] =
+        g_param_spec_enum("acquire-mode",
+                          "Acquire mode",
+                          "Acquire mode",
+                          UCA_TYPE_PCO_CLHS_CAMERA_ACQUIRE_MODE, UCA_PCO_CLHS_CAMERA_ACQUIRE_MODE_AUTO,
+                          G_PARAM_READWRITE);
+
+    pco_properties[PROP_FAST_SCAN] =
+        g_param_spec_boolean("fast-scan",
+                             "Use fast scan mode",
+                             "Use fast scan mode with less dynamic range",
+                             FALSE, G_PARAM_READWRITE);
+
+    pco_properties[PROP_NOISE_FILTER] =
+        g_param_spec_boolean("noise-filter",
+                             "Noise filter",
+                             "Noise filter",
+                             FALSE, G_PARAM_READWRITE);
+
+    pco_properties[PROP_TIMESTAMP_MODE] =
+        g_param_spec_enum("timestamp-mode",
+                          "Timestamp mode",
+                          "Timestamp mode",
+                          UCA_TYPE_PCO_CLHS_CAMERA_TIMESTAMP, UCA_PCO_CLHS_CAMERA_TIMESTAMP_NONE,
+                          G_PARAM_READWRITE);
+
+    pco_properties[PROP_VERSION] =
+        g_param_spec_string("version",
+                            "Camera version",
+                            "Camera version given as `serial number, hardware major.minor, firmware major.minor'",
+                            DEFAULT_VERSION,
+                            G_PARAM_READABLE);
+
+    pco_properties[PROP_EDGE_GLOBAL_SHUTTER] =
+        g_param_spec_boolean("global-shutter",
+                             "Global shutter enabled",
+                             "Global shutter enabled",
+                             FALSE, G_PARAM_READWRITE);
+
+    pco_properties[PROP_FRAME_GRABBER_TIMEOUT] =
+        g_param_spec_uint("frame-grabber-timeout",
+                          "Frame grabber timeout in seconds",
+                          "Frame grabber timeout in seconds",
+                          0, G_MAXUINT, 5,
+                          G_PARAM_READWRITE);
+
+    for (guint id = N_BASE_PROPERTIES; id < N_PROPERTIES; id++)
+        g_object_class_install_property(gobject_class, id, pco_properties[id]);
+
+    g_type_class_add_private(klass, sizeof(UcaPcoCameraPrivate));
+}
+
+static gboolean setup_pco_clhs_camera(UcaPcoClhsCameraPrivate *priv)
+{
+    pco_clhs_map_entry *map_entry;
+    guint16 roi[4];
+    guint16 camera_type;
+    guint16 camera_subtype;
+    guint32 serial;
+    guint16 version[4];
+    guint err;
+    GError **error = &priv->construct_error;
+
+    pcoclhs_init(&priv->pco, priv->board, priv->port);
+
+    if (priv->pco == NULL)
+    {
+        g_set_error(error,
+                    UCA_PCO_CLHS_CAMERA_ERROR, UCA_PCO_CLHS_CAMERA_ERROR_PCOSDK_INIT,
+                    "Initializing libpco failed");
+        return FALSE;
+    }
+
+    pcoclhs_get_camera_type(priv->pco, &camera_type, &camera_subtype);
+    map_entry = get_pco_clhs_map_entry(camera_type);
+
+    if (map_entry == NULL)
+    {
+        g_set_error(error,
+                    UCA_PCO_CLHS_CAMERA_ERROR, UCA_PCO_CLHS_CAMERA_ERROR_UNSUPPORTED,
+                    "Camera type is not supported");
+        return FALSE;
+    }
+
+    priv->description = map_entry;
+
+    err = pcoclhs_get_active_segment(priv->pco, &priv->active_segment);
+    CHECK_AND_RETURN_VAL_ON_PCO_ERROR(err, FALSE);
+
+    err = pcoclhs_get_resolution(priv->pco, &priv->width, &priv->height, &priv->width_ex, &priv->height_ex);
+    CHECK_AND_RETURN_VAL_ON_PCO_ERROR(err, FALSE);
+
+    err = pcoclhs_get_binning(priv->pco, &priv->binning_h, &priv->binning_v);
+    CHECK_AND_RETURN_VAL_ON_PCO_ERROR(err, FALSE);
+
+    err = pcoclhs_get_roi(priv->pco, roi);
+    CHECK_AND_RETURN_VAL_ON_PCO_ERROR(err, FALSE);
+
+    err = pcoclhs_get_roi_steps(priv->pco, &priv->roi_horizontal_steps, &priv->roi_vertical_steps);
+    CHECK_AND_RETURN_VAL_ON_PCO_ERROR(err, FALSE);
+
+    priv->roi_x = roi[0] - 1;
+    priv->roi_y = roi[1] - 1;
+    priv->roi_width = roi[2] - roi[0] + 1;
+    priv->roi_height = roi[3] - roi[1] + 1;
+    priv->num_recorded_images = 0;
+
+    err = pcoclhs_get_camera_version(priv->pco, &serial, &version[0], &version[1], &version[2], &version[3]);
+    CHECK_AND_RETURN_VAL_ON_PCO_ERROR(err, FALSE);
+
+    g_free(priv->version);
+    priv->version = g_strdup_printf("%u, %u.%u, %u.%u", serial, version[0], version[1], version[2], version[3]);
+
+    return TRUE;
+}
+
+static gboolean setup_frame_grabber(UcaPcoClhsCameraPrivate *priv)
+{
+    guint32 fg_width;
+    guint32 fg_height;
+    int val;
+
+    priv->fg_port = 0;
+    priv->pco->
+
+    if (priv->fg == NULL)
+    {
+        g_set_error(&priv->construct_error, UCA_PCO_CLHS_CAMERA_ERROR, UCA_PCO_CLHS_CAMERA_ERROR_FG_INIT,
+                    "%s", Fg_getLastErrorDescription(priv->fg));
+        return FALSE;
+    }
+
+    FG_TRY_PARAM(priv->fg, &priv->construct_error, FG_CAMERA_LINK_CAMTYP, &priv->description->cl_type, priv->fg_port);
+    FG_TRY_PARAM(priv->fg, &priv->construct_error, FG_FORMAT, &priv->description->cl_format, priv->fg_port);
+
+    fg_width = is_edge(priv) ? priv->width * 2 : priv->width;
+    FG_TRY_PARAM(priv->fg, &priv->construct_error, FG_WIDTH, &fg_width, priv->fg_port);
+
+    fg_height = priv->height;
+    FG_TRY_PARAM(priv->fg, &priv->construct_error, FG_HEIGHT, &fg_height, priv->fg_port);
+
+    val = FREE_RUN;
+    FG_TRY_PARAM(priv->fg, &priv->construct_error, FG_TRIGGERMODE, &val, priv->fg_port);
+
+    return TRUE;
+}
+
+static void override_property_ranges(UcaPcoClhsCamera *camera)
+{
+    UcaPcoClhsCameraPrivate *priv;
+    GObjectClass *oclass;
+
+    priv = UCA_PCO_CLHS_CAMERA_GET_PRIVATE(camera);
+    oclass = G_OBJECT_CLASS(UCA_PCO_CLHS_CAMERA_GET_CLASS(camera));
+    property_override_default_guint_value(oclass, "roi-width", priv->width);
+    property_override_default_guint_value(oclass, "roi-height", priv->height);
+
+    guint32 rates[4] = {0};
+    gint num_rates = 0;
+
+    if (pcoclhs_get_available_pixelrates(priv->pco, rates, &num_rates) == PCO_NOERROR)
+    {
+        fill_pixelrates(priv, rates, num_rates);
+        property_override_default_guint_value(oclass, "sensor-pixelrate", rates[0]);
+    }
+
+    override_temperature_range(priv);
+    override_maximum_adcs(priv);
+}
+
+static void
+uca_pco_clhs_camera_init(UcaPcoClhsCamera *self)
+{
+    UcaCamera *camera;
+    UcaPcoClhsCameraPrivate *priv;
+
+    self->priv = priv = UCA_PCO_CLHS_CAMERA_GET_PRIVATE(self);
+
+    priv->fg_mem = NULL;
+    priv->description = NULL;
+    priv->last_frame = 0;
+    priv->grab_buffer = NULL;
+    priv->delay_timebase = 0xDEAD;
+    priv->exposure_timebase = 0xDEAD;
+    priv->construct_error = NULL;
+    priv->version = g_strdup(DEFAULT_VERSION);
+    priv->timeout = 5;
+
+    if (!setup_pco_clhs_camera(priv))
+        return;
+
+    if (!setup_frame_grabber(priv))
+        return;
+
+    override_property_ranges(self);
+
+    camera = UCA_CAMERA(self);
+    uca_camera_register_unit(camera, "sensor-width-extended", UCA_UNIT_PIXEL);
+    uca_camera_register_unit(camera, "sensor-height-extended", UCA_UNIT_PIXEL);
+    uca_camera_register_unit(camera, "sensor-temperature", UCA_UNIT_DEGREE_CELSIUS);
+    uca_camera_set_writable(camera, "exposure-time", TRUE);
+    uca_camera_set_writable(camera, "frames-per-second", TRUE);
+}
+
+G_MODULE_EXPORT GType camera_plugin_get_type(void)
+{
+    return UCA_TYPE_PCO_CLHS_CAMERA;
+}
