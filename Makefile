@@ -28,17 +28,10 @@ INC_DIRS += $(SISODIR5)/include
 LIB_DIRS += $(SISODIR5)/lib
 LIB_DIRS += $(SISODIR5)/lib64
 
-LIB_NAMES += clsersis fglib5 haprt
+LIB_NAMES += fglib5 haprt
 
 
 # PCO.Linux SDK
-# INC_DIRS += $(PCOSDKDIR)/pco_common/pco_include
-# INC_DIRS += $(PCOSDKDIR)/pco_common/pco_classes
-# INC_DIRS += $(PCOSDKDIR)/pco_clhs/pco_clhs_common
-# INC_DIRS += $(PCOSDKDIR)/pco_clhs/pco_classes
-
-# LIB_DIRS += $(PCOSDKDIR)/pco_clhs/bindyn
-# LIB_DIRS += $(PCOSDKDIR)/pco_common/pco_lib
 LIB_DIRS += /usr/local/lib
 
 LIB_NAMES += pcoclhs pcocam_clhs pcocom_clhs pcofile pcolog reorderfunc

@@ -3,8 +3,6 @@
 #include <string.h>
 #include <time.h>
 
-#include <clser.h>
-
 #include "pcoclhs.h"
 
 #include "pco/Cpco_com_clhs.h"
@@ -29,9 +27,9 @@
             return (code);           \
     }
 
-/* PCO Reorder Functions */
+/* Static helper functions */
 
-static void decode_line(int width, void *bufout, void *bufin)
+static void _decode_line(int width, void *bufout, void *bufin)
 {
     uint32_t *lineadr_in = (uint32_t *)bufin;
     uint32_t *lineadr_out = (uint32_t *)bufout;
@@ -68,7 +66,7 @@ static void decode_line(int width, void *bufout, void *bufin)
     }
 }
 
-static void pcoclhs_reorder_image_5x12(uint16_t *bufout, uint16_t *bufin, int width, int height)
+static void func_reorder_image_5x12(uint16_t *bufout, uint16_t *bufin, int width, int height)
 {
     uint16_t *line_top = bufout;
     uint16_t *line_bottom = bufout + (height - 1) * width;
@@ -77,16 +75,16 @@ static void pcoclhs_reorder_image_5x12(uint16_t *bufout, uint16_t *bufin, int wi
 
     for (int y = 0; y < height / 2; y++)
     {
-        decode_line(width, line_top, line_in);
+        _decode_line(width, line_top, line_in);
         line_in += off;
-        decode_line(width, line_bottom, line_in);
+        _decode_line(width, line_bottom, line_in);
         line_in += off;
         line_top += width;
         line_bottom -= width;
     }
 }
 
-static void pcoclhs_reorder_image_5x16(uint16_t *bufout, uint16_t *bufin, int width, int height)
+static void func_reorder_image_5x16(uint16_t *bufout, uint16_t *bufin, int width, int height)
 {
     uint16_t *line_top = bufout;
     uint16_t *line_bottom = bufout + (height - 1) * width;
@@ -103,7 +101,7 @@ static void pcoclhs_reorder_image_5x16(uint16_t *bufout, uint16_t *bufin, int wi
     }
 }
 
-static void pcoclhs_fill_binning_array(uint16_t *a, unsigned int n, int is_linear)
+static void _fill_binning_array(uint16_t *a, unsigned int n, int is_linear)
 {
     if (is_linear)
     {
@@ -117,7 +115,7 @@ static void pcoclhs_fill_binning_array(uint16_t *a, unsigned int n, int is_linea
     }
 }
 
-static uint16_t pcoclhs_msb_pos(uint16_t x)
+static uint16_t _msb_position(uint16_t x)
 {
     uint16_t val = 0;
     while (x >>= 1)
@@ -125,24 +123,24 @@ static uint16_t pcoclhs_msb_pos(uint16_t x)
     return val;
 }
 
-static uint16_t pcoclhs_get_num_binnings(uint16_t max_binning, int is_linear)
+static uint16_t _get_num_binnings(uint16_t max_binning, int is_linear)
 {
-    return is_linear ? max_binning : pcoclhs_msb_pos(max_binning) + 1;
+    return is_linear ? max_binning : _msb_position(max_binning) + 1;
 }
 
 /*************************/
 
-struct pcoclhs_t
+struct _pcoclhs_handle
 {
     CPco_com_clhs *com;  /* Comm. interface to a camera */
     CPco_grab_clhs *grabber; /* Frame-grabber interface */
 
     uint32_t cachedDelay, cachedExposure;
     pcoclhs_reorder_image_t reorder_func;
-    void *serial_refs[4];
 
     void *imgadr;
 };
+
 
 unsigned int pcoclhs_init(pcoclhs_handle *pco, int board, int port)
 {
@@ -163,12 +161,15 @@ unsigned int pcoclhs_init(pcoclhs_handle *pco, int board, int port)
     err = pco->grabber->Open_Grabber(board);
     CHECK_ERROR_AND_RETURN(err);
 
-    pco->reorder_func = &pcoclhs_reorder_image_5x16;
+    pco->reorder_func = &func_reorder_image_5x16;
 
     err = pco->grabber->Set_Grabber_Timeout(10000);
     CHECK_ERROR_AND_RETURN(err);
 
     err = pco->com->PCO_SetCameraToCurrentTime();
+    CHECK_ERROR_AND_RETURN(err);
+
+    err = pco->com->PCO_ResetSettingsToDefault();
     CHECK_ERROR_AND_RETURN(err);
 
     err = pco->com->PCO_SetBitAlignment(BIT_ALIGNMENT_LSB);
@@ -191,14 +192,26 @@ void pcoclhs_destroy(pcoclhs_handle *pco)
     delete pco->grabber;
 }
 
-static void pcoclhs_get_num_serial_ports(uint32_t *num_ports)
-{
-    clGetNumSerialPorts(num_ports);
-}
-
 unsigned int pcoclhs_control_command(pcoclhs_handle *pco, void *buffer_in, uint32_t size_in, void *buffer_out, uint32_t size_out)
 {
     return pco->com->Control_Command(buffer_in, size_in, buffer_out, size_out);
+}
+
+unsigned int pcoclhs_grabber_set_size(pcoclhs_handle *pco, uint32_t width, uint32_t height)
+{
+    return pco->grabber->Set_Grabber_Size(width, height);
+}
+
+unsigned int pcoclhs_grabber_allocate_memory(pcoclhs_handle *pco, int size)
+{
+    // not actually implemented, just returns PCO_NOERROR
+    return pco->grabber->Allocate_Framebuffer(size);
+}
+
+unsigned int pcoclhs_grabber_free_memory(pcoclhs_handle *pco)
+{
+    // not actually implemented, just returns PCO_NOERROR
+    return pco->grabber->Free_Framebuffer();
 }
 
 unsigned int pcoclhs_prepare_recording(pcoclhs_handle *pco)
@@ -410,12 +423,12 @@ unsigned int pcoclhs_set_scan_mode(pcoclhs_handle *pco, uint32_t mode)
 
     if (mode == PCO_SCANMODE_SLOW)
     {
-        pco->reorder_func = &pcoclhs_reorder_image_5x16;
+        pco->reorder_func = &func_reorder_image_5x16;
         pco->grabber->Set_DataFormat(SCCMOS_FORMAT_TOP_CENTER_BOTTOM_CENTER | PCO_CL_DATAFORMAT_5x16);
     }
     else if (mode == PCO_SCANMODE_FAST)
     {
-        pco->reorder_func = &pcoclhs_reorder_image_5x12;
+        pco->reorder_func = &func_reorder_image_5x12;
         pco->grabber->Set_DataFormat(SCCMOS_FORMAT_TOP_CENTER_BOTTOM_CENTER | PCO_CL_DATAFORMAT_5x12);
     }
 
@@ -460,7 +473,6 @@ unsigned int pcoclhs_get_lut(pcoclhs_handle *pco, uint16_t *key, uint16_t *val)
 
 unsigned int pcoclhs_set_roi(pcoclhs_handle *pco, uint16_t *window)
 {
-    //TODO calculate ROI in plugin code
     int err = pco->com->PCO_SetROI(window[0], window[1], window[2], window[3]);
     CHECK_ERROR_AND_RETURN(err);
     return pcoclhs_arm_camera(pco);
@@ -493,8 +505,10 @@ unsigned int pcoclhs_get_roi_steps(pcoclhs_handle *pco, uint16_t *horizontal, ui
 
 bool pcoclhs_is_double_image_mode_available(pcoclhs_handle *pco)
 {
-    uint16_t discard;
-    return pco->com->PCO_GetDoubleImageMode(&discard) == 0;
+    SC2_Camera_Description_Response desc;
+    int err = pco->com->PCO_GetCameraDescriptor(&desc);
+    CHECK_ERROR(err);
+    return err == 0 && desc.wDoubleImageDESC == 1;
 }
 
 unsigned int pcoclhs_set_double_image_mode(pcoclhs_handle *pco, bool on)
@@ -763,14 +777,14 @@ unsigned int pcoclhs_request_image(pcoclhs_handle *pco)
 unsigned int pcoclhs_get_next_image(pcoclhs_handle *pco, void *adr)
 {
     int err;
-    uint16_t trigger1, trigger2;
+    uint16_t mode, triggered;
 
-    err = pcoclhs_get_trigger_mode(pco, &trigger1);
+    err = pcoclhs_get_trigger_mode(pco, &mode);
     CHECK_ERROR_AND_RETURN(err);
 
-    if (trigger1 == 0x0001)
+    if (mode == 0x0001)
     {
-        err = pcoclhs_force_trigger(pco, &trigger2);
+        err = pcoclhs_force_trigger(pco, &triggered);
         CHECK_ERROR_AND_RETURN(err);
     }
 
@@ -801,7 +815,6 @@ unsigned int pcoclhs_set_binning(pcoclhs_handle *pco, uint16_t horizontal, uint1
 {
     int err = pco->com->PCO_SetBinning(horizontal, vertical);
     CHECK_ERROR_AND_RETURN(err);
-    //pcoclhs_reset_serial(pco);
     return pcoclhs_arm_camera(pco);
 }
 
@@ -812,13 +825,13 @@ unsigned int pcoclhs_get_possible_binnings(pcoclhs_handle *pco, uint16_t **horiz
     int err = pco->com->PCO_GetCameraDescriptor(&desc);
     CHECK_ERROR_AND_RETURN(err);
 
-    unsigned int num_h = pcoclhs_get_num_binnings(desc.wMaxBinHorzDESC, desc.wBinHorzSteppingDESC);
+    unsigned int num_h = _get_num_binnings(desc.wMaxBinHorzDESC, desc.wBinHorzSteppingDESC);
     uint16_t *r_horizontal = (uint16_t *)malloc(num_h * sizeof(uint16_t));
-    pcoclhs_fill_binning_array(r_horizontal, num_h, desc.wBinHorzSteppingDESC);
+    _fill_binning_array(r_horizontal, num_h, desc.wBinHorzSteppingDESC);
 
-    unsigned int num_v = pcoclhs_get_num_binnings(desc.wMaxBinVertDESC, desc.wBinVertSteppingDESC);
+    unsigned int num_v = _get_num_binnings(desc.wMaxBinVertDESC, desc.wBinVertSteppingDESC);
     uint16_t *r_vertical = (uint16_t *)malloc(num_v * sizeof(uint16_t));
-    pcoclhs_fill_binning_array(r_vertical, num_v, desc.wBinVertSteppingDESC);
+    _fill_binning_array(r_vertical, num_v, desc.wBinVertSteppingDESC);
 
     *horizontal = r_horizontal;
     *vertical = r_vertical;

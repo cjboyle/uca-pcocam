@@ -2,7 +2,8 @@
 #define _PCOCLHS_H_
 
 #ifdef __cplusplus
-extern "C" {
+extern "C"
+{
 #endif
 
 #include <stdint.h>
@@ -18,17 +19,22 @@ extern "C" {
     typedef enum
     {
         PCO_EDGE_ROLLING_SHUTTER = PCO_EDGE_SETUP_ROLLING_SHUTTER,
-        PCO_EDGE_GLOBAL_SHUTTER = PCO_EDGE_SETUP_GLOBAL_SHUTTER
+        PCO_EDGE_GLOBAL_SHUTTER = PCO_EDGE_SETUP_GLOBAL_SHUTTER,
+        PCO_EDGE_GLOBAL_RESET = PCO_EDGE_SETUP_GLOBAL_RESET,
     } pco_edge_shutter;
 
-    struct pcoclhs_t;
-    typedef struct pcoclhs_t pcoclhs_handle;
+    struct _pcoclhs_handle;
+    typedef struct _pcoclhs_handle pcoclhs_handle; /* Handle to a PCO CameraLink HS wrapper containing references to a camera and grabber. */
 
     unsigned int pcoclhs_init(pcoclhs_handle *pco, int board, int port);
 
     void pcoclhs_destroy(pcoclhs_handle *pco);
 
     unsigned int pcoclhs_control_command(pcoclhs_handle *pco, void *buffer_in, uint32_t size_in, void *buffer_out, uint32_t size_out);
+
+    unsigned int pcoclhs_grabber_set_size(pcoclhs_handle *pco, uint32_t width, uint32_t height);
+    unsigned int pcoclhs_grabber_allocate_memory(pcoclhs_handle *pco, int size);
+    unsigned int pcoclhs_grabber_free_memory(pcoclhs_handle *pco);
 
     unsigned int pcoclhs_prepare_recording(pcoclhs_handle *pco);
 
@@ -168,7 +174,7 @@ extern "C" {
 
     unsigned int pcoclhs_set_binning(pcoclhs_handle *pco, uint16_t horizontal, uint16_t vertical);
 
-    static void pcoclhs_fill_binning_array(uint16_t *a, unsigned int n, int is_linear);
+    static void _fill_binning_array(uint16_t *a, unsigned int n, int is_linear);
 
     unsigned int pcoclhs_get_possible_binnings(pcoclhs_handle *pco, uint16_t **horizontal, unsigned int *num_horizontal, uint16_t **vertical, unsigned int *num_vertical);
 
