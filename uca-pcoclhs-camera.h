@@ -46,6 +46,10 @@ typedef enum {
     UCA_PCO_CLHS_CAMERA_TIMESTAMP_ASCII
 } UcaPcoClhsCameraTimestamp;
 
+typedef struct _UcaPcoClhsCamera UcaPcoClhsCamera;
+typedef struct _UcaPcoClhsCameraClass UcaPcoClhsCameraClass;
+typedef struct _UcaPcoClhsCameraPrivate UcaPcoClhsCameraPrivate;
+
 /**
  * UcaPcoClhsCamera:
  *
@@ -69,10 +73,6 @@ struct _UcaPcoClhsCameraClass {
     /*< private >*/
     UcaCameraClass parent;
 };
-
-typedef struct _UcaPcoClhsCamera UcaPcoClhsCamera;
-typedef struct _UcaPcoClhsCameraClass UcaPcoClhsCameraClass;
-typedef struct _UcaPcoClhsCameraPrivate UcaPcoClhsCameraPrivate;
 
 GType uca_pco_clhs_camera_get_type(void);
 
