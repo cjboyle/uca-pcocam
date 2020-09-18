@@ -11,6 +11,7 @@ extern "C"
 
 #include "pco/defs.h"
 #include "pco/sc2_defs.h"
+#include "pco/PCO_err.h"
 
 #define PCO_SCANMODE_SLOW 0
 #define PCO_SCANMODE_FAST 1
