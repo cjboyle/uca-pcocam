@@ -9,7 +9,8 @@ extern "C"
 #include <stdint.h>
 #include <stdbool.h>
 
-#include "pco/pco_includes.h"
+#include "pco/defs.h"
+#include "pco/sc2_defs.h"
 
 #define PCO_SCANMODE_SLOW 0
 #define PCO_SCANMODE_FAST 1

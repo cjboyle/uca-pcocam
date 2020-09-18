@@ -252,18 +252,6 @@ static gdouble get_internal_delay(UcaPcoClhsCamera *camera)
     return 0.0;
 }
 
-static int fg_callback(gint64 fram, struct fg_apc_data *apc)
-{
-    UcaCamera *camera = UCA_CAMERA(apc);
-    UcaPcoClhsCameraPrivate *priv = UCA_PCO_CLHS_CAMERA_GET_PRIVATE(camera);
-    //TODO
-}
-
-static gboolean setup_fg_callback(UcaCamera *camera)
-{
-    //TODO
-}
-
 static void check_pco_clhs_property_error(guint err, guint property_id)
 {
     if (err != PCO_NOERROR)
