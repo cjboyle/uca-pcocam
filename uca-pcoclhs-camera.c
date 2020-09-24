@@ -29,10 +29,10 @@
         return val;                                           \
     }
 
-static void uca_pco_clhs_initable_iface_init(GInitableIface *iface);
+static void uca_pco_clhs_camera_initable_iface_init(GInitableIface *iface);
 
 G_DEFINE_TYPE_WITH_CODE(UcaPcoClhsCamera, uca_pco_clhs_camera, UCA_TYPE_CAMERA,
-                        G_IMPLEMENT_INTERFACE(G_TYPE_INITABLE, uca_pco_clhs_initable_iface_init))
+                        G_IMPLEMENT_INTERFACE(G_TYPE_INITABLE, uca_pco_clhs_camera_initable_iface_init))
 
 GQuark uca_pco_clhs_camera_error_quark()
 {
@@ -969,7 +969,7 @@ static void uca_pco_clhs_camera_initable_iface_init(GInitableIface *iface)
     iface->init = uca_pco_clhs_camera_initable_init;
 }
 
-static void uca_pco_camera_class_init(UcaPcoClhsCameraClass *klass)
+static void uca_pco_clhs_camera_class_init(UcaPcoClhsCameraClass *klass)
 {
     GObjectClass *gobject_class = G_OBJECT_CLASS(klass);
     gobject_class->set_property = uca_pco_clhs_camera_set_property;

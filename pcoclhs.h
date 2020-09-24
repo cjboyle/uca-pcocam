@@ -176,8 +176,6 @@ extern "C"
 
     unsigned int pcoclhs_set_binning(pcoclhs_handle *pco, uint16_t horizontal, uint16_t vertical);
 
-    static void _fill_binning_array(uint16_t *a, unsigned int n, int is_linear);
-
     unsigned int pcoclhs_get_possible_binnings(pcoclhs_handle *pco, uint16_t **horizontal, unsigned int *num_horizontal, uint16_t **vertical, unsigned int *num_vertical);
 
     unsigned int pcoclhs_set_hotpixel_correction(pcoclhs_handle *pco, uint32_t mode);
