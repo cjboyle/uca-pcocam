@@ -13,7 +13,7 @@ G_BEGIN_DECLS
 #define UCA_IS_PCO_CLHS_CAMERA_CLASS(klass)  (G_TYPE_CHECK_CLASS_TYPE((klass), UCA_TYPE_PCO_CLHS_CAMERA))
 #define UCA_PCO_CLHS_CAMERA_GET_CLASS(obj)   (G_TYPE_INSTANCE_GET_CLASS((obj), UCA_TYPE_PCO_CLHS_CAMERA, UcaPcoClhsCameraClass))
 
-#define UCA_PCO_CLHS_CAMERA_ERROR uca_pco_clhs_camera_quark()
+#define UCA_PCO_CLHS_CAMERA_ERROR uca_pco_clhs_camera_error_quark()
 
 typedef enum {
     UCA_PCO_CLHS_CAMERA_ERROR_PCOSDK_INIT = 1,
