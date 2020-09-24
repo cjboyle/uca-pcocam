@@ -7,6 +7,7 @@
 
 #include "pcoclhs.h"
 #include "uca-pcoclhs-camera.h"
+#include "uca-pcoclhs-enums.h"
 
 #define UCA_PCO_CLHS_CAMERA_GET_PRIVATE(obj) (G_TYPE_INSTANCE_GET_PRIVATE((obj), UCA_TYPE_PCO_CLHS_CAMERA, UcaPcoClhsCameraPrivate))
 
