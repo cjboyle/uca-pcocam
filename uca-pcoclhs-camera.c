@@ -191,6 +191,24 @@ static guint read_timebase(UcaPcoClhsCameraPrivate *priv)
     return pcoclhs_get_timebase(priv->pco, &priv->delay_timebase, &priv->exposure_timebase);
 }
 
+static gboolean check_timebase(gdouble time, gdouble scale)
+{
+    const gdouble EPSILON = 1e-3;
+    gdouble scaled = time * scale;
+    return scaled >= 1.0 && (scaled - ((int)scaled)) < EPSILON;
+}
+
+static guint16 get_suitable_timebase(gdouble time)
+{
+    if (check_timebase(time, 1e3))
+        return TIMEBASE_MS;
+    if (check_timebase(time, 1e6))
+        return TIMEBASE_US;
+    if (check_timebase(time, 1e9))
+        return TIMEBASE_NS;
+    return 0xDEAD;
+}
+
 static void fill_pixelrates(UcaPcoClhsCameraPrivate *priv, guint32 rates[4], gint num_rates)
 {
     GValue val = {0};
@@ -211,45 +229,6 @@ static void property_override_default_guint_value(GObjectClass *oclass, const gc
         pspec->default_value = new_default;
     else
         g_warning("pspec for %s not found\n", property_name);
-}
-
-static guint read_timebase(UcaPcoClhsCameraPrivate *priv)
-{
-    return pcoclhs_get_timebase(priv->pco, &priv->delay_timebase, &priv->exposure_timebase);
-}
-
-static gboolean check_timebase(gdouble time, gdouble scale)
-{
-    const gdouble EPSILON = 1e-3;
-    gdouble scaled = time * scale;
-    return scaled >= 1.0 && (scaled - ((int)scaled)) < EPSILON;
-}
-
-static guint16 get_suitable_timebase(gdouble time)
-{
-    if (check_timebase(time, 1e3))
-        return TIMEBASE_MS;
-    if (check_timebase(time, 1e6))
-        return TIMEBASE_US;
-    if (check_timebase(time, 1e9))
-        return TIMEBASE_NS;
-    return 0xDEAD;
-}
-
-static gdouble get_internal_delay(UcaPcoClhsCamera *camera)
-{
-    if (camera->priv->description->type == CAMERATYPE_PCO_DIMAX_STD)
-    {
-        guint sensor_rate;
-        g_object_get(camera, "sensor-pixelrate", &sensor_rate, NULL);
-
-        if (sensor_rate == 55000000.0)
-            return 0.000079;
-        else if (sensor_rate == 62500000.0)
-            return 0.000036;
-    }
-
-    return 0.0;
 }
 
 static void check_pco_clhs_property_error(guint err, guint property_id)
