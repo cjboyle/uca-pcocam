@@ -7,7 +7,7 @@ PROJ_NAME = uca-pcoclhs
 
 
 CC = gcc
-CCFLAGS = -std=c99 -Wall -fPIC
+CCFLAGS = -std=c11 -Wall -fPIC
 CXX = g++
 CXXFLAGS = -std=c++0x -Wall -fPIC
 LDFLAGS = -shared
