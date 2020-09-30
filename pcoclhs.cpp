@@ -8,11 +8,18 @@
 #include "pco/Cpco_com_clhs.h"
 #include "pco/Cpco_grab_clhs.h"
 
+#define PCO_ERRT_H_CREATE_OBJECT
+#include "pco/PCO_errt.h"
 /** 
  * This module serves as a wrapper to access the C++ implementations of
  * the PCO.Camera methods. Otherwise, it is essentially a port of
  * UFO-KIT's libpco library partial implementation.
  */
+
+#define PRINT_ERROR_TEXT(code) \
+    char *s; \
+    PCO_GetErrorText((code), s, 200); \
+    fprintf(stderr, "  %s\n", s);
 
 #define CHECK_ERROR(code)                                                      \
     if ((code) != 0)                                                           \
