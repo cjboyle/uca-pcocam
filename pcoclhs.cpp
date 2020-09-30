@@ -9,6 +9,7 @@
 #include "pco/Cpco_grab_clhs.h"
 
 #define PCO_ERRT_H_CREATE_OBJECT
+#define sprintf_s snprintf
 #include "pco/PCO_errt.h"
 /** 
  * This module serves as a wrapper to access the C++ implementations of
