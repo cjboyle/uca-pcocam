@@ -17,15 +17,11 @@
  * UFO-KIT's libpco library partial implementation.
  */
 
-#define PRINT_ERROR_TEXT(code) \
-    char *s; \
-    PCO_GetErrorText((code), s, 200); \
-    fprintf(stderr, "  %s\n", s);
-
 #define CHECK_ERROR(code)                                                      \
     if ((code) != 0)                                                           \
     {                                                                          \
         fprintf(stderr, "Error: %x at <%s:%i>\n", (code), __FILE__, __LINE__); \
+        fprintf(stderr, "  %s\n", _get_error_text((code)));                    \
     }
 
 #define CHECK_ERROR_AND_RETURN(code) \
@@ -36,6 +32,13 @@
     }
 
 /* Static helper functions */
+
+static char *_get_error_text(DWORD code)
+{
+    char s[200];
+    PCO_GetErrorText(code, s, 200);
+    return (char *)s;
+}
 
 static void _decode_line(int width, void *bufout, void *bufin)
 {
@@ -140,7 +143,7 @@ static uint16_t _get_num_binnings(uint16_t max_binning, int is_linear)
 
 struct _pcoclhs_handle
 {
-    CPco_com_clhs *com;  /* Comm. interface to a camera */
+    CPco_com_clhs *com;      /* Comm. interface to a camera */
     CPco_grab_clhs *grabber; /* Frame-grabber interface */
 
     uint32_t cachedDelay, cachedExposure;
@@ -149,11 +152,10 @@ struct _pcoclhs_handle
     void *imgadr;
 };
 
-
 unsigned int pcoclhs_init(pcoclhs_handle *pco, int board, int port)
 {
     DWORD err;
-    pco = (pcoclhs_handle*)malloc(sizeof(pcoclhs_handle));
+    pco = (pcoclhs_handle *)malloc(sizeof(pcoclhs_handle));
 
     CPco_com_clhs *com;
     com = new CPco_com_clhs();
