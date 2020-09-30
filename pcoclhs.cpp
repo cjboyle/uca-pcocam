@@ -35,8 +35,8 @@
 
 static char *_get_error_text(DWORD code)
 {
-    char s[200];
-    PCO_GetErrorText(code, s, 200);
+    char *s = (char*)malloc(255);
+    PCO_GetErrorText(code, s, 255);
     return (char *)s;
 }
 
@@ -165,10 +165,10 @@ unsigned int pcoclhs_init(pcoclhs_handle *pco, int board, int port)
     grab = new CPco_grab_clhs(com);
     pco->grabber = grab;
 
-    err = pco->com->Open_Cam(port);
+    err = pco->com->Open_Cam(0);
     CHECK_ERROR_AND_RETURN(err);
 
-    err = pco->grabber->Open_Grabber(board);
+    err = pco->grabber->Open_Grabber(0);
     CHECK_ERROR_AND_RETURN(err);
 
     pco->reorder_func = &func_reorder_image_5x16;
