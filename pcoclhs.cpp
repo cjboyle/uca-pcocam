@@ -165,7 +165,7 @@ static unsigned int _pcoclhs_init(pcoclhs_handle *pco, int board, int port)
     grab = new CPco_grab_clhs(com);
     pco->grabber = grab;
 
-    err = pco->com->Open_Cam(0);
+    err = pco->com->Open_Cam(1);
     CHECK_ERROR_AND_RETURN(err);
 
     err = pco->grabber->Open_Grabber(0);
