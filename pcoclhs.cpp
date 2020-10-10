@@ -165,7 +165,11 @@ static unsigned int _pcoclhs_init(pcoclhs_handle *pco, int board, int port)
     grab = new CPco_grab_clhs(com);
     pco->grabber = grab;
 
-    err = pco->com->Open_Cam(1);
+    for (unsigned int i = 0; i <= 8; i++)
+    {
+        err = pco->com->Open_Cam(i);
+        if (err == PCO_NOERROR) break;
+    }
     CHECK_ERROR_AND_RETURN(err);
 
     err = pco->grabber->Open_Grabber(0);
@@ -325,7 +329,8 @@ unsigned int pcoclhs_get_health_state(pcoclhs_handle *pco, uint32_t *warnings, u
 
 unsigned int pcoclhs_reset(pcoclhs_handle *pco)
 {
-    return pco->com->PCO_ResetSettingsToDefault();
+    pcoclhs_destroy(pco);
+    return _pcoclhs_init(pco, 0, 0);
 }
 
 unsigned int pcoclhs_get_temperature(pcoclhs_handle *pco, int16_t *ccd, int16_t *camera, int16_t *power)
