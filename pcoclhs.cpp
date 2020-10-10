@@ -152,7 +152,7 @@ struct _pcoclhs_handle
     void *imgadr;
 };
 
-unsigned int pcoclhs_init(pcoclhs_handle *pco, int board, int port)
+static unsigned int _pcoclhs_init(pcoclhs_handle *pco, int board, int port)
 {
     DWORD err;
     pco = (pcoclhs_handle *)malloc(sizeof(pcoclhs_handle));
@@ -194,10 +194,20 @@ unsigned int pcoclhs_init(pcoclhs_handle *pco, int board, int port)
     return PCO_NOERROR;
 }
 
+void pcoclhs_init(pcoclhs_handle *pco, int board, int port)
+{
+    if (_pcoclhs_init(pco, 0, 0) != PCO_NOERROR)
+        pcoclhs_destroy(pco);
+}
+
 void pcoclhs_destroy(pcoclhs_handle *pco)
 {
     if (pco == NULL)
         return;
+    
+    pco->grabber->Close_Grabber();
+    pco->com->Close_Cam();
+
     delete pco->com;
     delete pco->grabber;
 }

@@ -1,4 +1,4 @@
-SISODIR5 = /opt/SiliconSoftware/Runtime5.7.0
+SISODIR5 = /opt/SiliconSoftware/Runtime5.4.4
 # PCOSDKDIR = /opt/PCO/pco_camera
 
 LIB_NAME = ucapcoclhs

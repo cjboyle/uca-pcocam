@@ -28,7 +28,7 @@ extern "C"
     struct _pcoclhs_handle;
     typedef struct _pcoclhs_handle pcoclhs_handle; /* Handle to a PCO CameraLink HS wrapper containing references to a camera and grabber. */
 
-    unsigned int pcoclhs_init(pcoclhs_handle *pco, int board, int port);
+    void pcoclhs_init(pcoclhs_handle *pco, int board, int port);
 
     void pcoclhs_destroy(pcoclhs_handle *pco);
 
