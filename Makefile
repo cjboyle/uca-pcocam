@@ -25,7 +25,7 @@ LIB_NAMES += uca
 # SISO Runtime SDK
 INC_DIRS += $(SISODIR5)/include
 
-LIB_DIRS += $(SISODIR5)/lib
+# LIB_DIRS += $(SISODIR5)/lib
 LIB_DIRS += $(SISODIR5)/lib64
 
 LIB_NAMES += fglib5 haprt
