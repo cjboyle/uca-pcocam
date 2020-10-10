@@ -844,7 +844,7 @@ unsigned int pcoclhs_get_next_image(pcoclhs_handle *pco, void *adr)
         CHECK_ERROR_AND_RETURN(err);
     }
 
-    DWORD err = pco->grabber->Wait_For_Next_Image(adr, 10000);
+    err = pco->grabber->Wait_For_Next_Image(adr, 10000);
     CHECK_ERROR_THEN_RETURN(err);
 }
 
