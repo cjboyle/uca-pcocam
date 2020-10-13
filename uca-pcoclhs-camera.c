@@ -1129,13 +1129,13 @@ static gboolean setup_pco_clhs_camera(UcaPcoClhsCameraPrivate *priv)
     guint err;
     GError **error = &priv->construct_error;
 
-    pcoclhs_init(&priv->pco, priv->board, priv->port);
+    err = pcoclhs_init(&priv->pco, priv->board, priv->port);
 
     if (priv->pco == NULL)
     {
         g_set_error(error,
                     UCA_PCO_CLHS_CAMERA_ERROR, UCA_PCO_CLHS_CAMERA_ERROR_PCOSDK_INIT,
-                    "Initializing pco wrapper failed");
+                    "Initializing pco wrapper failed: %x", err);
         return FALSE;
     }
 
