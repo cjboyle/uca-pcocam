@@ -161,7 +161,6 @@ struct _pcoclhs_handle
 static unsigned int _pcoclhs_init(pcoclhs_handle *pco, int board, int port)
 {
     DWORD err;
-    pco = (pcoclhs_handle *)malloc(sizeof(pcoclhs_handle));
 
     CPco_com_clhs *com;
     com = new CPco_com_clhs();
