@@ -207,7 +207,7 @@ static unsigned int _pcoclhs_init(pcoclhs_handle *pco, int board, int port)
 
 unsigned int pcoclhs_init(pcoclhs_handle *pco, int board, int port)
 {
-    DWORD err = _pcoclhs_init(pco, 0, 0)
+    DWORD err = _pcoclhs_init(pco, 0, 0);
     if (err != PCO_NOERROR)
         pcoclhs_destroy(pco);
     CHECK_ERROR_THEN_RETURN(err);
