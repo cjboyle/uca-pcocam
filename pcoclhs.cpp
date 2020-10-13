@@ -781,12 +781,12 @@ unsigned int pcoclhs_set_framerate(pcoclhs_handle *pco, uint32_t framerate_mhz, 
     CHECK_ERROR_THEN_RETURN(err);
 }
 
-unsigned int pcoclhs_get_framerate(pcoclhs_handle *pco, uint32_t *framerate_mhz, uint32_t *exposure_ns)
-{
-    uint16_t discard;
-    DWORD err = pco->com->PCO_GetFrameRate(&discard, framerate_mhz, exposure_ns);
-    CHECK_ERROR_THEN_RETURN(err);
-}
+// unsigned int pcoclhs_get_framerate(pcoclhs_handle *pco, uint32_t *framerate_mhz, uint32_t *exposure_ns)
+// {
+//     uint16_t discard;
+//     DWORD err = pco->com->PCO_GetFrameRate(&discard, framerate_mhz, exposure_ns);
+//     CHECK_ERROR_THEN_RETURN(err);
+// }
 
 unsigned int pcoclhs_get_storage_mode(pcoclhs_handle *pco, uint16_t *mode)
 {

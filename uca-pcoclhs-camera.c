@@ -501,9 +501,9 @@ static void uca_pco_clhs_camera_set_property(GObject *object, guint property_id,
         uint32_t exposure;
         uint32_t framerate;
 
-        err = pcoclhs_get_framerate(priv->pco, &framerate, &exposure);
+        err = pcoclhs_get_exposure_time(priv->pco, &exposure);
         exposure = (uint32_t)(g_value_get_double(value) * 1000 * 1000 * 1000);
-        err = pcoclhs_set_framerate(priv->pco, framerate, exposure, false);
+        err = pcoclhs_set_exposure_time(priv->pco, exposure);
     }
     break;
 
@@ -732,8 +732,8 @@ static void uca_pco_clhs_camera_get_property(GObject *object, guint property_id,
 
     case PROP_EXPOSURE_TIME:
     {
-        uint32_t exposure, framerate;
-        err = pcoclhs_get_framerate(priv->pco, &framerate, &exposure);
+        uint32_t exposure;
+        err = pcoclhs_get_exposure_time(priv->pco, &exposure);
         g_value_set_double(value, exposure / 1000. / 1000. / 1000.);
     }
     break;
