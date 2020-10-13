@@ -1129,9 +1129,7 @@ static gboolean setup_pco_clhs_camera(UcaPcoClhsCameraPrivate *priv)
     guint err;
     GError **error = &priv->construct_error;
 
-    priv->pco = (pcoclhs_handle *)malloc(sizeof(pcoclhs_handle *));
-
-    err = pcoclhs_init(&priv->pco, priv->board, priv->port);
+    priv->pco = pcoclhs_init(0, 0);
 
     if (priv->pco == NULL)
     {
