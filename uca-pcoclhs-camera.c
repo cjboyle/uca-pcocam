@@ -422,9 +422,6 @@ static gboolean uca_pco_clhs_camera_grab(UcaCamera *camera, gpointer data, GErro
     g_return_val_if_fail(UCA_IS_PCO_CLHS_CAMERA(camera), FALSE);
     priv = UCA_PCO_CLHS_CAMERA_GET_PRIVATE(camera);
 
-    err = pcoclhs_request_image(priv->pco);
-    CHECK_AND_RETURN_VAL_ON_PCO_ERROR(err, FALSE);
-
     err = pcoclhs_get_next_image(priv->pco, frame);
     CHECK_AND_RETURN_VAL_ON_PCO_ERROR(err, FALSE);
 

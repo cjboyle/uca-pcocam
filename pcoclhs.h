@@ -138,8 +138,6 @@ extern "C"
 
     unsigned int pcoclhs_set_acquire_mode(pcoclhs_handle *pco, uint16_t mode);
 
-    unsigned int pcoclhs_request_image(pcoclhs_handle *pco);
-
     unsigned int pcoclhs_get_next_image(pcoclhs_handle *pco, void *adr);
 
     unsigned int pcoclhs_get_actual_size(pcoclhs_handle *pco, uint32_t *width, uint32_t *height);

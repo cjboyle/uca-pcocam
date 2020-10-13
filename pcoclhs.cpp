@@ -209,8 +209,10 @@ pcoclhs_handle *pcoclhs_init(int board, int port)
     pcoclhs_handle *pco = (pcoclhs_handle *)malloc(sizeof(*pco));
     DWORD err = _pcoclhs_init(pco, 0, 0);
     if (err != PCO_NOERROR)
+    {
         pcoclhs_destroy(pco);
-    CHECK_ERROR(err);
+        CHECK_ERROR(err);
+    }
     return pco;
 }
 
@@ -761,12 +763,6 @@ unsigned int pcoclhs_set_acquire_mode(pcoclhs_handle *pco, uint16_t mode)
     DWORD err = pco->com->PCO_SetAcquireMode(mode);
     CHECK_ERROR_AND_RETURN(err);
     err = pcoclhs_arm_camera(pco);
-    CHECK_ERROR_THEN_RETURN(err);
-}
-
-unsigned int pcoclhs_request_image(pcoclhs_handle *pco)
-{
-    DWORD err = pco->com->PCO_RequestImage();
     CHECK_ERROR_THEN_RETURN(err);
 }
 
