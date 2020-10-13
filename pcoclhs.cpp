@@ -244,7 +244,9 @@ unsigned int pcoclhs_grabber_allocate_memory(pcoclhs_handle *pco, int size)
 unsigned int pcoclhs_grabber_free_memory(pcoclhs_handle *pco)
 {
     // not actually implemented, just returns PCO_NOERROR
-    return pco->grabber->Free_Framebuffer();
+    // return pco->grabber->Free_Framebuffer();
+    // seems like it actually throws an error
+    return 0;
 }
 
 unsigned int pcoclhs_prepare_recording(pcoclhs_handle *pco)
