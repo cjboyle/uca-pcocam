@@ -60,7 +60,6 @@ enum
     PROP_SENSOR_PIXELRATE,
     PROP_HAS_DOUBLE_IMAGE_MODE,
     PROP_DOUBLE_IMAGE_MODE,
-    // PROP_OFFSET_MODE,
     PROP_ACQUIRE_MODE,
     PROP_FAST_SCAN,
     PROP_NOISE_FILTER,
@@ -81,7 +80,6 @@ static gint base_overrideables[] = {
     PROP_SENSOR_HORIZONTAL_BINNING,
     PROP_SENSOR_VERTICAL_BINNING,
     PROP_EXPOSURE_TIME,
-    PROP_FRAMES_PER_SECOND,
     PROP_TRIGGER_SOURCE,
     PROP_ROI_X,
     PROP_ROI_Y,
@@ -154,7 +152,6 @@ struct _UcaPcoClhsCameraPrivate
     GValueArray *pixelrates;
 
     gint64 last_frame;
-    // guint16 active_segment;
     guint num_recorded_images;
     guint current_image;
 
@@ -498,20 +495,17 @@ static void uca_pco_clhs_camera_set_property(GObject *object, guint property_id,
 
     case PROP_EXPOSURE_TIME:
     {
-        uint32_t exposure;
-        uint32_t framerate;
-        err = pcoclhs_get_exposure_time(priv->pco, &exposure);
-        exposure = (uint32_t)(g_value_get_double(value) * 1000 * 1000 * 1000);
-        err = pcoclhs_set_exposure_time(priv->pco, exposure);
-    }
-    break;
-
-    case PROP_FRAMES_PER_SECOND:
-    {
-        uint32_t exposure;
-        uint32_t framerate;
-        framerate = (uint32_t)(g_value_get_double(value) * 1000);
-        err = pcoclhs_set_framerate(priv->pco, framerate, exposure, true);
+        uint32_t exposure_s, min_ns, max_ms, steps_ns;
+        pcoclhs_get_exposure_range(priv->pco, &min_ns, &max_ms, &steps_ns);
+        exposure_s = (uint32_t)(g_value_get_double(value));
+        double exposure_ms = exposure_s * 1e3;
+        double exposure_ns = exposure_s * 1e9;
+        if (exposure_ms > max_ms)
+            err = pcoclhs_set_exposure_time(priv->pco, max_ms * 1e6);
+        else if (exposure_ns < min_ns)
+            err = pcoclhs_set_exposure_time(priv->pco, min_ns);
+        else
+            err = pcoclhs_set_exposure_time(priv->pco, exposure_ns);
     }
     break;
 
@@ -545,10 +539,6 @@ static void uca_pco_clhs_camera_set_property(GObject *object, guint property_id,
         if (pcoclhs_is_double_image_mode_available(priv->pco))
             err = pcoclhs_set_double_image_mode(priv->pco, g_value_get_boolean(value));
         break;
-
-    // case PROP_OFFSET_MODE:
-    //     err = pcoclhs_set_offset_mode(priv->pco, g_value_get_boolean(value));
-    //     break;
 
     case PROP_ACQUIRE_MODE:
     {
@@ -737,15 +727,6 @@ static void uca_pco_clhs_camera_get_property(GObject *object, guint property_id,
     }
     break;
 
-    case PROP_FRAMES_PER_SECOND:
-    {
-        uint32_t rate, w, h;
-        err = pcoclhs_get_pixelrate(priv->pco, &rate);
-        pcoclhs_get_actual_size(priv->pco, &w, &h);
-        g_value_set_double(value, (h * w) / (rate * 1.));
-    }
-    break;
-
     case PROP_HAS_DOUBLE_IMAGE_MODE:
         g_value_set_boolean(value, pcoclhs_is_double_image_mode_available(priv->pco));
         break;
@@ -759,14 +740,6 @@ static void uca_pco_clhs_camera_get_property(GObject *object, guint property_id,
         }
         break;
 
-    // case PROP_OFFSET_MODE:
-    // {
-    //     bool on;
-    //     err = pcoclhs_get_offset_mode(priv->pco, &on);
-    //     g_value_set_boolean(value, on);
-    // }
-    // break;
-
     case PROP_HAS_STREAMING:
         g_value_set_boolean(value, TRUE);
         break;
@@ -774,11 +747,6 @@ static void uca_pco_clhs_camera_get_property(GObject *object, guint property_id,
     case PROP_HAS_CAMRAM_RECORDING:
         g_value_set_boolean(value, FALSE); /* Edge cameras don't have onboard RAM */
         break;
-
-    // case PROP_RECORDED_FRAMES:
-    //     err = pcoclhs_get_num_images(priv->pco, priv->active_segment, &priv->num_recorded_images);
-    //     g_value_set_uint(value, priv->num_recorded_images);
-    //     break;
 
     case PROP_ACQUIRE_MODE:
     {
@@ -1060,12 +1028,6 @@ static void uca_pco_clhs_camera_class_init(UcaPcoClhsCameraClass *klass)
                              "Use double image mode",
                              FALSE, G_PARAM_READWRITE);
 
-    // pco_clhs_properties[PROP_OFFSET_MODE] =
-    //     g_param_spec_boolean("offset-mode",
-    //                          "Use offset mode",
-    //                          "Use offset mode",
-    //                          FALSE, G_PARAM_READWRITE);
-
     pco_clhs_properties[PROP_ACQUIRE_MODE] =
         g_param_spec_enum("acquire-mode",
                           "Acquire mode",
@@ -1152,9 +1114,6 @@ static gboolean setup_pco_clhs_camera(UcaPcoClhsCameraPrivate *priv)
 
     priv->description = map_entry;
 
-    // err = pcoclhs_get_active_segment(priv->pco, &priv->active_segment);
-    // CHECK_AND_RETURN_VAL_ON_PCO_ERROR(err, FALSE);
-
     err = pcoclhs_get_resolution(priv->pco, &priv->width, &priv->height, &priv->width_ex, &priv->height_ex);
     CHECK_AND_RETURN_VAL_ON_PCO_ERROR(err, FALSE);
 
@@ -1208,7 +1167,6 @@ static void override_property_ranges(UcaPcoClhsCamera *camera)
     }
 
     override_temperature_range(priv);
-    override_maximum_adcs(priv);
 }
 
 static void
@@ -1241,7 +1199,6 @@ uca_pco_clhs_camera_init(UcaPcoClhsCamera *self)
     uca_camera_register_unit(camera, "sensor-height-extended", UCA_UNIT_PIXEL);
     uca_camera_register_unit(camera, "sensor-temperature", UCA_UNIT_DEGREE_CELSIUS);
     uca_camera_set_writable(camera, "exposure-time", TRUE);
-    uca_camera_set_writable(camera, "frames-per-second", TRUE);
 }
 
 G_MODULE_EXPORT GType camera_plugin_get_type(void)

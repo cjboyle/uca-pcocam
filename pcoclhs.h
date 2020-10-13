@@ -94,21 +94,9 @@ extern "C"
 
     unsigned int pcoclhs_get_double_image_mode(pcoclhs_handle *pco, bool *on);
 
-    // unsigned int pcoclhs_set_offset_mode(pcoclhs_handle *pco, bool on);
-
-    // unsigned int pcoclhs_get_offset_mode(pcoclhs_handle *pco, bool *on);
-
-    unsigned int pcoclhs_get_segment_sizes(pcoclhs_handle *pco, uint32_t sizes[4]);
-
-    unsigned int pcoclhs_get_active_segment(pcoclhs_handle *pco, uint16_t *segment);
-
-    unsigned int pcoclhs_clear_active_segment(pcoclhs_handle *pco);
-
     unsigned int pcoclhs_get_bit_alignment(pcoclhs_handle *pco, bool *msb_aligned);
 
     unsigned int pcoclhs_set_bit_alignment(pcoclhs_handle *pco, bool msb_aligned);
-
-    unsigned int pcoclhs_get_num_images(pcoclhs_handle *pco, uint16_t segment, uint32_t *num_images);
 
     unsigned int pcoclhs_force_trigger(pcoclhs_handle *pco, uint16_t *success);
 
@@ -140,18 +128,6 @@ extern "C"
 
     unsigned int pcoclhs_set_trigger_mode(pcoclhs_handle *pco, uint16_t mode);
 
-    unsigned int pcoclhs_set_framerate(pcoclhs_handle *pco, uint32_t framerate_mhz, uint32_t exposure_ns, bool framerate_priority);
-
-    // unsigned int pcoclhs_get_framerate(pcoclhs_handle *pco, uint32_t *framerate_mhz, uint32_t *exposure_ns);
-
-    unsigned int pcoclhs_get_storage_mode(pcoclhs_handle *pco, uint16_t *mode);
-
-    unsigned int pcoclhs_set_storage_mode(pcoclhs_handle *pco, uint16_t mode);
-
-    unsigned int pcoclhs_get_record_mode(pcoclhs_handle *pco, uint16_t *mode);
-
-    unsigned int pcoclhs_set_record_mode(pcoclhs_handle *pco, uint16_t mode);
-
     unsigned int pcoclhs_arm_camera(pcoclhs_handle *pco);
 
     unsigned int pcoclhs_get_recording_state(pcoclhs_handle *pco, uint16_t *state);
@@ -165,10 +141,6 @@ extern "C"
     unsigned int pcoclhs_request_image(pcoclhs_handle *pco);
 
     unsigned int pcoclhs_get_next_image(pcoclhs_handle *pco, void *adr);
-
-    unsigned int pcoclhs_get_image(pcoclhs_handle *pco, uint16_t segment, uint32_t number, void *adr);
-
-    unsigned int pcoclhs_read_images(pcoclhs_handle *pco, uint16_t segment, uint32_t start, uint32_t end);
 
     unsigned int pcoclhs_get_actual_size(pcoclhs_handle *pco, uint32_t *width, uint32_t *height);
 

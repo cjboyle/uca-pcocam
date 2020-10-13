@@ -25,16 +25,6 @@ typedef enum {
 } UcaPcoClhsCameraError;
 
 typedef enum {
-    UCA_PCO_CLHS_CAMERA_RECORD_MODE_SEQUENCE,
-    UCA_PCO_CLHS_CAMERA_RECORD_MODE_RING_BUFFER,
-} UcaPcoClhsCameraRecordMode;
-
-typedef enum {
-    UCA_PCO_CLHS_CAMERA_STORAGE_MODE_RECORDER,
-    UCA_PCO_CLHS_CAMERA_STORAGE_MODE_FIFO_BUFFER,
-} UcaPcoClhsCameraStorageMode;
-
-typedef enum {
     UCA_PCO_CLHS_CAMERA_ACQUIRE_MODE_AUTO,
     UCA_PCO_CLHS_CAMERA_ACQUIRE_MODE_EXTERNAL
 } UcaPcoClhsCameraAcquireMode;
