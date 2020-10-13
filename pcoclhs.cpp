@@ -33,8 +33,8 @@
 
 #define CHECK_ERROR_THEN_RETURN(code) \
     {                                 \
-        CHECK_ERROR_AND_RETURN(code); \
-        return 0;                     \
+        CHECK_ERROR(code);            \
+        return (code);                \
     }
 
 /* Static helper functions */
@@ -309,7 +309,7 @@ unsigned int pcoclhs_is_active(pcoclhs_handle *pco)
 static unsigned int __pcoclhs_get_camera_type(pcoclhs_handle *pco, SC2_Camera_Type_Response *resp)
 {
     SC2_Simple_Telegram req = {.wCode = GET_CAMERA_TYPE, .wSize = sizeof(req)};
-    DWORD err = pcoclhs_control_command(pco, &req, sizeof(req), &resp, sizeof(resp));
+    DWORD err = pcoclhs_control_command(pco, &req, sizeof(req), resp, sizeof(*resp));
     CHECK_ERROR_THEN_RETURN(err);
 }
 
@@ -751,7 +751,7 @@ unsigned int pcoclhs_set_delay_exposure(pcoclhs_handle *pco, uint32_t delay, uin
     CHECK_ERROR_AND_RETURN(err);
     pco->cachedDelay = delay;
     pco->cachedExposure = exposure;
-     err = pcoclhs_arm_camera(pco);
+    err = pcoclhs_arm_camera(pco);
     CHECK_ERROR_THEN_RETURN(err);
 }
 
@@ -765,7 +765,7 @@ unsigned int pcoclhs_set_trigger_mode(pcoclhs_handle *pco, uint16_t mode)
 {
     DWORD err = pco->com->PCO_SetTriggerMode(mode);
     CHECK_ERROR_AND_RETURN(err);
-     err = pcoclhs_arm_camera(pco);
+    err = pcoclhs_arm_camera(pco);
     CHECK_ERROR_THEN_RETURN(err);
 }
 
@@ -777,7 +777,7 @@ unsigned int pcoclhs_set_framerate(pcoclhs_handle *pco, uint32_t framerate_mhz, 
     uint16_t discard;
     DWORD err = pco->com->PCO_SetFrameRate(&discard, mode, &framerate_mhz, &exposure_ns);
     CHECK_ERROR_AND_RETURN(err);
-     err = pcoclhs_arm_camera(pco);
+    err = pcoclhs_arm_camera(pco);
     CHECK_ERROR_THEN_RETURN(err);
 }
 
@@ -798,7 +798,7 @@ unsigned int pcoclhs_set_storage_mode(pcoclhs_handle *pco, uint16_t mode)
 {
     DWORD err = pco->com->PCO_SetStorageMode(mode);
     CHECK_ERROR_AND_RETURN(err);
-     err = pcoclhs_arm_camera(pco);
+    err = pcoclhs_arm_camera(pco);
     CHECK_ERROR_THEN_RETURN(err);
 }
 
@@ -812,7 +812,7 @@ unsigned int pcoclhs_set_record_mode(pcoclhs_handle *pco, uint16_t mode)
 {
     DWORD err = pco->com->PCO_SetRecorderSubmode(mode);
     CHECK_ERROR_AND_RETURN(err);
-     err = pcoclhs_arm_camera(pco);
+    err = pcoclhs_arm_camera(pco);
     CHECK_ERROR_THEN_RETURN(err);
 }
 
@@ -848,7 +848,7 @@ unsigned int pcoclhs_set_acquire_mode(pcoclhs_handle *pco, uint16_t mode)
 {
     DWORD err = pco->com->PCO_SetAcquireMode(mode);
     CHECK_ERROR_AND_RETURN(err);
-     err = pcoclhs_arm_camera(pco);
+    err = pcoclhs_arm_camera(pco);
     CHECK_ERROR_THEN_RETURN(err);
 }
 
