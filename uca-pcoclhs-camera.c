@@ -91,7 +91,7 @@ static gint base_overrideables[] = {
     PROP_ROI_HEIGHT_MULTIPLIER,
     PROP_HAS_STREAMING,
     PROP_HAS_CAMRAM_RECORDING,
-    PROP_RECORDED_FRAMES,
+    // PROP_RECORDED_FRAMES,
     PROP_IS_RECORDING,
     0,
 };
@@ -154,7 +154,7 @@ struct _UcaPcoClhsCameraPrivate
     GValueArray *pixelrates;
 
     gint64 last_frame;
-    guint16 active_segment;
+    // guint16 active_segment;
     guint num_recorded_images;
     guint current_image;
 
@@ -775,10 +775,10 @@ static void uca_pco_clhs_camera_get_property(GObject *object, guint property_id,
         g_value_set_boolean(value, FALSE); /* Edge cameras don't have onboard RAM */
         break;
 
-    case PROP_RECORDED_FRAMES:
-        err = pcoclhs_get_num_images(priv->pco, priv->active_segment, &priv->num_recorded_images);
-        g_value_set_uint(value, priv->num_recorded_images);
-        break;
+    // case PROP_RECORDED_FRAMES:
+    //     err = pcoclhs_get_num_images(priv->pco, priv->active_segment, &priv->num_recorded_images);
+    //     g_value_set_uint(value, priv->num_recorded_images);
+    //     break;
 
     case PROP_ACQUIRE_MODE:
     {
@@ -1152,8 +1152,8 @@ static gboolean setup_pco_clhs_camera(UcaPcoClhsCameraPrivate *priv)
 
     priv->description = map_entry;
 
-    err = pcoclhs_get_active_segment(priv->pco, &priv->active_segment);
-    CHECK_AND_RETURN_VAL_ON_PCO_ERROR(err, FALSE);
+    // err = pcoclhs_get_active_segment(priv->pco, &priv->active_segment);
+    // CHECK_AND_RETURN_VAL_ON_PCO_ERROR(err, FALSE);
 
     err = pcoclhs_get_resolution(priv->pco, &priv->width, &priv->height, &priv->width_ex, &priv->height_ex);
     CHECK_AND_RETURN_VAL_ON_PCO_ERROR(err, FALSE);
