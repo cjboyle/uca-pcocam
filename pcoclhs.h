@@ -186,7 +186,7 @@ extern "C"
 
     unsigned int pcoclhs_edge_get_shutter(pcoclhs_handle *pco, pco_edge_shutter *shutter);
 
-    unsigned int pcoclhs_edge_set_shutter(pcoclhs_handle *pco, pco_edge_shutter shutter);
+    // unsigned int pcoclhs_edge_set_shutter(pcoclhs_handle *pco, pco_edge_shutter shutter);
 
     unsigned int pcoclhs_set_date_time(pcoclhs_handle *pco);
 

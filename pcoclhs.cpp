@@ -955,26 +955,32 @@ unsigned int pcoclhs_set_noise_filter_mode(pcoclhs_handle *pco, uint16_t mode)
 
 unsigned int pcoclhs_edge_get_shutter(pcoclhs_handle *pco, pco_edge_shutter *shutter)
 {
-    SC2_Get_Camera_Setup_Response setup;
-    SC2_Simple_Telegram req = {.wCode = GET_CAMERA_SETUP, .wSize = sizeof(req)};
-    DWORD err = pcoclhs_control_command(pco, &req, sizeof(req), &setup, sizeof(setup));
-    CHECK_ERROR(err);
-    if (err == 0)
-        *shutter = (pco_edge_shutter)setup.dwSetupFlags[0];
-    return err;
-}
-
-unsigned int pcoclhs_edge_set_shutter(pcoclhs_handle *pco, pco_edge_shutter shutter)
-{
-    SC2_Set_Camera_Setup req = {.wCode = SET_CAMERA_SETUP, .wSize = sizeof(req), .wType = 0};
-    SC2_Set_Camera_Setup_Response resp;
-    req.dwSetupFlags[0] = shutter;
-    DWORD err = pcoclhs_control_command(pco, &req, sizeof(req), &resp, sizeof(resp));
+    // SC2_Get_Camera_Setup_Response setup;
+    // SC2_Simple_Telegram req = {.wCode = GET_CAMERA_SETUP, .wSize = sizeof(req)};
+    // DWORD err = pcoclhs_control_command(pco, &req, sizeof(req), &setup, sizeof(setup));
+    // CHECK_ERROR(err);
+    // if (err == 0)
+    //     *shutter = (pco_edge_shutter)setup.dwSetupFlags[0];
+    // return err;
+    DWORD *flags = (DWORD*)malloc(4 * sizeof(DWORD));
+    WORD numflags = 4;
+    DWORD err = pco->com->PCO_GetCameraSetup((WORD)0, flags, &numflags);
     CHECK_ERROR_AND_RETURN(err);
-    err = pco->com->PCO_RebootCamera();
-    CHECK_ERROR(err);
+    *shutter = (pco_edge_shutter)flags[0];
     return 0;
 }
+
+// unsigned int pcoclhs_edge_set_shutter(pcoclhs_handle *pco, pco_edge_shutter shutter)
+// {
+//     SC2_Set_Camera_Setup req = {.wCode = SET_CAMERA_SETUP, .wSize = sizeof(req), .wType = 0};
+//     SC2_Set_Camera_Setup_Response resp;
+//     req.dwSetupFlags[0] = shutter;
+//     DWORD err = pcoclhs_control_command(pco, &req, sizeof(req), &resp, sizeof(resp));
+//     CHECK_ERROR_AND_RETURN(err);
+//     err = pco->com->PCO_RebootCamera();
+//     CHECK_ERROR(err);
+//     return 0;
+// }
 
 unsigned int pcoclhs_set_date_time(pcoclhs_handle *pco)
 {
