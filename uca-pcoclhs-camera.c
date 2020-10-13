@@ -60,7 +60,7 @@ enum
     PROP_SENSOR_PIXELRATE,
     PROP_HAS_DOUBLE_IMAGE_MODE,
     PROP_DOUBLE_IMAGE_MODE,
-    PROP_OFFSET_MODE,
+    // PROP_OFFSET_MODE,
     PROP_ACQUIRE_MODE,
     PROP_FAST_SCAN,
     PROP_NOISE_FILTER,
@@ -546,9 +546,9 @@ static void uca_pco_clhs_camera_set_property(GObject *object, guint property_id,
             err = pcoclhs_set_double_image_mode(priv->pco, g_value_get_boolean(value));
         break;
 
-    case PROP_OFFSET_MODE:
-        err = pcoclhs_set_offset_mode(priv->pco, g_value_get_boolean(value));
-        break;
+    // case PROP_OFFSET_MODE:
+    //     err = pcoclhs_set_offset_mode(priv->pco, g_value_get_boolean(value));
+    //     break;
 
     case PROP_ACQUIRE_MODE:
     {
@@ -611,14 +611,16 @@ static void uca_pco_clhs_camera_set_property(GObject *object, guint property_id,
     }
     break;
 
-    case PROP_EDGE_GLOBAL_SHUTTER:
-    {
-        pco_edge_shutter shutter;
+    // case PROP_EDGE_GLOBAL_SHUTTER:
+    // {
+    //     pco_edge_shutter shutter;
 
-        shutter = g_value_get_boolean(value) ? PCO_EDGE_GLOBAL_SHUTTER : PCO_EDGE_ROLLING_SHUTTER;
-        err = pcoclhs_edge_set_shutter(priv->pco, shutter);
-    }
-    break;
+    //     shutter = g_value_get_boolean(value) ? PCO_EDGE_GLOBAL_SHUTTER : PCO_EDGE_ROLLING_SHUTTER;
+    //     err = pcoclhs_edge_set_shutter(priv->pco, shutter);
+    //     pcoclhs_destroy(priv->pco);
+    //     g_warning("Camera rebooting... Create a new camera instance to continue.");
+    // }
+    // break;
 
     case PROP_FRAME_GRABBER_TIMEOUT:
         priv->timeout = g_value_get_uint(value);
@@ -757,13 +759,13 @@ static void uca_pco_clhs_camera_get_property(GObject *object, guint property_id,
         }
         break;
 
-    case PROP_OFFSET_MODE:
-    {
-        bool on;
-        err = pcoclhs_get_offset_mode(priv->pco, &on);
-        g_value_set_boolean(value, on);
-    }
-    break;
+    // case PROP_OFFSET_MODE:
+    // {
+    //     bool on;
+    //     err = pcoclhs_get_offset_mode(priv->pco, &on);
+    //     g_value_set_boolean(value, on);
+    // }
+    // break;
 
     case PROP_HAS_STREAMING:
         g_value_set_boolean(value, TRUE);
@@ -1058,11 +1060,11 @@ static void uca_pco_clhs_camera_class_init(UcaPcoClhsCameraClass *klass)
                              "Use double image mode",
                              FALSE, G_PARAM_READWRITE);
 
-    pco_clhs_properties[PROP_OFFSET_MODE] =
-        g_param_spec_boolean("offset-mode",
-                             "Use offset mode",
-                             "Use offset mode",
-                             FALSE, G_PARAM_READWRITE);
+    // pco_clhs_properties[PROP_OFFSET_MODE] =
+    //     g_param_spec_boolean("offset-mode",
+    //                          "Use offset mode",
+    //                          "Use offset mode",
+    //                          FALSE, G_PARAM_READWRITE);
 
     pco_clhs_properties[PROP_ACQUIRE_MODE] =
         g_param_spec_enum("acquire-mode",
@@ -1101,7 +1103,7 @@ static void uca_pco_clhs_camera_class_init(UcaPcoClhsCameraClass *klass)
         g_param_spec_boolean("global-shutter",
                              "Global shutter enabled",
                              "Global shutter enabled",
-                             FALSE, G_PARAM_READWRITE);
+                             FALSE, G_PARAM_READABLE);
 
     pco_clhs_properties[PROP_FRAME_GRABBER_TIMEOUT] =
         g_param_spec_uint("frame-grabber-timeout",

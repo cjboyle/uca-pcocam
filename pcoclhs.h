@@ -94,9 +94,9 @@ extern "C"
 
     unsigned int pcoclhs_get_double_image_mode(pcoclhs_handle *pco, bool *on);
 
-    unsigned int pcoclhs_set_offset_mode(pcoclhs_handle *pco, bool on);
+    // unsigned int pcoclhs_set_offset_mode(pcoclhs_handle *pco, bool on);
 
-    unsigned int pcoclhs_get_offset_mode(pcoclhs_handle *pco, bool *on);
+    // unsigned int pcoclhs_get_offset_mode(pcoclhs_handle *pco, bool *on);
 
     unsigned int pcoclhs_get_segment_sizes(pcoclhs_handle *pco, uint32_t sizes[4]);
 
@@ -142,7 +142,7 @@ extern "C"
 
     unsigned int pcoclhs_set_framerate(pcoclhs_handle *pco, uint32_t framerate_mhz, uint32_t exposure_ns, bool framerate_priority);
 
-    unsigned int pcoclhs_get_framerate(pcoclhs_handle *pco, uint32_t *framerate_mhz, uint32_t *exposure_ns);
+    // unsigned int pcoclhs_get_framerate(pcoclhs_handle *pco, uint32_t *framerate_mhz, uint32_t *exposure_ns);
 
     unsigned int pcoclhs_get_storage_mode(pcoclhs_handle *pco, uint16_t *mode);
 

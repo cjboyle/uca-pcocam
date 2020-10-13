@@ -582,23 +582,23 @@ unsigned int pcoclhs_get_double_image_mode(pcoclhs_handle *pco, bool *on)
     return err;
 }
 
-unsigned int pcoclhs_set_offset_mode(pcoclhs_handle *pco, bool on)
-{
-    DWORD err = pco->com->PCO_SetOffsetMode(on ? 0 : 1); // 0=AUTO, 1=OFF
-    CHECK_ERROR_AND_RETURN(err);
-    err = pcoclhs_arm_camera(pco);
-    CHECK_ERROR_THEN_RETURN(err);
-}
+// unsigned int pcoclhs_set_offset_mode(pcoclhs_handle *pco, bool on)
+// {
+//     DWORD err = pco->com->PCO_SetOffsetMode(on ? 0 : 1); // 0=AUTO, 1=OFF
+//     CHECK_ERROR_AND_RETURN(err);
+//     err = pcoclhs_arm_camera(pco);
+//     CHECK_ERROR_THEN_RETURN(err);
+// }
 
-unsigned int pcoclhs_get_offset_mode(pcoclhs_handle *pco, bool *on)
-{
-    uint16_t tmp;
-    DWORD err = pco->com->PCO_GetOffsetMode(&tmp);
-    CHECK_ERROR(err);
-    if (err == 0)
-        *on = tmp == 0;
-    return err;
-}
+// unsigned int pcoclhs_get_offset_mode(pcoclhs_handle *pco, bool *on)
+// {
+//     uint16_t tmp;
+//     DWORD err = pco->com->PCO_GetOffsetMode(&tmp);
+//     CHECK_ERROR(err);
+//     if (err == 0)
+//         *on = tmp == 0;
+//     return err;
+// }
 
 unsigned int pcoclhs_get_segment_sizes(pcoclhs_handle *pco, uint32_t sizes[4])
 {
@@ -968,12 +968,12 @@ unsigned int pcoclhs_edge_set_shutter(pcoclhs_handle *pco, pco_edge_shutter shut
 {
     SC2_Set_Camera_Setup req = {.wCode = SET_CAMERA_SETUP, .wSize = sizeof(req), .wType = 0};
     SC2_Set_Camera_Setup_Response resp;
-    for (int i = 0; i < NUMSETUPFLAGS; i++)
-        req.dwSetupFlags[i] = shutter;
+    req.dwSetupFlags[0] = shutter;
     DWORD err = pcoclhs_control_command(pco, &req, sizeof(req), &resp, sizeof(resp));
     CHECK_ERROR_AND_RETURN(err);
-    err = pcoclhs_arm_camera(pco);
-    CHECK_ERROR_THEN_RETURN(err);
+    err = pco->com->PCO_RebootCamera();
+    CHECK_ERROR(err);
+    return 0;
 }
 
 unsigned int pcoclhs_set_date_time(pcoclhs_handle *pco)
