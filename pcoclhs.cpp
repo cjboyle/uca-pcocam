@@ -183,7 +183,7 @@ static unsigned int _pcoclhs_init(pcoclhs_handle *pco, int board, int port)
 
     pco->reorder_func = &func_reorder_image_5x16;
 
-    err = pco->grabber->Set_Grabber_Timeout(10000);
+    err = pco->grabber->Set_Grabber_Timeout(30000);
     CHECK_ERROR_AND_RETURN(err);
 
     err = pco->com->PCO_SetCameraToCurrentTime();
@@ -197,6 +197,9 @@ static unsigned int _pcoclhs_init(pcoclhs_handle *pco, int board, int port)
 
     err = pco->com->PCO_SetBitAlignment(BIT_ALIGNMENT_LSB);
     CHECK_ERROR_AND_RETURN(err);
+
+    DWORD times[3] = {2000, 10000, 10000};
+    pco->com->Set_Timeouts(times, 3);
 
     // err = pcoclhs_arm_camera(pco);
     // CHECK_ERROR_AND_RETURN(err);
