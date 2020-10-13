@@ -189,8 +189,8 @@ static unsigned int _pcoclhs_init(pcoclhs_handle *pco, int board, int port)
     err = pco->com->PCO_SetCameraToCurrentTime();
     CHECK_ERROR_AND_RETURN(err);
 
-    err = pco->com->PCO_ResetSettingsToDefault();
-    CHECK_ERROR_AND_RETURN(err);
+    // err = pco->com->PCO_ResetSettingsToDefault();
+    // CHECK_ERROR_AND_RETURN(err);
 
     err = pco->com->PCO_SetBitAlignment(BIT_ALIGNMENT_LSB);
     CHECK_ERROR_AND_RETURN(err);
@@ -198,8 +198,8 @@ static unsigned int _pcoclhs_init(pcoclhs_handle *pco, int board, int port)
     err = pcoclhs_set_recording_state(pco, 0);
     CHECK_ERROR_AND_RETURN(err);
 
-    err = pcoclhs_arm_camera(pco);
-    CHECK_ERROR_AND_RETURN(err);
+    // err = pcoclhs_arm_camera(pco);
+    // CHECK_ERROR_AND_RETURN(err);
 
     return PCO_NOERROR;
 }
