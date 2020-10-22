@@ -26,19 +26,27 @@ extern "C"
     } pco_edge_shutter;
 
     struct _pcoclhs_handle;
-    typedef struct _pcoclhs_handle pcoclhs_handle; /* Handle to a PCO CameraLink HS wrapper containing references to a camera and grabber. */
+    typedef struct _pcoclhs_handle pcoclhs_handle; /* Handle to a PCO CameraLinkHS wrapper containing references to a camera and grabber. */
 
     /**
      * Constructor to get a wrapper to the PCO CLHS SDK.
-     * @param board The index of the frame-grabber board
-     * @param port The camera port to connect (UNUSED)
-     * @return A handle to the pco.sdk on success, else nullptr
+     * @param board the index of the frame-grabber board
+     * @param port the index of the camera port to connect
+     * @return A handle to a PCO CLHS camera on success, else nullptr
      */
     pcoclhs_handle *pcoclhs_init(int board, int port);
 
     /**
- * Closes the connections to the frame-grabber and camera.
- */
+     * Set the current camera port connection.
+     * @param pco handle
+     * @param port the index of the camera port to connect
+     * @return 0 on success, otherwise less than 0
+     */
+    unsigned int pcoclhs_open_camera(pcoclhs_handle *pco, int port);
+
+    /**
+     * Closes the connections to the frame-grabber and camera.
+     */
     void pcoclhs_destroy(pcoclhs_handle *pco);
 
     /**
@@ -71,6 +79,22 @@ extern "C"
     unsigned int pcoclhs_grabber_free_memory(pcoclhs_handle *pco);
 
     /**
+     * Set the general frame grabber timeout.
+     * @param pco handle
+     * @param milliseconds the timeout in milliseconds
+     * @return 0 on success, otherwise less than 0
+     */
+    unsigned int pcoclhs_grabber_set_timeout(pcoclhs_handle *pco, int milliseconds);
+
+    /**
+     * Get the general frame grabber timeout.
+     * @param pco handle
+     * @param milliseconds output the timeout in milliseconds
+     * @return 0 on success, otherwise less than 0
+     */
+    unsigned int pcoclhs_grabber_get_timeout(pcoclhs_handle *pco, int *milliseconds);
+
+    /**
      * (INTERNAL) Prepare the camera and grabber for acquisition. This function is called 
      * by `pcoclhs_start_recording(pcoclhs_handle *)`
      * @param pco handle
@@ -95,17 +119,16 @@ extern "C"
     /**
      * Check the camera acquisition state.
      * @param pco handle
-     * @param is_recording output TRUE if recording, else FALSE
-     * @return 0 on success, otherwise less than 0
+     * @return TRUE if recording, else FALSE
      */
-    unsigned int pcoclhs_is_recording(pcoclhs_handle *pco, bool *is_recording);
+    bool pcoclhs_is_recording(pcoclhs_handle *pco);
 
     /**
      * Check the camera connection state.
      * @param pco handle
-     * @return 0 on success, otherwise less than 0
+     * @return TRUE if active, else FALSE
      */
-    unsigned int pcoclhs_is_active(pcoclhs_handle *pco);
+    bool pcoclhs_is_active(pcoclhs_handle *pco);
 
     /**
      * Get the type and subtype of the PCO camera hardware.
@@ -609,6 +632,18 @@ extern "C"
      * @return function pointer
      */
     pcoclhs_reorder_image_t pcoclhs_get_reorder_func(pcoclhs_handle *pco);
+
+    /**
+     * Reorder image data based on camera and format.
+     * @param pco handle
+     * @param bufout the output buffer
+     * @param bufin the input buffer
+     * @param width the image width
+     * @param height the image height
+     * @return void
+     */
+    void pcoclhs_reorder_image(pcoclhs_handle *pco, uint16_t *bufout, uint16_t *bufin, int width, int height)
+
 
 #ifdef __cplusplus
 }

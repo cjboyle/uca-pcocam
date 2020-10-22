@@ -138,16 +138,16 @@ struct _UcaPcoClhsCameraPrivate
     guint16 board;
     guint16 port;
 
-    guint frame_width, frame_height;
+    // guint frame_width, frame_height;
     gsize buffer_size;
     guint *grab_buffer;
 
-    guint16 width, height;
-    guint16 width_ex, height_ex;
-    guint16 binning_horz, binning_vert;
-    guint16 roi_x, roi_y;
-    guint16 roi_width, roi_height;
-    guint16 roi_horz_steps, roi_vert_steps;
+    // guint16 width, height;
+    // guint16 width_ex, height_ex;
+    // guint16 binning_horz, binning_vert;
+    // guint16 roi_x, roi_y;
+    // guint16 roi_width, roi_height;
+    // guint16 roi_horz_steps, roi_vert_steps;
     GValueArray *pixelrates;
 
     gint64 last_frame;
@@ -157,7 +157,7 @@ struct _UcaPcoClhsCameraPrivate
     guint16 delay_timebase;
     guint16 exposure_timebase;
     gchar *version;
-    guint timeout;
+    // guint timeout;
 
     UcaCameraTriggerSource trigger_source;
 
@@ -244,25 +244,14 @@ static gboolean is_type(UcaPcoClhsCameraPrivate *priv, int type, int subtype)
 
 static gboolean check_and_resize_memory(UcaPcoClhsCameraPrivate *priv, GError **error)
 {
-    const guint num_buffers = 2;
+    const guint num_buffers = 5;
 
-    if (priv->frame_width != priv->roi_width || priv->frame_height != priv->roi_height || /* TODO check fg_mem */ FALSE)
-    {
-        guint fg_width = priv->roi_width * 2; /* ? why double the width ? */
-        priv->frame_width = priv->roi_width;
-        priv->frame_height = priv->roi_height;
-        priv->buffer_size = 2 * priv->frame_width * priv->frame_height;
+    guint16 width, height;
 
-        int err = pcoclhs_grabber_set_size(priv->pco, fg_width, priv->frame_height);
-        pcoclhs_grabber_free_memory(priv->pco);                  /* doesn't do anything */
-        pcoclhs_grabber_allocate_memory(priv->pco, num_buffers); /* doesn't do anything */
+    guint err = pcoclhs_get_actual_size(priv->pco, &width, &height);
+    CHECK_AND_RETURN_VAL_ON_PCO_ERROR(err, FALSE);
 
-        if (err != PCO_NOERROR)
-        {
-            g_set_error(error, UCA_PCO_CLHS_CAMERA_ERROR, UCA_PCO_CLHS_CAMERA_ERROR_FG_GENERAL, "%s", err);
-            return FALSE;
-        }
-    }
+    priv->buffer_size = width * height;
     return TRUE;
 }
 
@@ -274,10 +263,13 @@ static gpointer grab_func(gpointer rawptr)
     UcaPcoClhsCameraPrivate *priv = UCA_PCO_CLHS_CAMERA_GET_PRIVATE(camera);
     gpointer frame = NULL;
     int err = pcoclhs_acquire_image(priv->pco, frame);
+
+    guint16 width, height;
+    err += pcoclhs_get_actual_size(priv->pco, &width, &height);
     
     if (err == PCO_NOERROR && priv->thread_running)
     {
-        pcoclhs_get_reorder_func(priv->pco)(priv->grab_buffer, frame, priv->frame_width, priv->frame_height);
+        pcoclhs_reorder_image(priv->pco, priv->grab_buffer, frame, width, height);
         camera->grab_func(frame, camera->user_data);
     }
 
@@ -287,8 +279,9 @@ static gpointer grab_func(gpointer rawptr)
 static void uca_pco_clhs_camera_start_recording(UcaCamera *camera, GError **error)
 {
     UcaPcoClhsCameraPrivate *priv;
-    guint16 binned_width;
-    guint16 binned_height;
+    guint16 binned_width, width, width_ex, bh;
+    guint16 binned_height, height, height_ex, bv;
+    guint16 roi[4];
     gboolean use_extended;
     gboolean transfer_async;
     guint err;
@@ -300,40 +293,42 @@ static void uca_pco_clhs_camera_start_recording(UcaCamera *camera, GError **erro
 
     g_object_get(camera,
                  "trigger-source", &priv->trigger_source,
-                 "sensor-extended", &use_extended,
                  "transfer-asynchronously", &transfer_async,
                  NULL);
+    
+    err = pcoclhs_get_resolution(priv->pco, &width, &height, &width_ex, &height_ex);
+    CHECK_AND_RETURN_VOID_ON_PCO_ERROR(err);
+
+    err = pcoclhs_get_binning(priv->pco, &bh, &bv);
+    CHECK_AND_RETURN_VOID_ON_PCO_ERROR(err);
+
+    err = pcoclhs_get_roi(priv->pco, roi);
+    CHECK_AND_RETURN_VOID_ON_PCO_ERROR(err);
+
+    err = pcoclhs_get_sensor_format(priv->pco, &use_extended);
+    CHECK_AND_RETURN_VOID_ON_PCO_ERROR(err);
 
     if (use_extended)
     {
-        binned_width = priv->width_ex;
-        binned_height = priv->height_ex;
+        binned_width = width_ex;
+        binned_height = height_ex;
     }
     else
     {
-        binned_width = priv->width;
-        binned_height = priv->height;
+        binned_width = width;
+        binned_height = height;
     }
 
-    binned_width /= priv->binning_horz;
-    binned_height /= priv->binning_vert;
+    binned_width /= bh;
+    binned_height /= bv;
 
-    if ((priv->roi_x + priv->roi_width > binned_width) || (priv->roi_y + priv->roi_height > binned_height))
+    // check if x1==roi[2], y1==roi[3] are larger than the available width, height
+    if ((roi[2] > binned_width) || (roi[3] > binned_height))
     {
         g_set_error(error, UCA_PCO_CLHS_CAMERA_ERROR, UCA_PCO_CLHS_CAMERA_ERROR_UNSUPPORTED,
                     "ROI of size %ix%i @ (%i, %i) is outside of (binned) sensor size %ix%i\n",
-                    priv->roi_width, priv->roi_height, priv->roi_x, priv->roi_y, binned_width, binned_height);
+                    roi[2], roi[3], roi[0], roi[1], binned_width, binned_height);
     }
-
-    guint16 roi[4] = {
-        priv->roi_x + 1,
-        priv->roi_y + 1,
-        priv->roi_x + priv->roi_width,
-        priv->roi_y + priv->roi_height,
-    };
-
-    err = pcoclhs_set_roi(priv->pco, roi);
-    CHECK_AND_RETURN_VOID_ON_PCO_ERROR(err);
 
     if (!check_and_resize_memory(priv, error))
         return;
@@ -397,18 +392,12 @@ static void uca_pco_clhs_camera_trigger(UcaCamera *camera, GError **error)
 
     /* TODO: Check if we can trigger */
     err = pcoclhs_force_trigger(priv->pco, &success);
-    CHECK_AND_RETURN_VOID_ON_PCO_ERROR(err);
 
-    if (!success)
+    if (!success || err != 0)
     {
         g_set_error(error, UCA_PCO_CLHS_CAMERA_ERROR, UCA_PCO_CLHS_CAMERA_ERROR_PCOSDK_GENERAL,
                     "Could not trigger frame acquisition");
     }
-}
-
-static gint get_max_timeout(UcaPcoClhsCameraPrivate *priv)
-{
-    return priv->trigger_source == UCA_CAMERA_TRIGGER_SOURCE_EXTERNAL ? G_MAXINT32 : (gint)priv->timeout;
 }
 
 static gboolean uca_pco_clhs_camera_grab(UcaCamera *camera, gpointer data, GError **error)
@@ -416,16 +405,19 @@ static gboolean uca_pco_clhs_camera_grab(UcaCamera *camera, gpointer data, GErro
     UcaPcoClhsCameraPrivate *priv;
     gboolean is_readout;
     guint16 *frame;
+    guint16 width, height;
     guint err;
 
     g_return_val_if_fail(UCA_IS_PCO_CLHS_CAMERA(camera), FALSE);
     priv = UCA_PCO_CLHS_CAMERA_GET_PRIVATE(camera);
 
-    err = pcoclhs_await_next_image_10s(priv->pco, frame);
+    err = pcoclhs_get_actual_size(priv->pco, &width, &height);
     CHECK_AND_RETURN_VAL_ON_PCO_ERROR(err, FALSE);
 
-    pcoclhs_reorder_image_t reorder = pcoclhs_get_reorder_func(priv->pco);
-    reorder((guint16 *)data, frame, priv->frame_width, priv->frame_height);
+    err = pcoclhs_acquire_image(priv->pco, frame);
+    CHECK_AND_RETURN_VAL_ON_PCO_ERROR(err, FALSE);
+
+    pcoclhs_reorder_image(priv->pco, (guint16 *)data, frame, width, height);
 
     return TRUE;
 }
@@ -452,41 +444,69 @@ static void uca_pco_clhs_camera_set_property(GObject *object, guint property_id,
     break;
 
     case PROP_ROI_X:
-        priv->roi_x = g_value_get_uint(value);
+        guint16 x = g_value_get_uint(value);
+        guint16 window[4];
+        pcoclhs_get_roi(priv->pco, window);
+        guint16 window[0] = x;
+        guint16 window[2] = window[2] + x;
+        pcoclhs_set_roi(priv->pco, window);
         break;
 
     case PROP_ROI_Y:
-        priv->roi_y = g_value_get_uint(value);
+        guint16 y = g_value_get_uint(value);
+        guint16 window[4];
+        pcoclhs_get_roi(priv->pco, window);
+        guint16 window[1] = y;
+        guint16 window[3] = window[3] + y;
+        pcoclhs_set_roi(priv->pco, window);
         break;
 
     case PROP_ROI_WIDTH:
     {
-        guint width = g_value_get_uint(value);
+        guint16 width = g_value_get_uint(value);
+        guint16 hs, vs;
+        pcoclhs_get_roi_steps(priv->pco, &hs, &vs);
 
-        if (width % priv->roi_horz_steps)
-            g_warning("ROI width %i is not a multiple of %i", width, priv->roi_horz_steps);
+        if (width % hs != 0)
+            g_warning("ROI width %i is not a multiple of %i", width, hs);
         else
-            priv->roi_width = width;
+        {
+            guint16 window[4];
+            pcoclhs_get_roi(priv->pco, window);
+            guint16 window[2] = window[0] + width;
+            pcoclhs_set_roi(priv->pco, window);
+        }
     }
     break;
 
     case PROP_ROI_HEIGHT:
     {
-        guint height = g_value_get_uint(value);
+        guint16 height = g_value_get_uint(value);
+        guint16 hs, vs;
+        pcoclhs_get_roi_steps(priv->pco, &hs, &vs);
 
-        if (height % priv->roi_vert_steps)
-            g_warning("ROI height %i is not a multiple of %i", height, priv->roi_vert_steps);
+        if (height % vs != 0)
+            g_warning("ROI height %i is not a multiple of %i", height, vs);
         else
-            priv->roi_height = height;
+        {
+            guint16 window[4];
+            pcoclhs_get_roi(priv->pco, window);
+            guint16 window[3] = window[1] + height;
+            pcoclhs_set_roi(priv->pco, window);
+        }
     }
     break;
 
     case PROP_SENSOR_HORIZONTAL_BINNING:
-        priv->binning_horz = g_value_get_uint(value);
+        guint16 h, v;
+        pcoclhs_get_binning(priv->pco, &h, &v);
+        pcoclhs_set_binning(priv->pco, g_value_get_uint(value), v);
         break;
 
     case PROP_SENSOR_VERTICAL_BINNING:
-        priv->binning_vert = g_value_get_uint(value);
+        guint16 h, v;
+        pcoclhs_get_binning(priv->pco, &h, &v);
+        pcoclhs_set_binning(priv->pco, h, g_value_get_uint(value));
         break;
 
     case PROP_EXPOSURE_TIME:
@@ -609,7 +629,9 @@ static void uca_pco_clhs_camera_set_property(GObject *object, guint property_id,
     // break;
 
     case PROP_FRAME_GRABBER_TIMEOUT:
-        priv->timeout = g_value_get_uint(value);
+        gint timeout = g_value_get_uint(value);
+        if (timeout < 0) timeout = INT32_MAX;
+        pcoclhs_grabber_set_timeout(priv->pco, timeout);
         break;
 
     default:
@@ -645,11 +667,15 @@ static void uca_pco_clhs_camera_get_property(GObject *object, guint property_id,
     break;
 
     case PROP_SENSOR_WIDTH:
-        g_value_set_uint(value, priv->width);
+        guint16 w, h, wx, hx;
+        pcoclhs_get_resolution(priv->pco, &w, &h, &wx, &hx);
+        g_value_set_uint(value, w);
         break;
 
     case PROP_SENSOR_HEIGHT:
-        g_value_set_uint(value, priv->height);
+        guint16 w, h, wx, hx;
+        pcoclhs_get_resolution(priv->pco, &w, &h, &wx, &hx);
+        g_value_set_uint(value, h);
         break;
 
     case PROP_SENSOR_PIXEL_WIDTH:
@@ -671,19 +697,27 @@ static void uca_pco_clhs_camera_get_property(GObject *object, guint property_id,
         break;
 
     case PROP_SENSOR_WIDTH_EXTENDED:
-        g_value_set_uint(value, priv->width_ex < priv->width ? priv->width : priv->width_ex);
+        guint16 w, h, wx, hx;
+        pcoclhs_get_resolution(priv->pco, &w, &h, &wx, &hx);
+        g_value_set_uint(value, wx < w ? w : wx);
         break;
 
     case PROP_SENSOR_HEIGHT_EXTENDED:
-        g_value_set_uint(value, priv->height_ex < priv->height ? priv->height : priv->height_ex);
+        guint16 w, h, wx, hx;
+        pcoclhs_get_resolution(priv->pco, &w, &h, &wx, &hx);
+        g_value_set_uint(value, hx < h ? h : hx);
         break;
 
     case PROP_SENSOR_HORIZONTAL_BINNING:
-        g_value_set_uint(value, priv->binning_horz);
+        guint16 h, v;
+        pcoclhs_get_binning(priv->pco, &h, &v);
+        g_value_set_uint(value, h);
         break;
 
     case PROP_SENSOR_VERTICAL_BINNING:
-        g_value_set_uint(value, priv->binning_vert);
+        guint16 h, v;
+        pcoclhs_get_binning(priv->pco, &h, &v);
+        g_value_set_uint(value, v);
         break;
 
     case PROP_SENSOR_BITDEPTH:
@@ -789,27 +823,39 @@ static void uca_pco_clhs_camera_get_property(GObject *object, guint property_id,
     break;
 
     case PROP_ROI_X:
-        g_value_set_uint(value, priv->roi_x);
+        guint16 window[4];
+        pcoclhs_get_roi(priv->pco, window);
+        g_value_set_uint(value, window[0]);
         break;
 
     case PROP_ROI_Y:
-        g_value_set_uint(value, priv->roi_y);
+        guint16 window[4];
+        pcoclhs_get_roi(priv->pco, window);
+        g_value_set_uint(value, window[1]);
         break;
 
     case PROP_ROI_WIDTH:
-        g_value_set_uint(value, priv->roi_width);
+        guint16 window[4];
+        pcoclhs_get_roi(priv->pco, window);
+        g_value_set_uint(value, window[2] - window[0]);
         break;
 
     case PROP_ROI_HEIGHT:
-        g_value_set_uint(value, priv->roi_height);
+        guint16 window[4];
+        pcoclhs_get_roi(priv->pco, window);
+        g_value_set_uint(value, window[3] - window[1]);
         break;
 
     case PROP_ROI_WIDTH_MULTIPLIER:
-        g_value_set_uint(value, priv->roi_horz_steps);
+        guint16 h, v;
+        pcoclhs_get_roi_steps(priv->pco, &h, &v);
+        g_value_set_uint(value, h);
         break;
 
     case PROP_ROI_HEIGHT_MULTIPLIER:
-        g_value_set_uint(value, priv->roi_vert_steps);
+        guint16 h, v;
+        pcoclhs_get_roi_steps(priv->pco, &h, &v);
+        g_value_set_uint(value, v);
         break;
 
     case PROP_NAME:
@@ -852,14 +898,15 @@ static void uca_pco_clhs_camera_get_property(GObject *object, guint property_id,
 
     case PROP_IS_RECORDING:
     {
-        bool is_recording;
-        err = pcoclhs_is_recording(priv->pco, &is_recording);
+        bool is_recording = pcoclhs_is_recording(priv->pco);
         g_value_set_boolean(value, (gboolean)is_recording);
     }
     break;
 
     case PROP_FRAME_GRABBER_TIMEOUT:
-        g_value_set_uint(value, priv->timeout);
+        guint timeout;
+        pcoclhs_grabber_get_timeout(priv->pco, &timeout);
+        g_value_set_uint(value, timeout);
         break;
 
     default:
@@ -1110,22 +1157,22 @@ static gboolean setup_pco_clhs_camera(UcaPcoClhsCameraPrivate *priv)
 
     priv->description = map_entry;
 
-    err = pcoclhs_get_resolution(priv->pco, &priv->width, &priv->height, &priv->width_ex, &priv->height_ex);
-    CHECK_AND_RETURN_VAL_ON_PCO_ERROR(err, FALSE);
+    // err = pcoclhs_get_resolution(priv->pco, &priv->width, &priv->height, &priv->width_ex, &priv->height_ex);
+    // CHECK_AND_RETURN_VAL_ON_PCO_ERROR(err, FALSE);
 
-    err = pcoclhs_get_binning(priv->pco, &priv->binning_horz, &priv->binning_vert);
-    CHECK_AND_RETURN_VAL_ON_PCO_ERROR(err, FALSE);
+    // err = pcoclhs_get_binning(priv->pco, &priv->binning_horz, &priv->binning_vert);
+    // CHECK_AND_RETURN_VAL_ON_PCO_ERROR(err, FALSE);
 
-    err = pcoclhs_get_roi(priv->pco, roi);
-    CHECK_AND_RETURN_VAL_ON_PCO_ERROR(err, FALSE);
+    // err = pcoclhs_get_roi(priv->pco, roi);
+    // CHECK_AND_RETURN_VAL_ON_PCO_ERROR(err, FALSE);
 
-    err = pcoclhs_get_roi_steps(priv->pco, &priv->roi_horz_steps, &priv->roi_vert_steps);
-    CHECK_AND_RETURN_VAL_ON_PCO_ERROR(err, FALSE);
+    // err = pcoclhs_get_roi_steps(priv->pco, &priv->roi_horz_steps, &priv->roi_vert_steps);
+    // CHECK_AND_RETURN_VAL_ON_PCO_ERROR(err, FALSE);
 
-    priv->roi_x = roi[0] - 1;
-    priv->roi_y = roi[1] - 1;
-    priv->roi_width = roi[2] - roi[0] + 1;
-    priv->roi_height = roi[3] - roi[1] + 1;
+    // priv->roi_x = roi[0] - 1;
+    // priv->roi_y = roi[1] - 1;
+    // priv->roi_width = roi[2] - roi[0] + 1;
+    // priv->roi_height = roi[3] - roi[1] + 1;
     priv->num_recorded_images = 0;
 
     err = pcoclhs_get_camera_version(priv->pco, &serial, &version[0], &version[1], &version[2], &version[3]);
@@ -1139,8 +1186,9 @@ static gboolean setup_pco_clhs_camera(UcaPcoClhsCameraPrivate *priv)
 
 static gboolean setup_frame_grabber(UcaPcoClhsCameraPrivate *priv)
 {
-    /* ? why double the width ? */
-    return pcoclhs_grabber_set_size(priv->pco, priv->width * 2, priv->height);
+    guint16 w, h;
+    pcoclhs_get_actual_size(priv->pco, &w, &h);
+    return pcoclhs_grabber_set_size(priv->pco, w, h);
 }
 
 static void override_property_ranges(UcaPcoClhsCamera *camera)
@@ -1150,8 +1198,10 @@ static void override_property_ranges(UcaPcoClhsCamera *camera)
 
     priv = UCA_PCO_CLHS_CAMERA_GET_PRIVATE(camera);
     oclass = G_OBJECT_CLASS(UCA_PCO_CLHS_CAMERA_GET_CLASS(camera));
-    property_override_default_guint_value(oclass, "roi-width", priv->width);
-    property_override_default_guint_value(oclass, "roi-height", priv->height);
+    guint16 w, h;
+    pcoclhs_get_actual_size(priv->pco, &w, &h);
+    property_override_default_guint_value(oclass, "roi-width", w);
+    property_override_default_guint_value(oclass, "roi-height", h);
 
     guint32 rates[4] = {0};
     gint num_rates = 0;
@@ -1180,7 +1230,6 @@ uca_pco_clhs_camera_init(UcaPcoClhsCamera *self)
     priv->exposure_timebase = 0xDEAD;
     priv->construct_error = NULL;
     priv->version = g_strdup(DEFAULT_VERSION);
-    priv->timeout = 5;
 
     if (!setup_pco_clhs_camera(priv))
         return;
