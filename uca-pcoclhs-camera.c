@@ -449,8 +449,8 @@ static void uca_pco_clhs_camera_set_property(GObject *object, guint property_id,
         guint16 x = g_value_get_uint(value);
         guint16 window[4];
         pcoclhs_get_roi(priv->pco, window);
-        guint16 window[0] = x;
-        guint16 window[2] = window[2] + x;
+        window[0] = x;
+        window[2] = window[2] + x;
         pcoclhs_set_roi(priv->pco, window);
     }
     break;
@@ -460,8 +460,8 @@ static void uca_pco_clhs_camera_set_property(GObject *object, guint property_id,
         guint16 y = g_value_get_uint(value);
         guint16 window[4];
         pcoclhs_get_roi(priv->pco, window);
-        guint16 window[1] = y;
-        guint16 window[3] = window[3] + y;
+        window[1] = y;
+        window[3] = window[3] + y;
         pcoclhs_set_roi(priv->pco, window);
     }
     break;
@@ -478,7 +478,7 @@ static void uca_pco_clhs_camera_set_property(GObject *object, guint property_id,
         {
             guint16 window[4];
             pcoclhs_get_roi(priv->pco, window);
-            guint16 window[2] = window[0] + width;
+            window[2] = window[0] + width;
             pcoclhs_set_roi(priv->pco, window);
         }
     }
@@ -496,7 +496,7 @@ static void uca_pco_clhs_camera_set_property(GObject *object, guint property_id,
         {
             guint16 window[4];
             pcoclhs_get_roi(priv->pco, window);
-            guint16 window[3] = window[1] + height;
+            window[3] = window[1] + height;
             pcoclhs_set_roi(priv->pco, window);
         }
     }
