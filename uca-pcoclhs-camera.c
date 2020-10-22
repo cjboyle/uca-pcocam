@@ -89,7 +89,6 @@ static gint base_overrideables[] = {
     PROP_ROI_HEIGHT_MULTIPLIER,
     PROP_HAS_STREAMING,
     PROP_HAS_CAMRAM_RECORDING,
-    // PROP_RECORDED_FRAMES,
     PROP_IS_RECORDING,
     0,
 };
@@ -274,7 +273,7 @@ static gpointer grab_func(gpointer rawptr)
 
     UcaPcoClhsCameraPrivate *priv = UCA_PCO_CLHS_CAMERA_GET_PRIVATE(camera);
     gpointer frame = NULL;
-    int err = pcoclhs_get_next_image(priv->pco, frame);
+    int err = pcoclhs_acquire_image(priv->pco, frame);
     
     if (err == PCO_NOERROR && priv->thread_running)
     {
@@ -422,7 +421,7 @@ static gboolean uca_pco_clhs_camera_grab(UcaCamera *camera, gpointer data, GErro
     g_return_val_if_fail(UCA_IS_PCO_CLHS_CAMERA(camera), FALSE);
     priv = UCA_PCO_CLHS_CAMERA_GET_PRIVATE(camera);
 
-    err = pcoclhs_get_next_image(priv->pco, frame);
+    err = pcoclhs_await_next_image_10s(priv->pco, frame);
     CHECK_AND_RETURN_VAL_ON_PCO_ERROR(err, FALSE);
 
     pcoclhs_reorder_image_t reorder = pcoclhs_get_reorder_func(priv->pco);
