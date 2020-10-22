@@ -266,7 +266,7 @@ static gpointer grab_func(gpointer rawptr)
 
     guint16 width, height;
     err += pcoclhs_get_actual_size(priv->pco, &width, &height);
-    
+
     if (err == PCO_NOERROR && priv->thread_running)
     {
         pcoclhs_reorder_image(priv->pco, priv->grab_buffer, frame, width, height);
@@ -295,7 +295,7 @@ static void uca_pco_clhs_camera_start_recording(UcaCamera *camera, GError **erro
                  "trigger-source", &priv->trigger_source,
                  "transfer-asynchronously", &transfer_async,
                  NULL);
-    
+
     err = pcoclhs_get_resolution(priv->pco, &width, &height, &width_ex, &height_ex);
     CHECK_AND_RETURN_VOID_ON_PCO_ERROR(err);
 
@@ -338,7 +338,7 @@ static void uca_pco_clhs_camera_start_recording(UcaCamera *camera, GError **erro
         if (priv->grab_buffer)
             g_free(priv->grab_buffer);
         priv->grab_buffer = g_malloc0(priv->buffer_size);
-        
+
         GError *th_err = NULL;
         priv->thread_running = TRUE;
 #if GLIB_CHECK_VERSION(2, 32, 0)
@@ -374,7 +374,8 @@ static void uca_pco_clhs_camera_stop_recording(UcaCamera *camera, GError **error
 
     gboolean transfer_async = FALSE;
     g_object_get(G_OBJECT(camera), "transfer-asynchronously", &transfer_async, NULL);
-    if (transfer_async) {
+    if (transfer_async)
+    {
         priv->thread_running = FALSE;
         g_thread_join(priv->grab_thread);
     }
@@ -444,22 +445,26 @@ static void uca_pco_clhs_camera_set_property(GObject *object, guint property_id,
     break;
 
     case PROP_ROI_X:
+    {
         guint16 x = g_value_get_uint(value);
         guint16 window[4];
         pcoclhs_get_roi(priv->pco, window);
         guint16 window[0] = x;
         guint16 window[2] = window[2] + x;
         pcoclhs_set_roi(priv->pco, window);
-        break;
+    }
+    break;
 
     case PROP_ROI_Y:
+    {
         guint16 y = g_value_get_uint(value);
         guint16 window[4];
         pcoclhs_get_roi(priv->pco, window);
         guint16 window[1] = y;
         guint16 window[3] = window[3] + y;
         pcoclhs_set_roi(priv->pco, window);
-        break;
+    }
+    break;
 
     case PROP_ROI_WIDTH:
     {
@@ -498,16 +503,20 @@ static void uca_pco_clhs_camera_set_property(GObject *object, guint property_id,
     break;
 
     case PROP_SENSOR_HORIZONTAL_BINNING:
+    {
         guint16 h, v;
         pcoclhs_get_binning(priv->pco, &h, &v);
         pcoclhs_set_binning(priv->pco, g_value_get_uint(value), v);
-        break;
+    }
+    break;
 
     case PROP_SENSOR_VERTICAL_BINNING:
+    {
         guint16 h, v;
         pcoclhs_get_binning(priv->pco, &h, &v);
         pcoclhs_set_binning(priv->pco, h, g_value_get_uint(value));
-        break;
+    }
+    break;
 
     case PROP_EXPOSURE_TIME:
     {
@@ -617,22 +626,25 @@ static void uca_pco_clhs_camera_set_property(GObject *object, guint property_id,
     }
     break;
 
-    // case PROP_EDGE_GLOBAL_SHUTTER:
-    // {
-    //     pco_edge_shutter shutter;
+        // case PROP_EDGE_GLOBAL_SHUTTER:
+        // {
+        //     pco_edge_shutter shutter;
 
-    //     shutter = g_value_get_boolean(value) ? PCO_EDGE_GLOBAL_SHUTTER : PCO_EDGE_ROLLING_SHUTTER;
-    //     err = pcoclhs_edge_set_shutter(priv->pco, shutter);
-    //     pcoclhs_destroy(priv->pco);
-    //     g_warning("Camera rebooting... Create a new camera instance to continue.");
-    // }
-    // break;
+        //     shutter = g_value_get_boolean(value) ? PCO_EDGE_GLOBAL_SHUTTER : PCO_EDGE_ROLLING_SHUTTER;
+        //     err = pcoclhs_edge_set_shutter(priv->pco, shutter);
+        //     pcoclhs_destroy(priv->pco);
+        //     g_warning("Camera rebooting... Create a new camera instance to continue.");
+        // }
+        // break;
 
     case PROP_FRAME_GRABBER_TIMEOUT:
+    {
         gint timeout = g_value_get_uint(value);
-        if (timeout < 0) timeout = INT32_MAX;
+        if (timeout < 0)
+            timeout = INT32_MAX;
         pcoclhs_grabber_set_timeout(priv->pco, timeout);
-        break;
+    }
+    break;
 
     default:
         G_OBJECT_WARN_INVALID_PROPERTY_ID(object, property_id, pspec);
@@ -652,7 +664,7 @@ static void uca_pco_clhs_camera_get_property(GObject *object, guint property_id,
     /* https://github.com/ufo-kit/libuca/issues/20 - Avoid property access while recording */
     if (uca_camera_is_recording(UCA_CAMERA(object)))
     {
-        g_warning("Property '%s' cant be accessed during acquisition", pspec->name);
+        g_warning("Property '%s' cannot be accessed during acquisition", pspec->name);
         return;
     }
 
@@ -667,16 +679,20 @@ static void uca_pco_clhs_camera_get_property(GObject *object, guint property_id,
     break;
 
     case PROP_SENSOR_WIDTH:
+    {
         guint16 w, h, wx, hx;
         pcoclhs_get_resolution(priv->pco, &w, &h, &wx, &hx);
         g_value_set_uint(value, w);
-        break;
+    }
+    break;
 
     case PROP_SENSOR_HEIGHT:
+    {
         guint16 w, h, wx, hx;
         pcoclhs_get_resolution(priv->pco, &w, &h, &wx, &hx);
         g_value_set_uint(value, h);
-        break;
+    }
+    break;
 
     case PROP_SENSOR_PIXEL_WIDTH:
         switch (priv->description->type)
@@ -697,28 +713,36 @@ static void uca_pco_clhs_camera_get_property(GObject *object, guint property_id,
         break;
 
     case PROP_SENSOR_WIDTH_EXTENDED:
+    {
         guint16 w, h, wx, hx;
         pcoclhs_get_resolution(priv->pco, &w, &h, &wx, &hx);
         g_value_set_uint(value, wx < w ? w : wx);
-        break;
+    }
+    break;
 
     case PROP_SENSOR_HEIGHT_EXTENDED:
+    {
         guint16 w, h, wx, hx;
         pcoclhs_get_resolution(priv->pco, &w, &h, &wx, &hx);
         g_value_set_uint(value, hx < h ? h : hx);
-        break;
+    }
+    break;
 
     case PROP_SENSOR_HORIZONTAL_BINNING:
+    {
         guint16 h, v;
         pcoclhs_get_binning(priv->pco, &h, &v);
         g_value_set_uint(value, h);
-        break;
+    }
+    break;
 
     case PROP_SENSOR_VERTICAL_BINNING:
+    {
         guint16 h, v;
         pcoclhs_get_binning(priv->pco, &h, &v);
         g_value_set_uint(value, v);
-        break;
+    }
+    break;
 
     case PROP_SENSOR_BITDEPTH:
         switch (priv->description->type)
@@ -823,40 +847,52 @@ static void uca_pco_clhs_camera_get_property(GObject *object, guint property_id,
     break;
 
     case PROP_ROI_X:
+    {
         guint16 window[4];
         pcoclhs_get_roi(priv->pco, window);
         g_value_set_uint(value, window[0]);
-        break;
+    }
+    break;
 
     case PROP_ROI_Y:
+    {
         guint16 window[4];
         pcoclhs_get_roi(priv->pco, window);
         g_value_set_uint(value, window[1]);
-        break;
+    }
+    break;
 
     case PROP_ROI_WIDTH:
+    {
         guint16 window[4];
         pcoclhs_get_roi(priv->pco, window);
         g_value_set_uint(value, window[2] - window[0]);
-        break;
+    }
+    break;
 
     case PROP_ROI_HEIGHT:
+    {
         guint16 window[4];
         pcoclhs_get_roi(priv->pco, window);
         g_value_set_uint(value, window[3] - window[1]);
-        break;
+    }
+    break;
 
     case PROP_ROI_WIDTH_MULTIPLIER:
+    {
         guint16 h, v;
         pcoclhs_get_roi_steps(priv->pco, &h, &v);
         g_value_set_uint(value, h);
-        break;
+    }
+    break;
 
     case PROP_ROI_HEIGHT_MULTIPLIER:
+    {
         guint16 h, v;
         pcoclhs_get_roi_steps(priv->pco, &h, &v);
         g_value_set_uint(value, v);
-        break;
+    }
+    break;
 
     case PROP_NAME:
         g_value_set_string(value, "pco-clhs");
@@ -904,10 +940,12 @@ static void uca_pco_clhs_camera_get_property(GObject *object, guint property_id,
     break;
 
     case PROP_FRAME_GRABBER_TIMEOUT:
+    {
         guint timeout;
         pcoclhs_grabber_get_timeout(priv->pco, &timeout);
         g_value_set_uint(value, timeout);
-        break;
+    }
+    break;
 
     default:
         G_OBJECT_WARN_INVALID_PROPERTY_ID(object, property_id, pspec);
@@ -929,7 +967,7 @@ static void uca_pco_clhs_camera_finalize(GObject *object)
 
     if (priv->pixelrates)
         g_value_array_free(priv->pixelrates);
-    
+
     pcoclhs_grabber_free_memory(priv->pco);
 
     if (priv->version)

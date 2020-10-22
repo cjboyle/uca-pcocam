@@ -642,7 +642,7 @@ extern "C"
      * @param height the image height
      * @return void
      */
-    void pcoclhs_reorder_image(pcoclhs_handle *pco, uint16_t *bufout, uint16_t *bufin, int width, int height)
+    void pcoclhs_reorder_image(pcoclhs_handle *pco, uint16_t *bufout, uint16_t *bufin, int width, int height);
 
 
 #ifdef __cplusplus

@@ -928,10 +928,7 @@ pcoclhs_reorder_image_t pcoclhs_get_reorder_func(pcoclhs_handle *pco)
 
 void pcoclhs_reorder_image(pcoclhs_handle *pco, uint16_t *bufout, uint16_t *bufin, int width, int height)
 {
-#ifdef reorder_image
     uint32_t format = pco->grabber->Get_DataFormat();
     reorder_image(bufout, bufin, width, height, format);
-#else
-    pcoclhs_get_reorder_func(pco)(bufout, bufin, width, height);
-#endif
+    //pcoclhs_get_reorder_func(pco)(bufout, bufin, width, height);
 }
