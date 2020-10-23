@@ -232,8 +232,10 @@ void pcoclhs_destroy(pcoclhs_handle *pco)
     if (pco->com->IsOpen())
         pco->com->Close_Cam();
 
-    delete pco->com;
     delete pco->grabber;
+    pco->grabber = NULL;
+    
+    delete pco->com;
 
     free(pco);
     pco = NULL;
@@ -401,7 +403,10 @@ unsigned int pcoclhs_get_health_state(pcoclhs_handle *pco, uint32_t *warnings, u
 unsigned int pcoclhs_reset(pcoclhs_handle *pco)
 {
     if (pco->grabber->IsOpen())
+    {
         pco->grabber->Close_Grabber();
+        pco->grabber = NULL;
+    }
 
     if (pco->com->IsOpen())
         pco->com->Close_Cam();
