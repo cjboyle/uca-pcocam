@@ -444,7 +444,7 @@ static void uca_pco_clhs_camera_set_property(GObject *object, guint property_id,
     case PROP_SENSOR_EXTENDED:
     {
         guint16 format = g_value_get_boolean(value) ? SENSORFORMAT_EXTENDED : SENSORFORMAT_STANDARD;
-        err = pco_set_sensor_format(priv->pco, format);
+        err = pcoclhs_set_sensor_format(priv->pco, format);
     }
     break;
 
@@ -943,6 +943,16 @@ static void uca_pco_clhs_camera_get_property(GObject *object, guint property_id,
     }
     break;
 
+    case PROP_FRAMES_PER_SECOND:
+    {
+        guint rate;
+        guint16 w, h;
+        pcoclhs_get_pixelrate(priv->pco, &rate);
+        pcoclhs_get_actual_size(priv->pco, &w, &h);
+        g_value_set_float(value, ((float)(w * h)) / (float)rate);
+    }
+    break;
+
     case PROP_FRAME_GRABBER_TIMEOUT:
     {
         guint timeout;
@@ -1285,6 +1295,7 @@ uca_pco_clhs_camera_init(UcaPcoClhsCamera *self)
     uca_camera_register_unit(camera, "sensor-height-extended", UCA_UNIT_PIXEL);
     uca_camera_register_unit(camera, "sensor-temperature", UCA_UNIT_DEGREE_CELSIUS);
     uca_camera_set_writable(camera, "exposure-time", TRUE);
+    uca_camera_set_writable (camera, "frames-per-second", FALSE);
 }
 
 G_MODULE_EXPORT GType camera_plugin_get_type(void)
