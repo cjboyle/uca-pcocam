@@ -234,7 +234,7 @@ void pcoclhs_destroy(pcoclhs_handle *pco)
 
     delete pco->grabber;
     pco->grabber = NULL;
-    
+
     delete pco->com;
 
     free(pco);

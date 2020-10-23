@@ -250,7 +250,7 @@ static void check_pco_clhs_property_error(guint err, guint property_id)
 
 static gboolean check_and_resize_memory(UcaPcoClhsCameraPrivate *priv, GError **error)
 {
-    // const guint num_buffers = 5;
+    const guint num_buffers = 5;
 
     guint16 fg_width, fg_height, frm_width, frm_height;
 
@@ -262,6 +262,18 @@ static gboolean check_and_resize_memory(UcaPcoClhsCameraPrivate *priv, GError **
 
     priv->buffer_size = 2 * frm_width * frm_height;
     // pcoclhs_grabber_allocate_memory(priv->pco, num_buffers);
+
+#ifdef FGRAB_STRUCT_H
+    if (priv->fg_mem)
+        Fg_FreeMemEx(priv->fg, priv->fg_mem);
+    priv->fg_mem = Fg_AllocMemEx(priv->fg, num_buffers * priv->buffer_size, num_buffers);
+    if (priv->fg_mem == NULL)
+    {
+        g_set_error(error, UCA_PCO_CLHS_CAMERA_ERROR, UCA_PCO_CLHS_CAMERA_ERROR_FG_INIT,
+                    "%s", Fg_getLastErrorDescription(priv->fg));
+        return FALSE;
+    }
+#endif
     return TRUE;
 }
 
@@ -272,7 +284,15 @@ static gpointer grab_func(gpointer rawptr)
 
     UcaPcoClhsCameraPrivate *priv = UCA_PCO_CLHS_CAMERA_GET_PRIVATE(camera);
     gpointer frame = NULL;
-    int err = pcoclhs_await_next_image(priv->pco, frame);
+    guint err;
+
+#ifdef FGRAB_STRUCT_H
+    int nr = Fg_getLastPicNumber(priv->fg, priv->fg_port);
+    frame = Fg_getImagePtr(priv->fg, 0, priv->fg_port);
+#else
+    err = pcoclhs_await_next_image(priv->pco, frame);
+    CHECK_AND_RETURN_VAL_ON_PCO_ERROR(err, NULL);
+#endif
 
     guint16 width, height;
     err += pcoclhs_get_actual_size(priv->pco, &width, &height);
@@ -422,14 +442,19 @@ static gboolean uca_pco_clhs_camera_grab(UcaCamera *camera, gpointer data, GErro
     err = pcoclhs_get_actual_size(priv->pco, &width, &height);
     CHECK_AND_RETURN_VAL_ON_PCO_ERROR(err, FALSE);
 
+#ifdef FGRAB_STRUCT_H
+    int nr = Fg_getLastPicNumber(priv->fg, priv->fg_port);
+    frame = Fg_getImagePtr(priv->fg, 0, priv->fg_port);
+#else
     err = pcoclhs_await_next_image(priv->pco, frame);
     CHECK_AND_RETURN_VAL_ON_PCO_ERROR(err, FALSE);
+#endif
 
     if (frame == NULL)
     {
         g_set_error(error, UCA_PCO_CLHS_CAMERA_ERROR,
-                     UCA_PCO_CLHS_CAMERA_ERROR_FG_GENERAL,
-                     "Frame data is NULL");
+                    UCA_PCO_CLHS_CAMERA_ERROR_FG_GENERAL,
+                    "Frame data is NULL");
         return FALSE;
     }
 
@@ -993,7 +1018,12 @@ static void uca_pco_clhs_camera_finalize(GObject *object)
     if (priv->pixelrates)
         g_value_array_free(priv->pixelrates);
 
+#ifdef FGRAB_STRUCT_H
+    if (priv->fg_mem)
+        Fg_FreeMemEx(priv->fg, priv->fg_mem);
+#else
     pcoclhs_grabber_free_memory(priv->pco);
+#endif
 
     if (priv->version)
     {
@@ -1179,12 +1209,12 @@ static void uca_pco_clhs_camera_class_init(UcaPcoClhsCameraClass *klass)
                           "Frame grabber timeout in seconds",
                           0, G_MAXUINT, 5,
                           G_PARAM_READWRITE);
-    
-    pco_clhs_properties[PROP_DELAY_TIME] = 
+
+    pco_clhs_properties[PROP_DELAY_TIME] =
         g_param_spec_uint("delay-time",
-                            "Capture delay time",
-                            "Capture delay time in seconds",
-                            0, 10, 0, G_PARAM_READABLE);
+                          "Capture delay time",
+                          "Capture delay time in seconds",
+                          0, 10, 0, G_PARAM_READABLE);
 
     for (guint id = N_BASE_PROPERTIES; id < N_PROPERTIES; id++)
         g_object_class_install_property(gobject_class, id, pco_clhs_properties[id]);
@@ -1261,9 +1291,14 @@ static gboolean setup_frame_grabber(UcaPcoClhsCameraPrivate *priv)
 #ifdef FGRAB_STRUCT_H
     const char *libacq = "libFullAreaGray8.so";
     // priv->fg_port = pcoclhs_get_cam_port();
+    priv->fg_mem = NULL;
     priv->fg_port = 0;
     priv->fg = Fg_Init(libacq, priv->fg_port);
     // hopefully use the existing PCO-side config
+    if (priv->fg == NULL)
+    {
+       return FALSE;
+    }
     int mode = FREE_RUN;
     int err = Fg_setParameter(priv->fg, FG_TRIGGERMODE, &mode, priv->fg_port);
     return err == 0;
@@ -1323,7 +1358,7 @@ uca_pco_clhs_camera_init(UcaPcoClhsCamera *self)
     uca_camera_register_unit(camera, "sensor-height-extended", UCA_UNIT_PIXEL);
     uca_camera_register_unit(camera, "sensor-temperature", UCA_UNIT_DEGREE_CELSIUS);
     uca_camera_set_writable(camera, "exposure-time", TRUE);
-    uca_camera_set_writable (camera, "frames-per-second", FALSE);
+    uca_camera_set_writable(camera, "frames-per-second", FALSE);
 }
 
 G_MODULE_EXPORT GType camera_plugin_get_type(void)
