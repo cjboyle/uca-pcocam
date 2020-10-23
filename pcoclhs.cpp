@@ -158,11 +158,16 @@ struct _pcoclhs_handle
     pcoclhs_reorder_image_t reorder_func;
 
     uint16_t cameraType, cameraSubType;
+
+    int board, port;
 };
 
 static unsigned int _pcoclhs_init(pcoclhs_handle *pco, int board, int port)
 {
     DWORD err;
+
+    pco->board = board;
+    pco->port = port;
 
     CPco_com_clhs *com;
     com = new CPco_com_clhs();
@@ -229,6 +234,9 @@ void pcoclhs_destroy(pcoclhs_handle *pco)
 
     delete pco->com;
     delete pco->grabber;
+
+    free(pco);
+    pco = NULL;
 }
 
 unsigned int pcoclhs_open_camera(pcoclhs_handle *pco, int port)
@@ -242,9 +250,16 @@ unsigned int pcoclhs_open_camera(pcoclhs_handle *pco, int port)
     for (unsigned int i = 0; i <= MAXNUM_DEVICES; i++)
     {
         err = pco->com->Open_Cam(i);
-        if (err == PCO_NOERROR && port == 0)
-            break;
-        port--;
+        if (err == PCO_NOERROR)
+        {
+            if (port == 0)
+                break;
+            else
+            {
+                pco->com->Close_Cam();
+                port--;
+            }
+        }
     }
     CHECK_ERROR_THEN_RETURN(err);
 }
@@ -299,14 +314,13 @@ unsigned int pcoclhs_prepare_recording(pcoclhs_handle *pco)
 
     if (cameraW != grabberW || cameraH != grabberH)
     {
-        err = pco->grabber->Set_Grabber_Size(cameraW, cameraH);
+        err = pco->grabber->Set_Grabber_Size(2 * cameraW, cameraH);
         CHECK_ERROR_AND_RETURN(err);
+
+        pcoclhs_grabber_allocate_memory(pco, 20);
     }
 
-    err = pco->grabber->PostArm();
-    CHECK_ERROR_AND_RETURN(err);
-
-    err = pcoclhs_set_recording_state(pco, 1);
+    err = pcoclhs_arm_camera(pco);
     CHECK_ERROR_THEN_RETURN(err);
 }
 
@@ -314,6 +328,10 @@ unsigned int pcoclhs_start_recording(pcoclhs_handle *pco)
 {
     DWORD err = pcoclhs_prepare_recording(pco);
     CHECK_ERROR_AND_RETURN(err);
+
+    err = pcoclhs_set_recording_state(pco, 1);
+    CHECK_ERROR_AND_RETURN(err);
+    
     err = pco->grabber->Start_Acquire();
     CHECK_ERROR_THEN_RETURN(err);
 }
@@ -382,8 +400,13 @@ unsigned int pcoclhs_get_health_state(pcoclhs_handle *pco, uint32_t *warnings, u
 
 unsigned int pcoclhs_reset(pcoclhs_handle *pco)
 {
-    pcoclhs_destroy(pco);
-    return _pcoclhs_init(pco, 0, 0);
+    if (pco->grabber->IsOpen())
+        pco->grabber->Close_Grabber();
+
+    if (pco->com->IsOpen())
+        pco->com->Close_Cam();
+
+    return _pcoclhs_init(pco, pco->board, pco->port);
 }
 
 unsigned int pcoclhs_get_temperature(pcoclhs_handle *pco, int16_t *ccd, int16_t *camera, int16_t *power)
@@ -785,11 +808,11 @@ unsigned int pcoclhs_arm_camera(pcoclhs_handle *pco)
     // int tout;
     // pco->grabber->Get_Grabber_Timeout(&tout);
     // pco->grabber->Set_Grabber_Timeout(tout + 5000);
-    int ret = pco->com->PCO_ArmCamera();
-    CHECK_ERROR_AND_RETURN(ret);
-    pco->grabber->PostArm();
+    DWORD err = pco->com->PCO_ArmCamera();
+    CHECK_ERROR_AND_RETURN(err);
+    err = pco->grabber->PostArm();
     // pco->grabber->Set_Grabber_Timeout(tout);
-    CHECK_ERROR_THEN_RETURN(ret);
+    CHECK_ERROR_THEN_RETURN(err);
 }
 
 unsigned int pcoclhs_get_recording_state(pcoclhs_handle *pco, uint16_t *state)
@@ -816,7 +839,7 @@ unsigned int pcoclhs_set_acquire_mode(pcoclhs_handle *pco, uint16_t mode)
     CHECK_ERROR_THEN_RETURN(err);
 }
 
-unsigned int pcoclhs_await_next_image(pcoclhs_handle *pco, void *adr, int timeout)
+unsigned int pcoclhs_await_next_image_ex(pcoclhs_handle *pco, void *adr, int timeout)
 {
     DWORD err;
     uint16_t mode, triggered;
@@ -834,9 +857,9 @@ unsigned int pcoclhs_await_next_image(pcoclhs_handle *pco, void *adr, int timeou
     CHECK_ERROR_THEN_RETURN(err);
 }
 
-unsigned int pcoclhs_await_next_image_10s(pcoclhs_handle *pco, void *adr)
+unsigned int pcoclhs_await_next_image(pcoclhs_handle *pco, void *adr)
 {
-    DWORD err = pcoclhs_await_next_image(pco, adr, 10000);
+    DWORD err = pcoclhs_await_next_image_ex(pco, adr, 10000);
     CHECK_ERROR_THEN_RETURN(err);
 }
 

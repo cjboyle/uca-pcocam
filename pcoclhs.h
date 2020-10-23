@@ -518,7 +518,7 @@ extern "C"
      * @param adr external buffer to write image data
      * @return 0 on success, otherwise less than 0
      */
-    unsigned int pcoclhs_await_next_image_10s(pcoclhs_handle *pco, void *adr);
+    unsigned int pcoclhs_await_next_image(pcoclhs_handle *pco, void *adr);
 
     /**
      * Trigger an image capture and transfer.
@@ -527,7 +527,7 @@ extern "C"
      * @param timeout the number of milliseconds to wait before an error is produced.
      * @return 0 on success, otherwise less than 0
      */
-    unsigned int pcoclhs_await_next_image(pcoclhs_handle *pco, void *adr, int timeout);
+    unsigned int pcoclhs_await_next_image_ex(pcoclhs_handle *pco, void *adr, int timeout);
 
     /**
      * Simple image acquisition call to the pco.camera SDK with grabber-configured timeout.

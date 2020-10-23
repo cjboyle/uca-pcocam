@@ -237,21 +237,20 @@ static void check_pco_clhs_property_error(guint err, guint property_id)
     }
 }
 
-static gboolean is_type(UcaPcoClhsCameraPrivate *priv, int type, int subtype)
-{
-    return priv->description->type == type && priv->description->subtype == subtype;
-}
-
 static gboolean check_and_resize_memory(UcaPcoClhsCameraPrivate *priv, GError **error)
 {
-    const guint num_buffers = 5;
+    // const guint num_buffers = 5;
 
-    guint16 width, height;
+    guint16 fg_width, fg_height, frm_width, frm_height;
 
-    guint err = pcoclhs_get_actual_size(priv->pco, &width, &height);
+    guint err = pcoclhs_grabber_get_size(priv->pco, &fg_width, &fg_height);
     CHECK_AND_RETURN_VAL_ON_PCO_ERROR(err, FALSE);
 
-    priv->buffer_size = width * height;
+    err = pcoclhs_get_actual_size(priv->pco, &frm_width, &frm_height);
+    CHECK_AND_RETURN_VAL_ON_PCO_ERROR(err, FALSE);
+
+    priv->buffer_size = 2 * frm_width * frm_height;
+    // pcoclhs_grabber_allocate_memory(priv->pco, num_buffers);
     return TRUE;
 }
 
@@ -262,7 +261,7 @@ static gpointer grab_func(gpointer rawptr)
 
     UcaPcoClhsCameraPrivate *priv = UCA_PCO_CLHS_CAMERA_GET_PRIVATE(camera);
     gpointer frame = NULL;
-    int err = pcoclhs_acquire_image(priv->pco, frame);
+    int err = pcoclhs_await_next_image(priv->pco, frame);
 
     guint16 width, height;
     err += pcoclhs_get_actual_size(priv->pco, &width, &height);
@@ -353,9 +352,6 @@ static void uca_pco_clhs_camera_start_recording(UcaCamera *camera, GError **erro
         }
     }
 
-    err = pcoclhs_arm_camera(priv->pco);
-    CHECK_AND_RETURN_VOID_ON_PCO_ERROR(err);
-
     err = pcoclhs_start_recording(priv->pco);
     CHECK_AND_RETURN_VOID_ON_PCO_ERROR(err);
 }
@@ -415,8 +411,16 @@ static gboolean uca_pco_clhs_camera_grab(UcaCamera *camera, gpointer data, GErro
     err = pcoclhs_get_actual_size(priv->pco, &width, &height);
     CHECK_AND_RETURN_VAL_ON_PCO_ERROR(err, FALSE);
 
-    err = pcoclhs_acquire_image(priv->pco, frame);
+    err = pcoclhs_await_next_image(priv->pco, frame);
     CHECK_AND_RETURN_VAL_ON_PCO_ERROR(err, FALSE);
+
+    if (frame == NULL)
+    {
+        g_set_error(error, UCA_PCO_CLHS_CAMERA_ERROR,
+                     UCA_PCO_CLHS_CAMERA_ERROR_FG_GENERAL,
+                     "Frame data is NULL");
+        return FALSE;
+    }
 
     pcoclhs_reorder_image(priv->pco, (guint16 *)data, frame, width, height);
 
@@ -662,11 +666,11 @@ static void uca_pco_clhs_camera_get_property(GObject *object, guint property_id,
     priv = UCA_PCO_CLHS_CAMERA_GET_PRIVATE(object);
 
     /* https://github.com/ufo-kit/libuca/issues/20 - Avoid property access while recording */
-    if (uca_camera_is_recording(UCA_CAMERA(object)))
-    {
-        g_warning("Property '%s' cannot be accessed during acquisition", pspec->name);
-        return;
-    }
+    // if (uca_camera_is_recording(UCA_CAMERA(object)))
+    // {
+    //     g_warning("Property '%s' cannot be accessed during acquisition", pspec->name);
+    //     return;
+    // }
 
     switch (property_id)
     {
@@ -1222,12 +1226,12 @@ static gboolean setup_pco_clhs_camera(UcaPcoClhsCameraPrivate *priv)
     return TRUE;
 }
 
-static gboolean setup_frame_grabber(UcaPcoClhsCameraPrivate *priv)
-{
-    guint16 w, h;
-    pcoclhs_get_actual_size(priv->pco, &w, &h);
-    return pcoclhs_grabber_set_size(priv->pco, w, h);
-}
+// static gboolean setup_frame_grabber(UcaPcoClhsCameraPrivate *priv)
+// {
+//     guint16 w, h;
+//     pcoclhs_get_actual_size(priv->pco, &w, &h);
+//     return pcoclhs_grabber_set_size(priv->pco, w, h);
+// }
 
 static void override_property_ranges(UcaPcoClhsCamera *camera)
 {
@@ -1236,10 +1240,11 @@ static void override_property_ranges(UcaPcoClhsCamera *camera)
 
     priv = UCA_PCO_CLHS_CAMERA_GET_PRIVATE(camera);
     oclass = G_OBJECT_CLASS(UCA_PCO_CLHS_CAMERA_GET_CLASS(camera));
-    guint16 w, h;
-    pcoclhs_get_actual_size(priv->pco, &w, &h);
-    property_override_default_guint_value(oclass, "roi-width", w);
-    property_override_default_guint_value(oclass, "roi-height", h);
+
+    // guint16 w, h;
+    // pcoclhs_get_actual_size(priv->pco, &w, &h);
+    // property_override_default_guint_value(oclass, "roi-width", w);
+    // property_override_default_guint_value(oclass, "roi-height", h);
 
     guint32 rates[4] = {0};
     gint num_rates = 0;
@@ -1247,10 +1252,8 @@ static void override_property_ranges(UcaPcoClhsCamera *camera)
     if (pcoclhs_get_available_pixelrates(priv->pco, rates, &num_rates) == PCO_NOERROR)
     {
         fill_pixelrates(priv, rates, num_rates);
-        property_override_default_guint_value(oclass, "sensor-pixelrate", rates[0]);
+        // property_override_default_guint_value(oclass, "sensor-pixelrate", rates[0]);
     }
-
-    override_temperature_range(priv);
 }
 
 static void
@@ -1272,8 +1275,8 @@ uca_pco_clhs_camera_init(UcaPcoClhsCamera *self)
     if (!setup_pco_clhs_camera(priv))
         return;
 
-    if (!setup_frame_grabber(priv))
-        return;
+    // if (!setup_frame_grabber(priv))
+    //     return;
 
     override_property_ranges(self);
 
