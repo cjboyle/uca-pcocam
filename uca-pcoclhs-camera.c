@@ -9,6 +9,10 @@
 #include "uca-pcoclhs-camera.h"
 #include "uca-pcoclhs-enums.h"
 
+#include <fgrab_define.h>
+#include <fgrab_prototyp.h>
+#include <fgrab_struct.h>
+
 #define UCA_PCO_CLHS_CAMERA_GET_PRIVATE(obj) (G_TYPE_INSTANCE_GET_PRIVATE((obj), UCA_TYPE_PCO_CLHS_CAMERA, UcaPcoClhsCameraPrivate))
 
 #define CHECK_AND_RETURN_VOID_ON_PCO_ERROR(err)               \
@@ -67,6 +71,7 @@ enum
     PROP_VERSION,
     PROP_EDGE_GLOBAL_SHUTTER,
     PROP_FRAME_GRABBER_TIMEOUT,
+    PROP_DELAY_TIME,
     N_PROPERTIES
 };
 
@@ -165,6 +170,12 @@ struct _UcaPcoClhsCameraPrivate
     gboolean thread_running;
     GThread *grab_thread;
     GAsyncQueue *trigger_queue;
+
+#ifdef FGRAB_STRUCT_H
+    Fg_Struct *fg;
+    guint fg_port;
+    dma_mem *fg_mem;
+#endif
 };
 
 static gdouble convert_timebase(guint16 timebase)
@@ -243,7 +254,7 @@ static gboolean check_and_resize_memory(UcaPcoClhsCameraPrivate *priv, GError **
 
     guint16 fg_width, fg_height, frm_width, frm_height;
 
-    guint err = pcoclhs_grabber_get_size(priv->pco, &fg_width, &fg_height);
+    guint err = pcoclhs_get_actual_size(priv->pco, &fg_width, &fg_height);
     CHECK_AND_RETURN_VAL_ON_PCO_ERROR(err, FALSE);
 
     err = pcoclhs_get_actual_size(priv->pco, &frm_width, &frm_height);
@@ -1168,6 +1179,12 @@ static void uca_pco_clhs_camera_class_init(UcaPcoClhsCameraClass *klass)
                           "Frame grabber timeout in seconds",
                           0, G_MAXUINT, 5,
                           G_PARAM_READWRITE);
+    
+    pco_clhs_properties[PROP_DELAY_TIME] = 
+        g_param_spec_uint("delay-time",
+                            "Capture delay time",
+                            "Capture delay time in seconds",
+                            0, 10, 0, G_PARAM_READABLE);
 
     for (guint id = N_BASE_PROPERTIES; id < N_PROPERTIES; id++)
         g_object_class_install_property(gobject_class, id, pco_clhs_properties[id]);
@@ -1236,12 +1253,23 @@ static gboolean setup_pco_clhs_camera(UcaPcoClhsCameraPrivate *priv)
     return TRUE;
 }
 
-// static gboolean setup_frame_grabber(UcaPcoClhsCameraPrivate *priv)
-// {
+static gboolean setup_frame_grabber(UcaPcoClhsCameraPrivate *priv)
+{
 //     guint16 w, h;
 //     pcoclhs_get_actual_size(priv->pco, &w, &h);
 //     return pcoclhs_grabber_set_size(priv->pco, w, h);
-// }
+#ifdef FGRAB_STRUCT_H
+    const char *libacq = "libFullAreaGray8.so";
+    // priv->fg_port = pcoclhs_get_cam_port();
+    priv->fg_port = 0;
+    priv->fg = Fg_Init(libacq, priv->fg_port);
+    // hopefully use the existing PCO-side config
+    int mode = FREE_RUN;
+    int err = Fg_setParameter(priv->fg, FG_TRIGGERMODE, &mode, priv->fg_port);
+    return err == 0;
+#endif
+    return TRUE;
+}
 
 static void override_property_ranges(UcaPcoClhsCamera *camera)
 {
@@ -1285,8 +1313,8 @@ uca_pco_clhs_camera_init(UcaPcoClhsCamera *self)
     if (!setup_pco_clhs_camera(priv))
         return;
 
-    // if (!setup_frame_grabber(priv))
-    //     return;
+    if (!setup_frame_grabber(priv))
+        return;
 
     override_property_ranges(self);
 
