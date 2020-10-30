@@ -264,8 +264,10 @@ static gboolean check_and_resize_memory(UcaPcoClhsCameraPrivate *priv, GError **
     // pcoclhs_grabber_allocate_memory(priv->pco, num_buffers);
 
 #ifdef FGRAB_STRUCT_H
+    g_warning("Fg_FreeMemEx");
     if (priv->fg_mem)
         Fg_FreeMemEx(priv->fg, priv->fg_mem);
+    g_warning("Fg_AllocMemEx");
     priv->fg_mem = Fg_AllocMemEx(priv->fg, priv->num_buffers * priv->buffer_size, priv->num_buffers);
     if (priv->fg_mem == NULL)
     {
@@ -287,7 +289,9 @@ static gpointer grab_func(gpointer rawptr)
     guint err;
 
 #ifdef FGRAB_STRUCT_H
+    g_warning("Fg_GetLastPicNumber");
     int nr = Fg_getLastPicNumber(priv->fg, priv->fg_port);
+    g_warning("Fg_getImagePtr");
     frame = Fg_getImagePtr(priv->fg, 0, priv->fg_port);
 #else
     err = pcoclhs_await_next_image(priv->pco, frame);
@@ -444,7 +448,9 @@ static gboolean uca_pco_clhs_camera_grab(UcaCamera *camera, gpointer data, GErro
     CHECK_AND_RETURN_VAL_ON_PCO_ERROR(err, FALSE);
 
 #ifdef FGRAB_STRUCT_H
+    g_warning("Fg_getLastPicNumber 2");
     int nr = Fg_getLastPicNumber(priv->fg, priv->fg_port);
+    g_warning("Fg_getImagePtr 2");
     frame = Fg_getImagePtr(priv->fg, 0, priv->fg_port);
 #else
     err = pcoclhs_await_next_image(priv->pco, frame);
@@ -1051,6 +1057,7 @@ static void uca_pco_clhs_camera_finalize(GObject *object)
 
 #ifdef FGRAB_STRUCT_H
     if (priv->fg_mem)
+        g_warning("Fg_FreeMemEx 2");
         Fg_FreeMemEx(priv->fg, priv->fg_mem);
 #else
     pcoclhs_grabber_free_memory(priv->pco);
@@ -1329,10 +1336,12 @@ static gboolean setup_frame_grabber(UcaPcoClhsCameraPrivate *priv)
 //     return pcoclhs_grabber_set_size(priv->pco, w, h);
 #ifdef FGRAB_STRUCT_H
     char libacq[100];
+    g_warning("Fg_findApplet");
     Fg_findApplet(0, libacq, 100);
     // priv->fg_port = pcoclhs_get_cam_port();
     priv->fg_mem = NULL;
     priv->fg_port = 0;
+    g_warning("Fg_Init");
     priv->fg = Fg_Init(libacq, priv->fg_port);
     // hopefully use the existing PCO-side config
     if (priv->fg == NULL)
@@ -1344,6 +1353,7 @@ static gboolean setup_frame_grabber(UcaPcoClhsCameraPrivate *priv)
         return FALSE;
     }
     int mode = FREE_RUN;
+    g_warning("Fg_setParameter");
     int err = Fg_setParameter(priv->fg, FG_TRIGGERMODE, &mode, priv->fg_port);
     return err == 0;
 #endif
