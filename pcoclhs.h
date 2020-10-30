@@ -237,6 +237,22 @@ extern "C"
      * @return 0 on success, otherwise less than 0
      */
     unsigned int pcoclhs_set_pixelrate(pcoclhs_handle *pco, uint32_t rate);
+    
+    /**
+     * Get the framerate of the camera, in Hz.
+     * @param pco handle
+     * @param rate output the frames per second rate
+     * @return 0 on success, otherwise less than 0
+     */
+    unsigned int pcoclhs_get_fps(pcoclhs_handle *pco, double *fps);
+    
+    /**
+     * Set the framerate of the camera, in Hz.
+     * @param pco handle
+     * @param rate the frames per second rate
+     * @return 0 on success, otherwise less than 0
+     */
+    unsigned int pcoclhs_set_fps(pcoclhs_handle *pco, double fps);
 
     /**
      * Get list of available conversion factors, in e/cnt.
@@ -388,20 +404,20 @@ extern "C"
     unsigned int pcoclhs_get_timebase(pcoclhs_handle *pco, uint16_t *delay, uint16_t *expos);
 
     /**
-     * Get the capture delay time-length. Use `pcoclhs_get_timebase()` to get the correct units. 
+     * Get the capture delay time-length, in milliseconds. 
      * @param pco handle
-     * @param delay output the delay time
+     * @param delay output the delay time (ms)
      * @return 0 on success, otherwise less than 0
      */
-    unsigned int pcoclhs_get_delay_time(pcoclhs_handle *pco, uint32_t *delay);
+    unsigned int pcoclhs_get_delay_time(pcoclhs_handle *pco, double *delay);
 
     /**
-     * Set the capture delay time-length. Use `pcoclhs_get_timebase()` to get the correct units. 
+     * Set the capture delay time-length, in milliseconds. 
      * @param pco handle
-     * @param delay the delay time
+     * @param delay the delay time (ms)
      * @return 0 on success, otherwise less than 0
      */
-    unsigned int pcoclhs_set_delay_time(pcoclhs_handle *pco, uint32_t delay);
+    unsigned int pcoclhs_set_delay_time(pcoclhs_handle *pco, double delay);
 
     /**
      * Get the available time range for capture delay.
@@ -414,20 +430,20 @@ extern "C"
     unsigned int pcoclhs_get_delay_range(pcoclhs_handle *pco, uint32_t *min_ns, uint32_t *max_ms, uint32_t *step_ns);
 
     /**
-     * Get the capture exposure time-length. Use `pcoclhs_get_timebase()` to get the correct units. 
+     * Get the capture exposure time-length, in milliseconds
      * @param pco handle
-     * @param exposure output the exposure time
+     * @param exposure output the exposure time (ms)
      * @return 0 on success, otherwise less than 0
      */
-    unsigned int pcoclhs_get_exposure_time(pcoclhs_handle *pco, uint32_t *exposure);
+    unsigned int pcoclhs_get_exposure_time(pcoclhs_handle *pco, double *exposure);
 
     /**
-     * Set the capture exposure time-length. Use `pcoclhs_get_timebase()` to get the correct units.
+     * Set the capture exposure time-length, in milliseconds
      * @param pco handle
-     * @param exposure the exposure time
+     * @param exposure the exposure time (ms)
      * @return 0 on success, otherwise less than 0
      */
-    unsigned int pcoclhs_set_exposure_time(pcoclhs_handle *pco, uint32_t exposure);
+    unsigned int pcoclhs_set_exposure_time(pcoclhs_handle *pco, double exposure);
 
     /**
      * Get the available time range for capture exposure.
@@ -440,22 +456,22 @@ extern "C"
     unsigned int pcoclhs_get_exposure_range(pcoclhs_handle *pco, uint32_t *min_ns, uint32_t *max_ms, uint32_t *step_ns);
 
     /**
-     * Get the capture delay and exposure time-lengths. Use `pcoclhs_get_timebase()` to get the correct units.
+     * Get the capture delay and exposure time-lengths, both in milliseconds
      * @param pco handle
-     * @param delay the delay time
-     * @param exposure the exposure time
+     * @param delay the delay time (ms)
+     * @param exposure the exposure time (ms)
      * @return 0 on success, otherwise less than 0
      */
-    unsigned int pcoclhs_get_delay_exposure(pcoclhs_handle *pco, uint32_t *delay, uint32_t *exposure);
+    unsigned int pcoclhs_get_delay_exposure(pcoclhs_handle *pco, double *delay, double *exposure);
 
     /**
-     * Set the capture delay and exposure time-lengths. Use `pcoclhs_get_timebase()` to get the correct units.
+     * Set the capture delay and exposure time-lengths, both in milliseconds
      * @param pco handle
-     * @param delay the delay time
-     * @param exposure the exposure time
+     * @param delay the delay time (ms)
+     * @param exposure the exposure time (ms)
      * @return 0 on success, otherwise less than 0
      */
-    unsigned int pcoclhs_set_delay_exposure(pcoclhs_handle *pco, uint32_t delay, uint32_t exposure);
+    unsigned int pcoclhs_set_delay_exposure(pcoclhs_handle *pco, double delay, double exposure);
 
     /**
      * Get the camera trigger mode. Mode availability depends on the camera model.

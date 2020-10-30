@@ -39,6 +39,13 @@
         return (code);                \
     }
 
+#define USR_TIMEBASE TIMEBASE_MS
+#define CAM_TIMEBASE TIMEBASE_NS
+#define CONVERT_CAM2SEC_TIMEBASE(val) (double)((val) * 1e-9)
+#define CONVERT_CAM2USR_TIMEBASE(val) (double)((val) * 1e-6)
+#define CONVERT_USR2SEC_TIMEBASE(val) (double)((val) * 1e-3)
+#define CONVERT_USR2CAM_TIMEBASE(val) (uint32_t)((val) * 1e6)
+
 /* Static helper functions */
 
 static char *_get_error_text(DWORD code)
@@ -154,7 +161,7 @@ struct _pcoclhs_handle
     CPco_com_clhs *com;      /* Comm. interface to a camera */
     CPco_grab_clhs *grabber; /* Frame-grabber interface */
 
-    uint32_t cachedDelay, cachedExposure;
+    double cachedDelay, cachedExposure;
     pcoclhs_reorder_image_t reorder_func;
 
     uint16_t cameraType, cameraSubType;
@@ -497,7 +504,10 @@ unsigned int pcoclhs_set_pixelrate(pcoclhs_handle *pco, uint32_t rate)
 static void pcoclhs_post_update_pixelrate(pcoclhs_handle *pco)
 {
     if (pco->cameraType == CAMERATYPE_PCO_EDGE ||
-        pco->cameraType == CAMERATYPE_PCO_EDGE_GL)
+        pco->cameraType == CAMERATYPE_PCO_EDGE_HS ||
+        pco->cameraType == CAMERATYPE_PCO_EDGE_GL ||
+        pco->cameraType == CAMERATYPE_PCO_EDGE_42 ||
+        pco->cameraType == CAMERATYPE_PCO_EDGE_USB3)
     {
         uint32_t pixelrate;
         uint16_t w, h, wx, hx, lut = 0;
@@ -522,6 +532,44 @@ static void pcoclhs_post_update_pixelrate(pcoclhs_handle *pco)
         pco->com->PCO_SetTransferParameter(&tparam, sizeof(tparam));
         pco->com->PCO_SetLut(lut, 0);
     }
+}
+
+unsigned int pcoclhs_set_fps(pcoclhs_handle *pco, double fps)
+{
+    WORD status;
+    uint32_t rate = (uint32_t)(fps * 1e3); // Hz (FPS) to milli-Hz (mFPS)
+    uint32_t expo_ns = CONVERT_USR2CAM_TIMEBASE(pco->cachedExposure);
+    DWORD err = pco->com->PCO_SetFrameRate(&status, SET_FRAMERATE_MODE_FRAMERATE_HAS_PRIORITY, &rate, &expo_ns);
+    CHECK_ERROR(err);
+    if (err != PCO_NOERROR)
+    {
+        fprintf(stderr, "Setting the FPS is not supported by the camera.\n");
+        fprintf(stderr, "Please manually set the FPS through `exposure-time' and `delay-time'\n");
+    } else if (status == SET_FRAMERATE_STATUS_NOT_YET_VALIDATED)
+    return err;
+}
+
+unsigned int pcoclhs_get_fps(pcoclhs_handle *pco, double *fps)
+{
+    WORD status;
+    uint32_t rate, discard;
+    DWORD err = pco->com->PCO_GetFrameRate(&status, &rate, &discard);
+    if (err == PCO_NOERROR)
+    {
+        *fps = rate * 1e-3;  // mHz (sub-FPS) to Hz (FPS)
+    }
+    else
+    {
+        // try calculate from delay and exposure time.
+        // may get here if PCO_GetFrameRate is not supported.
+        double expo, delay;
+        err = pcoclhs_get_delay_exposure(pco, &delay, &expo);
+        CHECK_ERROR_AND_RETURN(err);
+        double msecs = expo + delay;
+        double secs = CONVERT_USR2SEC_TIMEBASE(msecs);
+        *fps = 1.0 / secs;
+    }
+    return err;
 }
 
 unsigned int pcoclhs_get_available_conversion_factors(pcoclhs_handle *pco, uint16_t factors[4], int *num_factors)
@@ -718,14 +766,14 @@ unsigned int pcoclhs_get_timebase(pcoclhs_handle *pco, uint16_t *delay, uint16_t
     CHECK_ERROR_THEN_RETURN(err);
 }
 
-unsigned int pcoclhs_get_delay_time(pcoclhs_handle *pco, uint32_t *delay)
+unsigned int pcoclhs_get_delay_time(pcoclhs_handle *pco, double *delay)
 {
-    uint32_t discard;
+    double discard;
     DWORD err = pcoclhs_get_delay_exposure(pco, delay, &discard);
     CHECK_ERROR_THEN_RETURN(err);
 }
 
-unsigned int pcoclhs_set_delay_time(pcoclhs_handle *pco, uint32_t delay)
+unsigned int pcoclhs_set_delay_time(pcoclhs_handle *pco, double delay)
 {
     DWORD err = pcoclhs_set_delay_exposure(pco, delay, pco->cachedExposure);
     CHECK_ERROR_THEN_RETURN(err);
@@ -745,14 +793,14 @@ unsigned int pcoclhs_get_delay_range(pcoclhs_handle *pco, uint32_t *min_ns, uint
     return err;
 }
 
-unsigned int pcoclhs_get_exposure_time(pcoclhs_handle *pco, uint32_t *exposure)
+unsigned int pcoclhs_get_exposure_time(pcoclhs_handle *pco, double *exposure)
 {
-    uint32_t discard;
+    double discard;
     DWORD err = pcoclhs_get_delay_exposure(pco, &discard, exposure);
     CHECK_ERROR_THEN_RETURN(err);
 }
 
-unsigned int pcoclhs_set_exposure_time(pcoclhs_handle *pco, uint32_t exposure)
+unsigned int pcoclhs_set_exposure_time(pcoclhs_handle *pco, double exposure)
 {
     DWORD err = pcoclhs_set_delay_exposure(pco, pco->cachedDelay, exposure);
     CHECK_ERROR_THEN_RETURN(err);
@@ -772,21 +820,38 @@ unsigned int pcoclhs_get_exposure_range(pcoclhs_handle *pco, uint32_t *min_ns, u
     return err;
 }
 
-unsigned int pcoclhs_get_delay_exposure(pcoclhs_handle *pco, uint32_t *delay, uint32_t *exposure)
+static unsigned int __pcoclhs_get_delay_exposure_ns(pcoclhs_handle *pco, uint32_t *delay_ns, uint32_t *expos_ns)
 {
-    DWORD err = pco->com->PCO_GetDelayExposure(delay, exposure);
+    DWORD err = pco->com->PCO_GetDelayExposure(delay_ns, expos_ns);
+    CHECK_ERROR_THEN_RETURN(err);
+}
+
+unsigned int pcoclhs_get_delay_exposure(pcoclhs_handle *pco, double *delay, double *exposure)
+{
+    uint32_t delay_ns, expos_ns;
+    DWORD err = __pcoclhs_get_delay_exposure_ns(pco, &delay_ns, &expos_ns);
     CHECK_ERROR(err);
     if (err == 0)
     {
+        *delay = CONVERT_CAM2USR_TIMEBASE(delay_ns);
+        *exposure = CONVERT_CAM2USR_TIMEBASE(expos_ns);
         pco->cachedDelay = *delay;
         pco->cachedExposure = *exposure;
     }
     return err;
 }
 
-unsigned int pcoclhs_set_delay_exposure(pcoclhs_handle *pco, uint32_t delay, uint32_t exposure)
+static unsigned int __pcoclhs_set_delay_exposure_ns(pcoclhs_handle *pco, uint32_t delay_ns, uint32_t expos_ns)
 {
-    DWORD err = pco->com->PCO_SetDelayExposure(delay, exposure);
+    DWORD err = pco->com->PCO_SetDelayExposureTime(delay_ns, expos_ns, CAM_TIMEBASE, CAM_TIMEBASE);
+    CHECK_ERROR_THEN_RETURN(err);
+}
+
+unsigned int pcoclhs_set_delay_exposure(pcoclhs_handle *pco, double delay, double exposure)
+{
+    uint32_t delay_ns = CONVERT_USR2CAM_TIMEBASE(delay);
+    uint32_t expo_ns = CONVERT_USR2CAM_TIMEBASE(exposure);
+    DWORD err = __pcoclhs_set_delay_exposure_ns(pco, delay_ns, expo_ns);
     CHECK_ERROR(err);
     if (err == 0)
     {

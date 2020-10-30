@@ -1,4 +1,4 @@
-SISODIR5 = /opt/SiliconSoftware/Runtime5.4.4
+SISODIR5 ?= /opt/SiliconSoftware/Runtime5.7.0
 # PCOSDKDIR = /opt/PCO/pco_camera
 
 LIB_NAME = ucapcoclhs
@@ -59,7 +59,7 @@ LIB_FLAGS = $(addprefix -L,$(LIB_DIRS)) $(addprefix -l,$(LIB_NAMES))
 all: $(HDRS) $(SRCS) $(BUILD_DIR)/$(OUTFILE)
 
 .PHONY: enums
-enums:  $(HDRS) $(SRCS)
+enums:  $(HDRS) $(SRCS) .FORCE
 
 %-enums.c: %-enums.c.in %-enums.h
 	glib-mkenums --template=$< --output=$@ $(HDRS)
@@ -117,5 +117,7 @@ check-cmds:
 	@echo "g++ compile: $(CXX) $(CXXFLAGS) $(INC_FLAGS) -c bar.cpp -o $(BUILD_DIR)/bar.cpp.o"
 	@echo
 	@echo "linker: $(CXX) $(LDFLAGS) $(BUILD_DIR)/foo.c.o $(BUILD_DIR)/bar.cpp.o -o $(BUILD_DIR)/foobar.so $(LIB_FLAGS)"
+
+.FORCE:
 
 -include $(DEPS)
