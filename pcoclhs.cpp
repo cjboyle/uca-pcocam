@@ -7,6 +7,7 @@
 
 #include "pco/Cpco_com_clhs.h"
 #include "pco/Cpco_grab_clhs.h"
+#include "pco/Cpco_log.h"
 #include "pco/reorderfunc.h"
 
 #define PCO_ERRT_H_CREATE_OBJECT
@@ -160,6 +161,7 @@ struct _pcoclhs_handle
 {
     CPco_com_clhs *com;      /* Comm. interface to a camera */
     CPco_grab_clhs *grabber; /* Frame-grabber interface */
+    CPco_Log *logger;
 
     double cachedDelay, cachedExposure;
     pcoclhs_reorder_image_t reorder_func;
@@ -184,11 +186,19 @@ static unsigned int _pcoclhs_init(pcoclhs_handle *pco, int board, int port)
     grab = new CPco_grab_clhs(com);
     pco->grabber = grab;
 
+    CPco_Log *logger;
+    logger = new CPco_Log("pcoclhs.log.txt");
+    logger->set_logbits(0xF0FF);
+    pco->logger = logger;
+
     err = pcoclhs_open_camera(pco, port);
     CHECK_ERROR_AND_RETURN(err);
 
     err = pco->grabber->Open_Grabber(board);
     CHECK_ERROR_AND_RETURN(err);
+
+    pco->grabber->SetLog(pco->logger);
+    pco->com->SetLog(pco->logger);
 
     pco->reorder_func = &func_reorder_image_5x16;
 

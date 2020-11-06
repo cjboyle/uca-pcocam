@@ -9,9 +9,9 @@
 #include "uca-pcoclhs-camera.h"
 #include "uca-pcoclhs-enums.h"
 
-#include <fgrab_define.h>
-#include <fgrab_prototyp.h>
-#include <fgrab_struct.h>
+// #include <fgrab_define.h>
+// #include <fgrab_prototyp.h>
+// #include <fgrab_struct.h>
 
 #define UCA_PCO_CLHS_CAMERA_GET_PRIVATE(obj) (G_TYPE_INSTANCE_GET_PRIVATE((obj), UCA_TYPE_PCO_CLHS_CAMERA, UcaPcoClhsCameraPrivate))
 
@@ -267,6 +267,9 @@ static gboolean check_and_resize_memory(UcaPcoClhsCameraPrivate *priv, GError **
     g_warning("Fg_FreeMemEx");
     if (priv->fg_mem)
         Fg_FreeMemEx(priv->fg, priv->fg_mem);
+
+    void* sts;
+    Fg_getParameter(priv->fg, FG_CAMSTATUS, &sts, priv->fg_mem);
     g_warning("Fg_AllocMemEx");
     priv->fg_mem = Fg_AllocMemEx(priv->fg, priv->num_buffers * priv->buffer_size, priv->num_buffers);
     if (priv->fg_mem == NULL)
@@ -295,7 +298,11 @@ static gpointer grab_func(gpointer rawptr)
     frame = Fg_getImagePtr(priv->fg, 0, priv->fg_port);
 #else
     err = pcoclhs_await_next_image(priv->pco, frame);
-    CHECK_AND_RETURN_VAL_ON_PCO_ERROR(err, NULL);
+    // CHECK_AND_RETURN_VAL_ON_PCO_ERROR(err, NULL);
+    if (err != 0) {
+        g_error("Error acquiring next image at <%s:%i>", __FILE__, __LINE__);
+        return NULL;
+    }
 #endif
 
     guint16 width, height;
@@ -1343,6 +1350,7 @@ static gboolean setup_frame_grabber(UcaPcoClhsCameraPrivate *priv)
     priv->fg_port = 0;
     g_warning("Fg_Init");
     priv->fg = Fg_Init(libacq, priv->fg_port);
+
     // hopefully use the existing PCO-side config
     if (priv->fg == NULL)
     {
@@ -1353,9 +1361,9 @@ static gboolean setup_frame_grabber(UcaPcoClhsCameraPrivate *priv)
         return FALSE;
     }
     int mode = FREE_RUN;
-    g_warning("Fg_setParameter");
-    int err = Fg_setParameter(priv->fg, FG_TRIGGERMODE, &mode, priv->fg_port);
-    return err == 0;
+    // g_warning("Fg_setParameter");
+    // int err = Fg_setParameter(priv->fg, FG_TRIGGERMODE, &mode, priv->fg_port);
+    // return err == 0;
 #endif
     return TRUE;
 }
