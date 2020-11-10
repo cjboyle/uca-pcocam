@@ -250,6 +250,11 @@ static void check_pco_clhs_property_error(guint err, guint property_id)
     }
 }
 
+static gboolean is_edge(UcaPcoClhsCameraPrivate *priv)
+{
+    return TRUE; // temporary, all pco.clhs cameras are pco.edge
+}
+
 static gboolean check_and_resize_memory(UcaPcoClhsCameraPrivate *priv, GError **error)
 {
     guint16 fg_width, fg_height, frm_width, frm_height;
@@ -260,7 +265,8 @@ static gboolean check_and_resize_memory(UcaPcoClhsCameraPrivate *priv, GError **
     err = pcoclhs_get_actual_size(priv->pco, &frm_width, &frm_height);
     CHECK_AND_RETURN_VAL_ON_PCO_ERROR(err, FALSE);
 
-    priv->buffer_size = 2 * frm_width * frm_height;
+    guint mult = is_edge(priv) ? 2 : 1;
+    priv->buffer_size = mult * frm_width * frm_height;
     // pcoclhs_grabber_allocate_memory(priv->pco, num_buffers);
 
 #ifdef FGRAB_STRUCT_H
@@ -375,12 +381,13 @@ static void uca_pco_clhs_camera_start_recording(UcaCamera *camera, GError **erro
     if (!check_and_resize_memory(priv, error))
         return;
 
+    if (priv->grab_buffer)
+        g_free(priv->grab_buffer);
+
+    priv->grab_buffer = g_malloc0(priv->buffer_size);
+
     if (transfer_async)
     {
-        if (priv->grab_buffer)
-            g_free(priv->grab_buffer);
-        priv->grab_buffer = g_malloc0(priv->buffer_size);
-
         GError *th_err = NULL;
         priv->thread_running = TRUE;
 #if GLIB_CHECK_VERSION(2, 32, 0)
