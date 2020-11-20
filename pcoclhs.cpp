@@ -167,6 +167,7 @@ struct _pcoclhs_handle
     pcoclhs_reorder_image_t reorder_func;
 
     uint16_t cameraType, cameraSubType;
+    SC2_Camera_Description_Response description;
 
     int board, port;
 };
@@ -187,9 +188,12 @@ static unsigned int _pcoclhs_init(pcoclhs_handle *pco, int board, int port)
     pco->grabber = grab;
 
     CPco_Log *logger;
-    logger = new CPco_Log("pcoclhs.log.txt");
-    logger->set_logbits(0xF0FF);
+    logger = new CPco_Log("pcoclhs.log");
+    logger->set_logbits(0x000FF0FF);
     pco->logger = logger;
+
+    pco->grabber->SetLog(pco->logger);
+    pco->com->SetLog(pco->logger);
 
     err = pcoclhs_open_camera(pco, port);
     CHECK_ERROR_AND_RETURN(err);
@@ -197,12 +201,15 @@ static unsigned int _pcoclhs_init(pcoclhs_handle *pco, int board, int port)
     err = pco->grabber->Open_Grabber(board);
     CHECK_ERROR_AND_RETURN(err);
 
-    pco->grabber->SetLog(pco->logger);
-    pco->com->SetLog(pco->logger);
-
     pco->reorder_func = &func_reorder_image_5x16;
 
-    err = pco->grabber->Set_Grabber_Timeout(30000);
+    err = pco->com->PCO_GetCameraDescriptor(&pco->description);
+    CHECK_ERROR_AND_RETURN(err);
+
+    err = pcoclhs_get_camera_type(pco, &pco->cameraType, &pco->cameraSubType);
+    CHECK_ERROR_AND_RETURN(err);
+
+    err = pco->grabber->Set_Grabber_Timeout(10000);
     CHECK_ERROR_AND_RETURN(err);
 
     err = pco->com->PCO_SetCameraToCurrentTime();
@@ -214,14 +221,30 @@ static unsigned int _pcoclhs_init(pcoclhs_handle *pco, int board, int port)
     err = pco->com->PCO_ResetSettingsToDefault();
     CHECK_ERROR_AND_RETURN(err);
 
+    err = pcoclhs_set_timestamp_mode(pco, TIMESTAMP_MODE_BINARYANDASCII);
+    CHECK_ERROR_AND_RETURN(err);
+
+    err = pcoclhs_set_timebase(pco, TIMEBASE_MS, TIMEBASE_MS);
+    CHECK_ERROR_AND_RETURN(err);
+
+    err = pcoclhs_set_delay_exposure(pco, 0.0, 10.0);
+    CHECK_ERROR_AND_RETURN(err);
+
+    if (pco->description.wNumADCsDESC > 1)
+    {
+        err = pco->com->PCO_SetADCOperation(2);
+        CHECK_ERROR_AND_RETURN(err);
+    }
+
     err = pco->com->PCO_SetBitAlignment(BIT_ALIGNMENT_LSB);
-    CHECK_ERROR_AND_RETURN(err);
+    CHECK_ERROR(err);
+    if (err != PCO_NOERROR) {}
 
-    err = pcoclhs_get_camera_type(pco, &pco->cameraType, &pco->cameraSubType);
-    CHECK_ERROR_AND_RETURN(err);
+    // err = pcoclhs_arm_camera(pco);
+    // CHECK_ERROR_AND_RETURN(err);
 
-    DWORD times[3] = {2000, 10000, 10000};
-    pco->com->Set_Timeouts(times, 3);
+    // DWORD times[3] = {2000, 10000, 10000};
+    // pco->com->Set_Timeouts(times, 3);
 
     return PCO_NOERROR;
 }
@@ -955,9 +978,75 @@ unsigned int pcoclhs_acquire_image_ex(pcoclhs_handle *pco, void *adr, int timeou
     CHECK_ERROR_THEN_RETURN(err);
 }
 
+unsigned int pcoclhs_acquire_n_images(pcoclhs_handle *pco, WORD **adr, int count)
+{
+    WORD img_size = sizeof(adr) / count, err = 0;
+    // WORD *picbuf[4];
+
+    // memset(picbuf, 0, sizeof(WORD *) * 4);
+    // for (int i = 0; i < 4; i++)
+    // {
+    //     adr[i] = (WORD *)malloc(img_size * sizeof(WORD));
+    //     if (adr[i] == NULL)
+    //     {
+    //         CHECK_ERROR_AND_RETURN(PCO_ERROR_NOMEMORY);
+    //     }
+    // }
+
+    for (DWORD i = 0; i < count; i++)
+    {
+        DWORD buf_nr = i * img_size;
+        err = pcoclhs_acquire_image(pco, adr[buf_nr]);
+        CHECK_ERROR_THEN_RETURN(err);
+
+        if (i == 0)
+            pco->logger->start_time_mess();
+    }
+
+    pco->logger->stop_time_mess();
+    return err;
+}
+
+unsigned int pcoclhs_get_segment_image(pcoclhs_handle *pco, void *adr, int seg, int nr)
+{
+    DWORD err;
+
+    if (!pcoclhs_is_recording(pco))
+    {
+        if (pco->description.dwGeneralCaps1 & GENERALCAPS1_NO_RECORDER)
+        {
+            fprintf(stderr, "Camera does not support image readout from segments\n");
+            return -1;
+        }
+
+        DWORD valid, max;
+        err = pco->com->PCO_GetNumberOfImagesInSegment(seg, &valid, &max);
+        CHECK_ERROR_AND_RETURN(err);
+
+        if (valid == 0)
+        {
+            fprintf(stderr, "No images available in segment %d\n", seg);
+            return -1;
+        }
+        if (nr > (int)valid)
+        {
+            fprintf(stderr, "Selected image number is out of range");
+            return -1;
+        }
+    }
+
+    unsigned int w, h, l;
+    WORD *buf;
+    pcoclhs_get_actual_size(pco, &w, &h);
+
+    err = pco->grabber->Get_Image(seg, nr, adr);
+    CHECK_ERROR_AND_RETURN(err);
+}
+
 unsigned int pcoclhs_get_actual_size(pcoclhs_handle *pco, uint32_t *width, uint32_t *height)
 {
-    DWORD err = pco->com->PCO_GetActualSize(width, height);
+    // DWORD err = pco->com->PCO_GetActualSize(width, height);
+    DWORD err = pco->grabber->Get_actual_size(width, height, NULL);
     CHECK_ERROR_THEN_RETURN(err);
 }
 

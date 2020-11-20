@@ -267,7 +267,6 @@ static gboolean check_and_resize_memory(UcaPcoClhsCameraPrivate *priv, GError **
 
     guint mult = is_edge(priv) ? 2 : 1;
     priv->buffer_size = mult * frm_width * frm_height;
-    // pcoclhs_grabber_allocate_memory(priv->pco, num_buffers);
 
 #ifdef FGRAB_STRUCT_H
     g_warning("Fg_FreeMemEx");
@@ -284,6 +283,8 @@ static gboolean check_and_resize_memory(UcaPcoClhsCameraPrivate *priv, GError **
                     "%s", Fg_getLastErrorDescription(priv->fg));
         return FALSE;
     }
+#else
+    pcoclhs_grabber_allocate_memory(priv->pco, priv->buffer_size);
 #endif
     return TRUE;
 }
@@ -385,6 +386,7 @@ static void uca_pco_clhs_camera_start_recording(UcaCamera *camera, GError **erro
         g_free(priv->grab_buffer);
 
     priv->grab_buffer = g_malloc0(priv->buffer_size);
+    memset(priv->grab_buffer, 0, priv->buffer_size);
 
     if (transfer_async)
     {
@@ -467,7 +469,7 @@ static gboolean uca_pco_clhs_camera_grab(UcaCamera *camera, gpointer data, GErro
     g_warning("Fg_getImagePtr 2");
     frame = Fg_getImagePtr(priv->fg, 0, priv->fg_port);
 #else
-    err = pcoclhs_await_next_image(priv->pco, frame);
+    err = pcoclhs_acquire_image(priv->pco, frame);
     CHECK_AND_RETURN_VAL_ON_PCO_ERROR(err, FALSE);
 #endif
 
