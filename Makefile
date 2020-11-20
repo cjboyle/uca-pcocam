@@ -24,22 +24,24 @@ LIB_NAMES += uca
 
 # SISO Runtime SDK
 INC_DIRS += $(SISODIR5)/include
-
 # LIB_DIRS += $(SISODIR5)/lib
 LIB_DIRS += $(SISODIR5)/lib64
-
 LIB_NAMES += fglib5 haprt
 
 
 # PCO.Linux SDK
 LIB_DIRS += /usr/local/lib
-
 LIB_NAMES += pcoclhs pcocam_clhs pcocom_clhs pcofile pcolog reorderfunc
 
 
 # GLib headers
 INC_DIRS += /usr/include/glib /usr/include/glib-2.0 /usr/lib64/glib-2.0/include
 LIB_NAMES += glib-2.0
+
+
+# Other libs
+LIB_NAMES += pthread rt dl
+
 
 # Other
 OUTFILE = lib$(LIB_NAME).so
