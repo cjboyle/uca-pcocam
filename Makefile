@@ -1,5 +1,5 @@
-SISODIR5 ?= /opt/SiliconSoftware/Runtime5.7.0
-# PCOSDKDIR = /opt/PCO/pco_camera
+SISODIR5 ?= /opt/SiliconSoftware/Runtime5.4.4
+PCOSDKDIR = /opt/PCO/pco_camera
 
 LIB_NAME = ucapcoclhs
 PROJ_NAME = uca-pcoclhs
@@ -7,9 +7,9 @@ PROJ_NAME = uca-pcoclhs
 
 
 CC = gcc
-CCFLAGS = -std=c99 -Wall -fPIC
+CCFLAGS = -std=c99 -O2 -Wall -fPIC
 CXX = g++
-CXXFLAGS = -std=c++0x -Wall -fPIC
+CXXFLAGS = -std=c++0x -O2 -Wall -fPIC
 LDFLAGS = -shared
 
 
@@ -26,12 +26,16 @@ LIB_NAMES += uca
 INC_DIRS += $(SISODIR5)/include
 # LIB_DIRS += $(SISODIR5)/lib
 LIB_DIRS += $(SISODIR5)/lib64
-LIB_NAMES += fglib5 haprt
+# LIB_NAMES += fglib5 haprt
 
 
 # PCO.Linux SDK
-LIB_DIRS += /usr/local/lib
-LIB_NAMES += pcoclhs pcocam_clhs pcocom_clhs pcofile pcolog reorderfunc
+# LIB_DIRS += /usr/local/lib
+# LIB_DIRS += /opt/PCO/pco_camera/pco_common/pco_lib
+PCO_LIB_DIR = ./pco/lib/clhs
+PCO_LIB_NAMES += pcolog pcofile pcocam_clhs pcoclhs
+PCO_LIBS = -Wl,-Bstatic $(addprefix $(PCO_LIB_DIR)/lib,$(addsuffix .a,$(PCO_LIB_NAMES))) -Wl,-Bdynamic
+
 
 
 # GLib headers
@@ -52,7 +56,7 @@ OBJS := $(SRCS:%=$(BUILD_DIR)/%.o)
 DEPS := $(OBJS:.o=.d)
 
 INC_FLAGS = $(addprefix -I,$(INC_DIRS))
-LIB_FLAGS = $(addprefix -L,$(LIB_DIRS)) $(addprefix -l,$(LIB_NAMES))
+LIB_FLAGS = $(addprefix -L,$(LIB_DIRS)) $(addprefix -l,$(LIB_NAMES)) $(PCO_LIBS)
 
 
 ### Build Targets

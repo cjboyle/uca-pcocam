@@ -1,0 +1,1000 @@
+#define IEEE1394_MasterResponseAddress  0xF8000000L
+
+  // this is the FireWire address space for the master (PC / driver) to get   //
+  // and detect response telegrams.   -> cameras write telegrams to address:  //
+  //           0xFFFF_0000_0000 + <IEEE1394_MasterResponseAddress>            //
+
+
+#define IEEE1394_MasterInterruptAddress 0xF9000000L
+
+  // this is the FireWire address space for the master (PC / driver) to get   //
+  // and detect telegrams sent by the camera initiated by itsself (error      //
+  // messages etc.  -> cameras write (interrupt) telegrams to address:        //
+  //           0xFFFF_0000_0000 + <IEEE1394_MasterInterruptAddress>           //
+
+
+#define IEEE1394_CameraCommandAddress   0xFA000000L
+
+  // this is the FireWire address space for the client (pco.camera) to get and //
+  // detect command telegrams.   -> master (PC) write telegrams to address:    //
+  //          0xFFFF_0000_0000 + <IEEE1394_CameraCommandAddress>               //
+
+
+
+////////////////////////////////////////////////////////////////////////////////////////
+// General Telegram Prototypes                                                        //
+////////////////////////////////////////////////////////////////////////////////////////
+
+typedef struct                         // telegram header prototype
+{
+  WORD        wCode;                   // telegram code 
+  WORD        wSize;                   // telegram length
+} SC2_Telegram_Header;
+
+
+typedef struct                         // general purpose telegram, 
+{
+  WORD        wCode;                   // telegram code 
+  WORD        wSize;                   // telegram length
+  BYTE        bData[268];              // longest telegram (update) padded to DWORD
+} SC2_Telegram;
+
+
+typedef struct                         // simple telegram with no parameters
+{
+  WORD        wCode;                   // telegram code 
+  WORD        wSize;                   // telegram length
+  BYTE        bCks;
+} SC2_Simple_Telegram;
+
+
+
+////////////////////////////////////////////////////////////////////////////////////////
+// Telegrams for version management (firmware & hardware)                             //
+////////////////////////////////////////////////////////////////////////////////////////
+
+typedef struct           // structure for saving HW info in device flash/eeprom etc.
+{
+  WORD  wBatchNo; 
+  WORD  wRevision;       // revision code
+  WORD  wVariant;        // variant
+}
+SC2_HWVERSION;    
+
+
+typedef struct           // structure for saving FW info in device flash/eeprom etc.
+{
+  BYTE  bMinorRev;       // use range 0 to  99
+  BYTE  bMajorRev;       // use range 0 to 255
+  WORD  wVariant;        // variant
+  BYTE  bHour;           // build date of version
+  BYTE  bMinute;
+  BYTE  bDay;
+  BYTE  bMonth;
+  WORD  wYear;
+}
+SC2_FWVERSION;           // length is trimmed to 32 byte
+
+
+typedef struct
+{
+  char  szName[16];      // string with board name
+  WORD  wBatchNo;        // production batch no
+  WORD  wRevision;       // revision code
+  WORD  wVariant;        // variant
+}
+SC2_Hardware_DESC;
+
+
+typedef struct
+{
+  WORD                   wCode;          // telegram code 
+  WORD                   wSize;          // telegram length
+  WORD                   BoardNum;       // number of devices
+  SC2_Hardware_DESC      Board[10];
+  BYTE                   bCks;           // checksum byte
+}
+SC2_Hardware_Versions_Response;    
+
+
+typedef struct
+{
+  char  szName[16];      // string with device name
+  BYTE  bMinorRev;       // use range 0 to 99
+  BYTE  bMajorRev;       // use range 0 to 255
+  WORD  wVariant;        // variant
+}
+SC2_Firmware_DESC;
+
+
+typedef struct
+{
+  WORD                   wCode;           // telegram code 
+  WORD                   wSize;           // telegram length
+  WORD                   DeviceNum;       // number of devices
+  SC2_Firmware_DESC      Device[10];
+  BYTE                   bCks;            // checksum byte
+}
+SC2_Firmware_Versions_Response;    
+
+
+#define SC2_Get_Hardware_Versions SC2_Simple_Telegram
+#define SC2_Get_Firmware_Versions SC2_Simple_Telegram
+
+typedef struct
+{
+  WORD        wCode;                   // telegram code 
+  WORD        wSize;                   // telegram length
+  BYTE        bNum;                    // block enumeration (0->1...10, 1-> 11...20 ...)
+  BYTE        bCks;                    // checksum byte
+}
+SC2_Get_Ext_Firmware_Versions;
+
+#define SC2_Get_Ext_Hardware_Versions SC2_Get_Ext_Firmware_Versions
+
+
+typedef struct
+{
+  WORD        wCode;                   // telegram code 
+  WORD        wSize;                   // telegram length
+  WORD        wMailboxNo;              // No of mailbox
+  BYTE        bData[11];               // data
+  BYTE        bCks;                    // checksum byte
+}
+SC2_Write_Mailbox;
+
+typedef struct
+{
+  WORD        wCode;                   // telegram code 
+  WORD        wSize;                   // telegram length
+  WORD        wMailboxNo;              // No of mailbox
+  BYTE        bCks;                    // checksum byte
+}
+SC2_Write_Mailbox_Response;
+
+
+typedef struct
+{
+  WORD        wCode;                   // telegram code 
+  WORD        wSize;                   // telegram length
+  WORD        wMailboxNo;              // 
+  BYTE        bCks;                    // checksum byte
+}
+SC2_Read_Mailbox;
+
+typedef struct
+{
+  WORD        wCode;                   // telegram code 
+  WORD        wSize;                   // telegram length
+  WORD        wMailboxNo;              // 
+  WORD        wReadStatus;             // status of operation
+  BYTE        bData[11];               // data
+  BYTE        bCks;                    // checksum byte
+}
+SC2_Read_Mailbox_Response;
+
+
+typedef struct
+{
+  WORD        wCode;                   // telegram code 
+  WORD        wSize;                   // telegram length
+  BYTE        bCks;                    // checksum byte
+}
+SC2_Get_Mailbox_Status;
+
+typedef struct
+{
+  WORD        wCode;                    // telegram code 
+  WORD        wSize;                    // telegram length
+  WORD        wNumberOfMailboxes;       // number of mailboxes implemented
+  WORD        wMailboxStatus[8];        // status of up to 8 mailboxes
+  BYTE        bCks;                     // checksum byte
+}
+SC2_Get_Mailbox_Status_Response;
+
+#define NUMSETUPFLAGS 4
+typedef struct
+{
+  WORD        wCode;                   // telegram code 
+  WORD        wSize;                   // telegram length
+  WORD        wType;                   // general type 
+  DWORD       dwSetupFlags[NUMSETUPFLAGS];// Camera setup flags
+  BYTE        bCks;                    // checksum byte
+}
+SC2_Set_Camera_Setup;
+
+#define SC2_Set_Camera_Setup_Response SC2_Set_Camera_Setup
+
+#define SC2_Get_Camera_Setup SC2_Set_Camera_Setup
+#define SC2_Get_Camera_Setup_Response SC2_Set_Camera_Setup
+
+
+
+/////////////////////////////////////////////////////////////////////
+// Interface specific Commands 
+/////////////////////////////////////////////////////////////////////
+
+typedef struct
+{
+  WORD        wCode;                   // telegram code 
+  WORD        wSize;                   // telegram length
+  WORD        wMasterNode;             // Master Node to respond to
+  WORD        wIsochChannel;           // Used isochronous channel
+  WORD        wIsochPacketLen;         // Length of a single packet
+  WORD        wIsochPacketNum;         // Number of packets per image
+  BYTE        bCks;                    // checksum byte
+} SC2_IEEE1394_Interface_Params_Response;  
+
+#define SC2_Set_IEEE1394_Interface_Params SC2_IEEE1394_Interface_Params_Response
+
+
+typedef struct
+{
+  WORD        wCode;                   // telegram code 
+  WORD        wSize;                   // telegram length
+  BYTE        bCks;                    // checksum byte
+} SC2_Get_IEEE1394_Interface_Params;  
+
+
+typedef struct
+{
+  WORD        wCode;                   // telegram code 
+  WORD        wSize;                   // telegram length
+  WORD        wMode;                   // mode
+  BYTE        bCks;                    // checksum byte
+} SC2_IEEE1394_Iso_Byte_Order_Response;  
+
+
+typedef struct
+{
+  WORD        wCode;                   // telegram code 
+  WORD        wSize;                   // telegram length
+  BYTE        bCks;                    // checksum byte
+} SC2_Get_IEEE1394_Iso_Byte_Order;  
+
+#define SC2_Set_IEEE1394_Iso_Byte_Order SC2_IEEE1394_Iso_Byte_Order_Response
+
+
+/////////////////////////////////////////////////////////////////////
+// interface specific commands CameraLink
+/////////////////////////////////////////////////////////////////////
+
+typedef struct
+{
+  WORD        wCode;                   // telegram code 
+  WORD        wSize;                   // telegram length
+  DWORD       dwBaudrate;              // Baudrate of CameraLink serial interface
+  BYTE        bCks;                    // checksum byte
+} SC2_Get_CL_Baudrate_Response;  
+
+#define SC2_Set_CL_Baudrate SC2_Get_CL_Baudrate_Response
+
+
+
+
+typedef struct
+{
+  WORD        wCode;                   // telegram code 
+  WORD        wSize;                   // telegram length
+  DWORD       dwClockFrequency;        // Pixelclock in Hz
+  BYTE        bCCline;                 // Usage of CameraLink CC1-CC4 lines 
+  BYTE        bDataFormat;             // register with Testpattern and Datasplitter switch     
+  BYTE        bTransmit;               // single or continuous transmitting images 
+  BYTE        bCks;                    // checksum byte
+} SC2_Get_CL_Configuration_Response;  
+
+#define SC2_Set_CL_Configuration SC2_Get_CL_Configuration_Response
+
+
+
+/////////////////////////////////////////////////////////////////////
+// General Control/Status
+/////////////////////////////////////////////////////////////////////
+
+
+typedef struct
+{
+  WORD        wCode;                   // telegram code 
+  WORD        wSize;                   // telegram length
+  DWORD       dwerrmess;               // 
+  BYTE        bCks;                    // checksum byte
+} SC2_Failure_Response;
+
+
+typedef struct
+{
+  WORD        wCode;                   // telegram code 
+  WORD        wSize;                   // telegram length
+  WORD        wCamType;                // Camera type
+  WORD        wCamSubType;             // Camera sub type
+  DWORD       dwSerialNumber;          // Serial number of camera
+  DWORD       dwHWVersion;             // Hardware version number
+  DWORD       dwFWVersion;             // Firmware version number
+  WORD        wInterfaceType;          // Interface type
+  BYTE        bCks;                    // checksum byte
+} SC2_Camera_Type_Response;
+
+
+typedef struct
+{
+  WORD        wCode;                   // telegram code 
+  WORD        wSize;                   // telegram length
+  char        szName[40];              // camera name, null terminated
+  BYTE        bCks;                    // checksum byte
+} SC2_Camera_Name_Response;
+
+
+typedef struct
+{
+  WORD        wCode;                   // telegram code 
+  WORD        wSize;                   // telegram length
+  DWORD       dwWarnings;              // Warnings
+  DWORD       dwErrors;                // Errors
+  DWORD       dwStatus;                // Status info
+  BYTE        bCks;                    // checksum byte
+} SC2_Camera_Health_Status_Response;
+
+
+typedef struct
+{
+  WORD        wCode;                   // telegram code 
+  WORD        wSize;                   // telegram length
+  BYTE        bCks;                    // checksum byte
+} SC2_Reset_Settings_To_Default_Response;
+
+
+typedef struct
+{
+  WORD        wCode;                   // telegram code 
+  WORD        wSize;                   // telegram length
+  DWORD       dwWarnings;              // Warnings
+  DWORD       dwErrors;                // Errors
+  BYTE        bCks;                    // checksum byte
+} SC2_Initiate_Selftest_Procedure_Response;
+
+
+typedef struct
+{
+  WORD        wCode;                   // telegram code 
+  WORD        wSize;                   // telegram length
+  WORD        wCCDtemp;
+  WORD        wCamtemp;
+  WORD        wPStemp;
+  BYTE        bCks;                    // checksum byte
+} SC2_Temperature_Response;
+
+typedef struct
+{
+ WORD        wCode;                   // telegram code 
+ WORD        wSize;                   // telegram length
+ SHORT       sCCDtemp;
+ SHORT       sCamtemp;
+ SHORT       sPStemp;
+ BYTE        bCks;                    // checksum byte
+} SC2_Temperatures_Response;
+
+typedef struct
+{
+  WORD        wCode;                   // telegram code 
+  WORD        wSize;                   // telegram length
+  DWORD       dwType;                  // info type
+  BYTE        bCks;                    // checksum byte
+} SC2_Get_Info_String;
+
+typedef struct
+{
+  WORD        wCode;                   // telegram code 
+  WORD        wSize;                   // telegram length
+  char        szName[40];              // info name, null terminated
+  BYTE        bCks;                    // checksum byte
+} SC2_Get_Info_String_Response;
+
+typedef struct
+{
+  WORD        wCode;                   // telegram code 
+  WORD        wSize;                   // telegram length
+  WORD        wFanMode;                // actual Mode 
+  WORD        wFanMin;                 // minimum fan setting (0 = off) 
+  WORD        wFanMax;                 // maximum fan setting (100 = standard) 
+  WORD        wStepSize;               // step size for set value
+  WORD        wSetValue;               // set value,
+  WORD        wActualValue;            // actual value, set value may be overridden by camera
+  WORD        wReserved;               // reserved for future use
+  BYTE        bCks;                    // checksum byte
+} SC2_Get_Fan_Control_Status_Response;
+
+#define SC2_Get_Fan_Control_Status SC2_Simple_Telegram
+
+typedef struct
+{
+  WORD        wCode;                   // telegram code 
+  WORD        wSize;                   // telegram length
+  WORD        wFanMode;                // set mode,
+  WORD        wSetValue;               // set value,
+  WORD        wReserved;               // reserved for future use
+  BYTE        bCks;                    // checksum byte
+} SC2_Set_Fan_Control_Params;
+
+#define SC2_Set_Fan_Control_Params_Response SC2_Set_Fan_Control_Params
+
+
+typedef struct
+{
+  WORD        wCode;                   // telegram code 
+  WORD        wSize;                   // telegram length
+  BYTE        bCks;                    // checksum byte
+} SC2_Get_Powersave_Mode;
+
+
+typedef struct
+{
+  WORD        wCode;                   // telegram code 
+  WORD        wSize;                   // telegram length
+  WORD        wMode;                   // Powersave mode on, off
+  WORD        wDelayMinutes;           // delay for switching to powersave
+  BYTE        bCks;                    // checksum byte
+} SC2_Set_Powersave_Mode;
+
+
+typedef struct
+{
+  WORD        wCode;                   // telegram code 
+  WORD        wSize;                   // telegram length
+  WORD        wMode;                   // Powersave mode on, off
+  WORD        wDelayMinutes;           // delay for switching to powersave
+  BYTE        bCks;                    // checksum byte
+} SC2_Powersave_Mode_Response;
+
+
+typedef struct
+{
+  WORD        wCode;                   // telegram code 
+  WORD        wSize;                   // telegram length
+  BYTE        bCks;                    // checksum byte
+} SC2_Get_Battery_Status;
+
+
+typedef struct
+{
+  WORD        wCode;                   // telegram code 
+  WORD        wSize;                   // telegram length
+  WORD        wBatteryType;            // Battery type, 0 = no batt. 0xFFFF = unknown
+  WORD        wBatteryLevel;           // charge level in percent of full 
+  WORD        wPowerStatus;            // power status of mains, battery etc.
+  WORD        wRFU[3];                 // 4 words reserved for future use.
+  BYTE        bCks;                    // checksum byte
+} SC2_Battery_Status_Response;
+
+
+typedef struct
+{
+  WORD        wCode;                   // telegram code 
+  WORD        wSize;                   // telegram length (including data)
+  WORD        wID;                     // ID of destination register for writting
+  BYTE        bData[256];              // data for writing into destination register (up to 256 Byte)
+  BYTE        bCks;                    // checksum byte
+} SC2_Set_External_Register;
+
+typedef struct
+{
+  WORD        wCode;                   // telegram code 
+  WORD        wSize;                   // telegram length
+  WORD        wID;                     // ID of destination register
+  WORD        wDataSize;               // size of data written to destination ID
+  BYTE        bCks;                    // checksum byte
+} SC2_Set_External_Register_Response;
+
+typedef struct
+{
+  WORD        wCode;                   // telegram code 
+  WORD        wSize;                   // telegram length
+  WORD        wID;                     // ID of source register for reading
+  BYTE        bCks;                    // checksum byte
+} SC2_Get_External_Register;
+
+typedef struct
+{
+  WORD        wCode;                   // telegram code 
+  WORD        wSize;                   // telegram length (including data)
+  WORD        wID;                     // ID of source register
+  BYTE        bData[256];              // data read from source register (max. 256 Byte)
+  BYTE        bCks;                    // checksum byte
+} SC2_Get_External_Register_Response;
+
+
+
+
+/////////////////////////////////////////////////////////////////////
+// Image Sensor Control
+/////////////////////////////////////////////////////////////////////
+
+typedef struct
+{
+  WORD        wCode;                   // telegram code 
+  WORD        wSize;                   // Sizeof this struct
+  WORD        wSensorTypeDESC;         // Sensor type
+  WORD        wSensorSubTypeDESC;      // Sensor subtype
+  WORD        wMaxHorzResStdDESC;      // Maxmimum horz. resolution in std.mode       (10)
+  WORD        wMaxVertResStdDESC;      // Maxmimum vert. resolution in std.mode
+  WORD        wMaxHorzResExtDESC;      // Maxmimum horz. resolution in ext.mode
+  WORD        wMaxVertResExtDESC;      // Maxmimum vert. resolution in ext.mode
+  WORD        wDynResDESC;             // Dynamic resolution of ADC in bit
+  WORD        wMaxBinHorzDESC;         // Maxmimum horz. binning                      (20)
+  WORD        wBinHorzSteppingDESC;    // Horz. bin. stepping (0:bin, 1:lin)
+  WORD        wMaxBinVertDESC;         // Maxmimum vert. binning
+  WORD        wBinVertSteppingDESC;    // Vert. bin. stepping (0:bin, 1:lin)
+  WORD        wRoiHorStepsDESC;        // Roi hor can be changed in these steps
+  WORD        wRoiVertStepsDESC;       // Roi vert can be changed in these steps      (30)
+  WORD        wNumADCsDESC;            // Number of ADCs in system
+  DWORD       dwPixelRateDESC[4];      // Possible pixelrate in Hz                    (48)
+  WORD        wConvFactDESC[4];        // Possible conversion factor in e/cnt         (56)
+  WORD        wIRDESC;                 // IR enhancment possibility
+  DWORD       dwMinDelayDESC;          // Minimum delay time in ns                    (62)
+  DWORD       dwMaxDelayDESC;          // Maximum delay time in ms
+  DWORD       dwMinDelayStepDESC;      // Minimum delay time step in ns               (70)
+  DWORD       dwMinExposureDESC;       // Minimum exposure time in ns
+  DWORD       dwMaxExposureDESC;       // Maximum exposure time in ms
+  DWORD       dwMinExposureStepDESC;   // Minimum exposure time step in ns            (82)
+  DWORD       dwMinDelayIRDESC;        // Minimum delay time in ns IR mode
+  DWORD       dwMaxDelayIRDESC;        // Maximum delay time in ms IR mode            (90)
+  DWORD       dwMinExposureIRDESC;     // Minimum exposure time in ns IR mode
+  DWORD       dwMaxExposureIRDESC;     // Maximum exposure time in ms IR mode
+  WORD        wTimeTableDESC;          // Timetable for exp/del possibility           (100)
+  WORD        wDoubleImageDESC;        // Double image mode possibility
+  SHORT       sMinCoolSetDESC;         // Minimum value for cooling
+  SHORT       sMaxCoolSetDESC;         // Maximum value for cooling
+  SHORT       sDefaultCoolSetDESC;     // Default value for cooling
+  WORD        wPowerDownModeDESC;      // Power down mode possibility                 (110)
+  WORD        wOffsetRegulationDESC;   // Offset regulation possibility
+  WORD        wColorPattern;           // Color Pattern of color chip 
+                                       // four nibbles (0,1,2,3) in word 
+                                       //  ----------------- 
+                                       //  | 3 | 2 | 1 | 0 |
+                                       //  ----------------- 
+                                       //   
+                                       // describe row,column  2,2 2,1 1,2 1,1
+                                       // 
+                                       //   column1 column2
+                                       //  ----------------- 
+                                       //  |       |       |
+                                       //  |   0   |   1   |   row1
+                                       //  |       |       |
+                                       //  -----------------
+                                       //  |       |       |
+                                       //  |   2   |   3   |   row2
+                                       //  |       |       |
+                                       //  -----------------
+                                       // 
+  WORD        wColorPatternTyp;        // Pattern type of color chip          
+  WORD        wDSNUCorrectionModeDESC; // DSNU correction mode
+  DWORD       dwGeneralCaps1;          // general capabilites descr. 1 see also SC2_DEFS.h (122)
+  DWORD       dwGeneralCaps2;          // General capabilities 2 internal use see also SC2_DEFS_INTERN.h
+  DWORD       dwExtSyncFrequency[4];   // lists four frequencies for external sync feature
+  DWORD       dwGeneralCaps3;          // general capabilites descr. 3 see also SC2_DEFS.h
+  DWORD       dwGeneralCaps4;          // general capabilites descr. 4 see also SC2_DEFS.h
+  WORD        wReserved;                                                            //(152)
+  BYTE        bCks;                    // checksum byte
+} SC2_Camera_Description_Response;
+
+typedef struct
+{
+  WORD        wCode;                   // telegram code 
+  WORD        wSize;                   // Sizeof this struct
+  DWORD       dwMinPeriodicalTimeDESC2;// Minimum periodical time tp in (nsec)
+  DWORD       dwMaxPeriodicalTimeDESC2;// Maximum periodical time tp in (msec)        (12)
+  DWORD       dwMinPeriodicalConditionDESC2;// System imanent condition in (nsec)
+                                       // tp - (td + te) must be equal or longer than
+                                       // dwMinPeriodicalCondition
+  DWORD       dwMaxNumberOfExposuresDESC2; // Maximum number of exporures possible        (20)
+  LONG        lMinMonitorSignalOffsetDESC2; // Minimum monitor signal offset tm in (nsec)
+                                       // if(td + tstd) > dwMinMon.)
+                                       //   tm must not be longer than dwMinMon
+                                       // else
+                                       //   tm must not be longer than td + tstd
+  DWORD       dwMaxMonitorSignalOffsetDESC2;// Maximum -''- in (nsec)                      
+  DWORD       dwMinPeriodicalStepDESC2;// Minimum step for periodical time in (nsec)  (32)
+  DWORD       dwStartTimeDelayDESC2;   // Minimum monitor signal offset tstd in (nsec)
+                                       // see condition at dwMinMonitorSignalOffset
+  DWORD       dwMinMonitorStepDESC2;   // Minimum step for monitor time in (nsec)     (40)
+  DWORD       dwMinDelayModDESC2;      // Minimum delay time for modulate mode in (nsec)
+  DWORD       dwMaxDelayModDESC2;      // Maximum delay time for modulate mode in (nsec)
+  DWORD       dwMinDelayStepDESC2;     // Minimum delay time step for modulate mode in (nsec)(52)
+  DWORD       dwMinExposureModDESC2;   // Minimum exposure time for modulate mode in (nsec)
+  DWORD       dwMaxExposureModDESC2;   // Maximum exposure time for modulate mode in (nsec)(60)
+  DWORD       dwMinExposureStepDESC2;  // Minimum exposure time step for modulate mode in (nsec)
+  DWORD       dwModulateCapsDESC2;     // Modulate capabilities descriptor
+  DWORD       dwReserved[16];                                                         //(132)
+  BYTE        bCks;                    // checksum byte
+} SC2_Camera_Description_2_Response;
+
+typedef struct
+{
+  WORD        wCode;                   // telegram code 
+  WORD        wSize;                   // telegram length
+  WORD        wType;                   // descriptor type
+  BYTE        bCks;                    // checksum byte
+} SC2_Get_Camera_Description;
+
+
+typedef struct
+{
+  WORD        wCode;                   // telegram code 
+  WORD        wSize;                   // telegram length
+  WORD        wFormat;
+  BYTE        bCks;                    // checksum byte
+} SC2_Sensor_Format_Response;
+
+#define SC2_Set_Sensor_Format SC2_Sensor_Format_Response
+
+
+typedef struct
+{
+  WORD        wCode;                   // telegram code 
+  WORD        wSize;                   // telegram length
+  WORD        wROI_x0;
+  WORD        wROI_y0;
+  WORD        wROI_x1;
+  WORD        wROI_y1;
+  BYTE        bCks;                    // checksum byte
+} SC2_ROI_Response;
+
+#define SC2_Set_ROI SC2_ROI_Response
+
+
+typedef struct
+{
+  WORD        wCode;                   // telegram code 
+  WORD        wSize;                   // telegram length
+  WORD        wBinningx;
+  WORD        wBinningy;
+  BYTE        bCks;                    // checksum byte
+} SC2_Binning_Response;
+
+
+#define SC2_Set_Binning SC2_Binning_Response
+
+
+typedef struct
+{
+  WORD        wCode;                   // telegram code 
+  WORD        wSize;                   // telegram length
+  DWORD       dwPixelrate;
+  BYTE        bCks;                    // checksum byte
+} SC2_Pixelrate_Response;
+
+#define SC2_Set_Pixelrate SC2_Pixelrate_Response
+
+
+typedef struct
+{
+  WORD        wCode;                   // telegram code 
+  WORD        wSize;                   // telegram length
+  WORD        wGain;
+  BYTE        bCks;                    // checksum byte
+} SC2_Conversion_Factor_Response;
+
+#define SC2_Set_Conversion_Factor SC2_Conversion_Factor_Response
+
+
+typedef struct
+{
+  WORD        wCode;                   // telegram code 
+  WORD        wSize;                   // telegram length
+  WORD        wMode;
+  BYTE        bCks;                    // checksum byte
+} SC2_Double_Image_Mode_Response;
+
+#define SC2_Set_Double_Image_Mode SC2_Double_Image_Mode_Response
+
+
+typedef struct
+{
+  WORD        wCode;                   // telegram code 
+  WORD        wSize;                   // telegram length
+  WORD        wMode;
+  BYTE        bCks;                    // checksum byte
+} SC2_ADC_Operation_Response;
+
+#define SC2_Set_ADC_Operation SC2_ADC_Operation_Response
+
+
+typedef struct
+{
+  WORD        wCode;                   // telegram code 
+  WORD        wSize;                   // telegram length
+  WORD        wMode;
+  BYTE        bCks;                    // checksum byte
+} SC2_IR_Sensitivity_Response;
+
+#define SC2_Set_IR_Sensitivity SC2_IR_Sensitivity_Response
+
+
+typedef struct
+{
+  WORD        wCode;                   // telegram code 
+  WORD        wSize;                   // telegram length
+  SHORT       sTemp;
+  BYTE        bCks;                    // checksum byte
+} SC2_Cooling_Setpoint_Response;
+
+#define SC2_Set_Cooling_Setpoint SC2_Cooling_Setpoint_Response
+
+
+typedef struct
+{
+  WORD        wCode;                   // telegram code 
+  WORD        wSize;                   // telegram length
+  WORD        wMode;
+  BYTE        bCks;                    // checksum byte
+} SC2_Offset_Mode_Response;
+
+#define SC2_Set_Offset_Mode SC2_Offset_Mode_Response
+
+
+typedef struct
+{
+  WORD        wCode;                   // telegram code 
+  WORD        wSize;                   // telegram length
+  WORD        wMode;
+  BYTE        bCks;                    // checksum byte
+} SC2_Noise_Filter_Mode_Response;
+
+#define SC2_Set_Noise_Filter_Mode  SC2_Noise_Filter_Mode_Response
+#define SC2_Get_Noise_Filter_Mode  SC2_Simple_Telegram
+
+typedef struct
+{
+  WORD        wCode;                   // telegram code 
+  WORD        wSize;                   // telegram length
+  WORD        wNumOfSignals;
+  BYTE        bCks;                    // checksum byte
+} SC2_Get_Num_HW_IO_Signals_Response;
+
+typedef struct
+{
+  WORD        wCode;                   // telegram code 
+  WORD        wSize;                   // telegram length
+  WORD        wNumSignal;              // signal to query
+  BYTE        bCks;                    // checksum byte
+} SC2_Get_HW_IO_Signal_Descriptor;
+
+typedef struct
+{
+  WORD        wCode;                   // telegram code 
+  WORD        wSize;                   // telegram length
+  char        szSignalName[4][24];     // signal name, null terminated
+  WORD wSignalDefinitions;             // Flags showing signal options
+                                       // 0x01: Signal can be enabled/disabled
+                                       // 0x02: Signal is a status (output)
+                                       // Rest: future use, set to zero!
+  WORD wSignalTypes;                   // Flags showing the selectability of signal types
+                                       // 0x01: TTL
+                                       // 0x02: High Level TTL
+                                       // 0x04: Contact Mode
+                                       // 0x08: RS485 diff.
+                                       // Rest: future use, set to zero!
+  WORD wSignalPolarity;                // Flags showing the selectability
+                                       // of signal levels/transitions
+                                       // 0x01: Low Level active
+                                       // 0x02: High Level active
+                                       // 0x04: Rising edge active
+                                       // 0x08: Falling edge active
+                                       // Rest: future use, set to zero!
+  WORD wSignalFilter;                  // Flags showing the selectability of filter
+                                       // settings
+                                       // 0x01: Filter can be switched off (t > ~65ns)
+                                       // 0x02: Filter can be switched to medium (t > ~1us)
+                                       // 0x04: Filter can be switched to high (t > ~100ms)
+  BYTE        bCks;                    // checksum byte
+} SC2_Get_HW_IO_Signal_Descriptor_Response;
+
+
+typedef struct
+{
+  WORD        wCode;                   // telegram code 
+  WORD        wSize;                   // telegram length
+  WORD        wMode; 
+  WORD        wMul[4];                 // multiplier
+  BYTE        bCks;                    // checksum byte
+} SC2_Set_Bayer_Multiplier;
+
+#define SC2_Get_Bayer_Multiplier           SC2_Simple_Telegram
+#define SC2_Set_Bayer_Multiplier_Response  SC2_Set_Bayer_Multiplier
+#define SC2_Get_Bayer_Multiplier_Response  SC2_Set_Bayer_Multiplier
+
+
+typedef struct
+{
+  WORD        wCode;                   // telegram code 
+  WORD        wSize;                   // telegram length
+  char        szCCM[3][3][8];          // matrix elements
+  BYTE        bCks;                    // checksum byte
+} SC2_Get_Color_Correction_Matrix_Response;
+
+#define SC2_Get_Color_Correction_Matrix  SC2_Simple_Telegram
+
+
+typedef struct
+{
+  WORD        wCode;                   // telegram code 
+  WORD        wSize;                   // telegram length
+  WORD        wMode;                   // DSNU operating mode
+  WORD        wRsrvd;                  // RFU
+  BYTE        bCks;                    // checksum byte
+} SC2_Set_DSNU_Adjust_Mode;
+
+
+typedef struct
+{
+  WORD        wCode;                   // telegram code 
+  WORD        wSize;                   // telegram length
+  BYTE        bCks;                    // checksum byte
+} SC2_Get_DSNU_Adjust_Mode;
+
+
+typedef struct
+{
+  WORD        wCode;                   // telegram code 
+  WORD        wSize;                   // telegram length
+  WORD        wMode;                   // DSNU operating mode
+  WORD        wRsrvd;                  // RFU
+  BYTE        bCks;                    // checksum byte
+} SC2_Get_DSNU_Adjust_Mode_Response;
+
+
+typedef struct
+{
+  WORD        wCode;                   // telegram code 
+  WORD        wSize;                   // telegram length
+  WORD        wMode;                   // DSNU init mode
+  WORD        wRsrvd;                  // RFU
+  BYTE        bCks;                    // checksum byte
+} SC2_Init_DSNU_Adjustment;
+
+
+typedef struct
+{
+  WORD        wCode;                   // telegram code 
+  WORD        wSize;                   // telegram length
+  WORD        wMode;                   // DSNU init mode
+  WORD        wRsrvd;                  // RFU
+  BYTE        bCks;                    // checksum byte
+} SC2_Init_DSNU_Adjustment_Response;
+
+
+typedef struct
+{
+  WORD        wCode;                   // telegram code 
+  WORD        wSize;                   // telegram length
+  WORD        wMode;                   // CDI operating mode
+  WORD        wRsrvd;                  // RFU
+  BYTE        bCks;                    // checksum byte
+} SC2_Set_CDI_Mode;
+
+
+typedef struct
+{
+  WORD        wCode;                   // telegram code 
+  WORD        wSize;                   // telegram length
+  BYTE        bCks;                    // checksum byte
+} SC2_Get_CDI_Mode;
+
+#define SC2_Get_CDI_Mode_Response SC2_Set_CDI_Mode
+
+/////////////////////////////////////////////////////////////////////
+// hot pixel commands, belongs to sensor related commands
+/////////////////////////////////////////////////////////////////////
+
+typedef struct
+{
+  WORD        wCode;                   // telegram code 
+  WORD        wSize;                   // telegram length
+  WORD        wMode;                   // mode
+  BYTE        bCks;                    // checksum byte
+} SC2_Hot_Pixel_Correction_Mode_Response;
+
+#define SC2_Set_Hot_Pixel_Correction_Mode  SC2_Hot_Pixel_Correction_Mode_Response
+#define SC2_Get_Hot_Pixel_Correction_Mode  SC2_Simple_Telegram
+
+
+typedef struct
+{
+  WORD        wX;                   // HotPixel X-value 
+  WORD        wY;                   // HotPixel y-value
+}
+SC2_HOTPIX;
+
+
+typedef struct
+{
+  WORD        wCode;                   // telegram code 
+  WORD        wSize;                   // telegram length
+  WORD        wListNo;                 // list no to access several lists
+  WORD        wIndex;                  // index of this telegram (0 = first)
+  WORD        wNumValid;               // number of valid pixels in total!
+  SC2_HOTPIX  strHotPix[64];           // array of 64 Hot Pixels
+  BYTE        bCks;                    // checksum
+} SC2_WRITE_HOT_PIXEL_LIST;
+
+
+typedef struct
+{
+  WORD        wCode;                   // telegram code 
+  WORD        wSize;                   // telegram length
+  WORD        wListNo;                 // list no to access several lists
+  WORD        wIndex;                  // no. of this telegram (0 = first)
+  BYTE        bCks;                    // checksum
+} SC2_WRITE_HOT_PIXEL_LIST_RESPONSE;
+
+
+typedef struct
+{
+  WORD        wCode;                   // telegram code 
+  WORD        wSize;                   // telegram length
+  WORD        wListNo;                 // list no to access several lists
+  WORD        wIndex;                  // index of this telegram (0 = first)
+  BYTE        bCks;                    // checksum
+} SC2_READ_HOT_PIXEL_LIST;
+
+
+typedef struct
+{
+  WORD        wCode;                   // telegram code 
+  WORD        wSize;                   // telegram length
+  WORD        wListNo;                 // list no to access several lists
+  WORD        wIndex;                  // index of this telegram (0 = first)
+  WORD        wNumValid;               // number of valid pixels in total!
+  WORD        wNumMax;                 // max. number of pixels for this list
+  SC2_HOTPIX  strHotPix[64];           // array of 64 Hot Pixels
+  BYTE        bCks;                    // checksum
+} SC2_READ_HOT_PIXEL_LIST_RESPONSE;
+
+
+typedef struct
+{
+  WORD        wCode;                   // telegram code 
+  WORD        wSize;                   // telegram length
+  WORD        wListNo;                 // list no to access several lists
+  DWORD       dwMagic1;                // Magic1 and Magic2 for prohibiting
+  DWORD       dwMagic2;                //   unauthorized or accidental clearing
+  BYTE        bCks;                    // checksum
+} SC2_CLEAR_HOT_PIXEL_LIST;
+
+
+typedef struct
+{
+  WORD        wCode;                   // telegram code 
+  WORD        wSize;                   // telegram length
+  WORD        wListNo;                 // list no to access several lists
+  BYTE        bCks;                    // checksum
+} SC2_CLEAR_HOT_PIXEL_LIST_RESPONSE;
+
+/////////////////////////////////////////////////////////////////////
+// lookup table commands, belongs to sensor related commands (edge)
+/////////////////////////////////////////////////////////////////////
+
+#define SC2_Get_Lookuptable_Info SC2_Simple_Telegram
+
+typedef struct
+{
+  WORD          wCode;                   // telegram code
+  WORD          wSize;                   // telegram length
+  WORD          wIndex;                  // for requesting more than 10 LUT descs!
+  BYTE          bCks;
+}
+SC2_Get_Lookuptable_Info_Ext;
+
+
+typedef struct
+{
+  char        Description[20];         // e.g. "HD/SDI 12 to 10"
+  WORD        wIdentifier;             // define loadable LUTs, range 0x0001 to 0xFFFF
+  BYTE        bInputWidth;             // maximal Input in Bits
+  BYTE        bOutputWidth;            // maximal Output in Bits
+  WORD        wFormat;                 // accepted data structures (see defines)
+}
+SC2_LUT_DESC;
+
+
+typedef struct
+{

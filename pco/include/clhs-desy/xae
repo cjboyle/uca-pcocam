@@ -1,0 +1,1000 @@
+///\nosubgrouping
+
+class CPco_grab_clhs
+{
+
+public:
+
+
+protected:
+  PCO_HANDLE hgrabber;
+  CPco_com_clhs *cam;
+  CPco_clhs_cam* Cclhs_cam;
+  CPco_Log *clog;
+
+  int ImageTimeout;
+  int aquire_flag;
+
+  WORD act_align;
+  WORD act_bitpix;
+  int act_width,act_height;
+  int DataFormat;
+
+  SC2_Camera_Description_Response description;
+
+  WORD  camtype;
+  DWORD serialnumber;
+  DWORD cam_pixelrate;
+  WORD cam_timestampmode;
+  WORD cam_doublemode;
+  WORD cam_align;
+  WORD cam_noisefilter;
+  WORD cam_colorsensor;
+  DWORD cam_width,cam_height;
+
+public:
+  ///
+  /// Constructor for the class. It is possible (though not very useful) to create a class object without passing it a camera class object pointer as parameter.
+  /// \anchor CPco_grab_usb
+  /// \param camera A CPco_com_usb object with a previously opened pco.camera
+  /// \return
+  ///
+  CPco_grab_clhs(CPco_com_clhs *camera=NULL);
+  ~CPco_grab_clhs();
+
+  ///
+  /// \brief Opens the grabber and retrieves the neccessary variables from the camera object.
+  /// \anchor Open_Grabber
+  /// \param board Set to zero if there is only one camera connected.
+  /// Open_Cam() on the appropriate class object \b must be called first or this will fail!
+  /// \return Error or 0 in case of success
+  ///
+  DWORD Open_Grabber(int board);
+
+  ///
+  /// \brief Opens the grabber and retrieves the neccessary variables from the camera object.
+  /// \param board Set to zero if there is only one camera connected.
+  /// Open_Cam() on the appropriate class object \b must be called first or this will fail!
+  /// \return Error or 0 in case of success
+  ///
+  DWORD Open_Grabber(int board,int initmode ATTRIBUTE_UNUSED);
+
+  ///
+  /// Closes the grabber. This should be done before calling Close_Cam().
+  /// \anchor Close_Grabber
+  /// \return Error or 0 in case of success
+  ///
+  DWORD Close_Grabber();
+
+  ///
+  /// \brief Check if grabber is opened..
+  /// \return openstatus
+  /// \retval TRUE grabber is opened
+  /// \retval FALSE grabber is closed
+  ///
+  BOOL IsOpen();
+
+  ///
+  /// \brief Sets the logging behaviour for the grabber class.
+  /// \n
+  /// If this function is not called no logging is performed.
+  /// Logging might be useful to follow the program flow of the application.
+  /// \param elog Pointer to a CPco_Log logging class object
+  /// \return
+  ///
+  void SetLog(CPco_Log *elog);
+
+
+  /// @name Image Acquire Functions
+  ///
+  /// These functions are used to acquire images from the camera.
+
+  ///
+  /// \brief A simple image acquisition function.
+  /// \anchor Acquire_Image
+  /// This function is synchronous. It does not return until either an image is grabbed
+  /// and completely transferred to the given address or the timeout has been reached.
+  /// \n Start_Acquire() is called, when Grabber is not already started.
+  /// Then the function is waiting until a single image is in the grabber buffer.
+  /// Stop_Acquire is called when grabber was not started.
+  /// \n Internal timeout setting is used, see \ref Set_Grabber_Timeout.
+  /// \param adr Pointer to address where the image gets stored
+  /// \return Error or 0 in case of success
+  ///
+  DWORD Acquire_Image(void *adr);
+
+  ///
+  /// \brief A simple image acquisition function.
+  /// This function is synchronous. It does not return until either an image is grabbed
+  /// and completely transferred to the given address or the timeout has been reached.
+  /// \n Start_Acquire() is called, when Grabber is not already started.
+  /// Then the function is waiting until a single image is in the grabber buffer.
+  /// Stop_Acquire is called when grabber was not started.
+  /// \n Custom timeout setting is used.
+  /// \param adr Pointer to address where the image gets stored
+  /// \param timeout time to wait for image in ms
+  /// \return Error or 0 in case of success
+  ///
+  DWORD Acquire_Image(void *adr,int timeout);
+
+  ///
+  /// \brief Transfers an image from the recorder buffer of the camera. (Blocking)
+  /// \anchor Get_Image
+  /// This function is synchronous. It does not return until either an image is grabbed
+  /// and completely transferred to the given address or the timeout has been reached.
+  /// \n Start_Acquire() is called, when Grabber is not already started.
+  /// Then the function does request an image from the camera and is waiting until this image is in the grabber buffer.
+  /// Stop_Acquire is called when grabber was not started.
+  /// \n Internal timeout setting is used, see \ref Set_Grabber_Timeout.
+  /// \param adr Pointer to address where the image gets stored
+  /// \n Internal timeout is used, see \ref Set_Grabber_Timeout.
+  /// \param adr Pointer to address where the image gets stored
+  /// \param Segment select segment of recorder buffer
+  /// \param ImageNr select image in recorder buffer
+  /// \return Error or 0 in case of success
+  ///
+  DWORD Get_Image(WORD Segment,DWORD ImageNr,void *adr);
+
+  ///
+  /// \brief Set the general timeout for all image acquire functions without timeout parameter.
+  /// \anchor Set_Grabber_Timeout
+  /// \param timeout new timeout in ms
+  /// \return always 0
+  ///
+  DWORD Set_Grabber_Timeout(int timeout);
+
+  ///
+  /// \brief Get the general timeout for all image acquire functions without timeout parameter.  /// \anchor Get_Grabber_Timeout
+  /// \anchor Get_Grabber_Timeout
+  /// \param timeout pointer to variable which receives the actual timeout value in ms
+  /// \return always 0
+  ///
+  DWORD Get_Grabber_Timeout(int *timeout);
+  ///
+  /// \brief Starts image acquisition.
+  /// This should be the first function called when starting a new image acquisition series.
+  /// After that, only calls to Wait_For_Image are neccessary.
+  ///
+  /// \return Error code, or or 0 in case of success
+  ///
+  DWORD Start_Acquire();
+
+  ///
+  /// \brief Stops image acquisition.
+  /// \anchor Stop_Acquire
+  /// \return Error code or 0 in case of success
+  ///
+  DWORD Stop_Acquire();
+
+  ///
+  /// \brief Returns the status of the image acquisition.
+  /// \return Acquisition status: TRUE = running, FALSE = stopped.
+  ///
+  BOOL started();
+
+  ///
+  /// \brief Waits until the next image is completely transferred to the given address.
+  /// \param adr Pointer to address where the image gets stored
+  /// \param timeout Sets a timeout in milliseconds. After this the function returns with an error.
+  /// \return Error code or 0 in case of success
+  ///
+  DWORD Wait_For_Next_Image(void* adr,int timeout);
+
+
+  /// @name Class Control Functions
+  ///
+  /// These functions are used to control and retrieve some internal variables of the class.
+  ///
+
+
+  ///
+  /// \brief Get camera settings and set internal parameters
+  /// \n
+  /// This function call should be called after Arm_Camera is called and is an overall replacement for the following functions.
+  /// Parameter userset is used to determine if the grabber parameters are changed (recommended) or not.
+  /// \param userset If set to 0 (default), this function does setup the grabber class correctly for following image transfers.
+  /// If set to any other value grabber class \b must be setup with the following functions.  
+  /// \return Error or 0 in case of success
+  ///
+  DWORD PostArm(int userset=0);
+
+  ///
+  /// \brief Sets the grabber size.
+  /// \anchor Set_Grabber_Size
+  /// It is extremely important to set this before any images are transferred! If any of the settings are changed that influence the image size
+  /// Set_Grabber_Size \b must be called again before any images are transferred! If this is not done, memory or segmentation faults will occur!
+  /// \param width Actual width of the picture
+  /// \param height Actual height of the picture
+  /// \param bitpix Actual number of bits per pixel. This value is rounded up to a multiple of 8.
+  /// \return Error or 0 in case of success
+  ///
+  DWORD Set_Grabber_Size(int width,int height,int bitpix);
+
+  ///
+  /// \overload
+  ///
+  /// \return
+  ///
+  DWORD Set_Grabber_Size(int width,int height);
+
+  ///
+  /// \brief Returns the current grabber sizes
+  /// \param width pointer to variable 
+  /// \param height pointer to variable
+  /// \param bitpix pointer to variabl
+  /// \return Returns always 0.
+  /// \retval *width Current width
+  /// \retval *height Current height
+  /// \retval *bitpix current bits per pixel
+  ///
+  int Get_actual_size(unsigned int *width,unsigned int *height,unsigned int *bitpix);
+
+  ///
+  /// \brief Set the dataformat for the following image transfers
+  /// \n
+  /// At the moment this call is only a dummy function without really usefulness
+  /// \param dataformat New Dataformat
+  /// \return
+  ///
+  DWORD Set_DataFormat(DWORD dataformat);
+
+  ///
+  /// \brief Returns the current grabber format
+  /// \return The actual DataFormat
+  ///
+  DWORD Get_DataFormat(){return DataFormat;}
+
+  ///
+  /// \brief Set BitAlignment parameter to the grabber class, which is needed for correct handling of image data
+  /// \param act_align value retrieved from camera after last PCO_ArmCamera() call
+  /// \return
+  ///
+  void SetBitAlignment(int act_align);
+
+  ///
+  /// \brief Returns the current grabber height
+  /// \return Current height.
+  ///
+  int Get_Height();
+
+  ///
+  /// \brief Returns the current grabber width
+  /// \return Current height.
+  ///
+  int Get_Width();
+
+
+  /// \cond
+
+  int Get_Line_Width();
+
+  DWORD Get_Camera_Settings();
+  DWORD Allocate_Framebuffer(int nr_of_buffer ATTRIBUTE_UNUSED);
+  DWORD Free_Framebuffer();
+
+protected:
+  ///
+  /// \implements writelog
+  ///
+  void writelog(DWORD lev,PCO_HANDLE hdriver,const char *str,...);
+
+
+  /// \endcond
+
+};
+
+#endif
+//-----------------------------------------------------------------//
+// Name        | Cpco_log.h                  | Type: ( ) source    //
+//-------------------------------------------|       (*) header    //
+// Project     | pco.camera                  |       ( ) others    //
+//-----------------------------------------------------------------//
+// Platform    | LINUX                                             //
+//-----------------------------------------------------------------//
+// Environment |                                                   //
+//-----------------------------------------------------------------//
+// Purpose     | pco.camera - Logging class                        //
+//-----------------------------------------------------------------//
+// Author      | MBL, PCO AG                                       //
+//-----------------------------------------------------------------//
+// Revision    | rev. 1.03                                         //
+//-----------------------------------------------------------------//
+// Notes       | Common functions                                  //
+//             |                                                   //
+//             |                                                   //
+//-----------------------------------------------------------------//
+// (c) 2010 - 2012 PCO AG                                          //
+// Donaupark 11 D-93309  Kelheim / Germany                         //
+// Phone: +49 (0)9441 / 2005-0   Fax: +49 (0)9441 / 2005-20        //
+// Email: info@pco.de                                              //
+//-----------------------------------------------------------------//
+
+
+//-----------------------------------------------------------------//
+// Revision History:                                               //
+//-----------------------------------------------------------------//
+// Rev.:     | Date:      | Changed:                               //
+// --------- | ---------- | ---------------------------------------//
+//  1.03     | 24.01.2012 |  from Cpco_cl_com.cpp                  //
+//-----------------------------------------------------------------//
+//  0.0x     | xx.xx.200x |                                        //
+//-----------------------------------------------------------------//
+
+#ifndef CPCO_LOG_H
+#define CPCO_LOG_H
+
+#if !defined (MAX_PATH)
+#define MAX_PATH 1024
+#endif
+
+#include "defs.h"
+
+#ifndef WIN32
+typedef struct SYSTEMTIME {
+  WORD wYear;
+  WORD wMonth;
+  WORD wDayOfWeek;
+  WORD wDay;
+  WORD wHour;
+  WORD wMinute;
+  WORD wSecond;
+  WORD wMilliseconds;
+} SYSTEMTIME;
+#endif
+;
+class CPco_Log
+{
+ char logname[MAX_PATH];
+
+ public:
+//  CPco_Log(int logbits=0);
+  CPco_Log(const char *name=NULL);
+  ~CPco_Log();
+  void writelog(DWORD lev,const char *str,...);
+  void writelog(DWORD lev,const char *str,va_list arg);
+  void writelog(DWORD lev,PCO_HANDLE hdriver,const char *str,...);
+  void writelog(DWORD lev,PCO_HANDLE hdriver,const char *str,va_list args);
+  void set_logbits(DWORD logbit);
+  DWORD get_logbits(void);
+  void start_time_mess(void);
+  double stop_time_mess(void);
+
+#ifndef WIN32
+  void GetLocalTime(SYSTEMTIME* st);
+  void QueryPerformanceCounter(__int64* someint);
+  void QueryPerformanceFrequency(__int64* someint);
+#endif
+
+protected:
+  int hflog;
+  DWORD log_bits;
+  __int64 lpFrequency,lpPCount1,lpPCount2,lpPCount_p;
+  __int64 stamp1,stamp2;
+};
+
+//loglevels for interface dll
+#define ERROR_M     0x0001
+#define INIT_M      0x0002
+#define BUFFER_M    0x0004
+#define PROCESS_M   0x0008
+
+#define COC_M       0x0010
+#define INFO_M      0x0020
+#define COMMAND_M   0x0040
+
+#define PCI_M       0x0080
+
+
+#define TIME_M      0x1000
+#define TIME_MD     0x2000
+
+#define NONE_M      0x01000000
+
+
+#endif
+//-----------------------------------------------------------------//
+// Name        | Cpcodisp.h                   | Type: ( ) source    //
+//-------------------------------------------|       (*) header    //
+// Project     | pco.camera                  |       ( ) others    //
+//-----------------------------------------------------------------//
+// Platform    | Linux                                             //
+//-----------------------------------------------------------------//
+// Environment |                                                   //
+//             |                                                   //
+//-----------------------------------------------------------------//
+// Purpose     | pco.camera - display class functions              //
+//-----------------------------------------------------------------//
+// Author      | MBL, PCO AG                                       //
+//-----------------------------------------------------------------//
+// Revision    | rev. 1.03                                         //
+//-----------------------------------------------------------------//
+// Notes       | class functions exported from Cpcodisp library    //
+//             |                                                   //
+//             |                                                   //
+//-----------------------------------------------------------------//
+// (c) 2010 - 2012 PCO AG                                          //
+// Donaupark 11 D-93309  Kelheim / Germany                         //
+// Phone: +49 (0)9441 / 2005-0   Fax: +49 (0)9441 / 2005-20        //
+// Email: info@pco.de                                              //
+//-----------------------------------------------------------------//
+
+
+#ifndef CPCODISP_H
+#define CPCODISP_H
+
+#include <X11/Xlib.h>
+#include <X11/X.h>
+#include <X11/Intrinsic.h>
+#include <X11/StringDefs.h>
+#include <X11/extensions/XShm.h>
+
+#include "defs.h"
+#include "PCO_err.h"
+
+#include "Ccambuf.h"
+#include "Cpco_log.h"
+
+
+class PCODisp;
+
+class CPCODisp
+{
+    public:
+        CPCODisp();
+        ~CPCODisp();
+        void start_log();
+        void start_log(DWORD level);
+        void stop_log();
+
+        int initialize();
+        int initialize(char *title);
+        int initialize(char *title,CCambuf *actpic);
+//        int open();
+//        int close();
+
+        void convert(void);
+        void Set_Actual_pic(CCambuf* actpic);
+
+        int SetConvert(int typ);
+        int SetConvert(double gamma);
+
+        int SetConvert(int min,int max);
+        int SetConvert(int min, int max,int typ,double gamma);
+
+        int SetConvert_Green(int min, int max);
+        int SetConvert_Red(int min, int max);
+        int SetConvert_Blue(int min, int max);
+        int SetConvert_Col(int rmin,int gmin,int bmin,int rmax,int gmax,int bmax);
+
+        int whitebalance(int low,int high);
+
+
+        void SetBitAlign(int align);
+
+//        void SetSize(int width,int height);
+//        void SetPosition(int xpos,int ypos);
+//        void SetZoom(double zoom);
+//        void GetZoom(double *zoom);
+        void displayfunc(void);
+
+  protected:
+        PCODisp *pcodisp;
+  
+};
+
+#endif // CPCODISP_H
+//-----------------------------------------------------------------//
+// Name        | defs.h                      | Type: ( ) source    //
+//-------------------------------------------|       (*) header    //
+// Project     | pco.camera                  |       ( ) others    //
+//-----------------------------------------------------------------//
+// Platform    | Linux                                             //
+//-----------------------------------------------------------------//
+// Environment |                                                   //
+//             |                                                   //
+//-----------------------------------------------------------------//
+// Purpose     | pco defines                                       //
+//-----------------------------------------------------------------//
+// Author      | MBL, PCO AG                                       //
+//-----------------------------------------------------------------//
+// Revision    | rev. 1.01                                         //
+//-----------------------------------------------------------------//
+// Notes       |                                                   //
+//             |                                                   //
+//             |                                                   //
+//-----------------------------------------------------------------//
+// (c) 2010 - 2012 PCO AG                                          //
+// Donaupark 11 D-93309  Kelheim / Germany                         //
+// Phone: +49 (0)9441 / 2005-0   Fax: +49 (0)9441 / 2005-20        //
+// Email: info@pco.de                                              //
+//-----------------------------------------------------------------//
+
+#ifndef _DEFS_H_
+#define _DEFS_H_
+
+#ifndef WIN32
+#include <stdint.h>
+
+typedef uint8_t BYTE;
+typedef uint16_t WORD;
+typedef uint32_t DWORD;
+typedef uint64_t UINT64;
+
+typedef int16_t SHORT;
+typedef int32_t LONG;
+
+
+typedef int __int32;
+typedef unsigned int __uint32;
+
+typedef long long int __int64;
+typedef unsigned long long int __uint64;
+
+typedef long long int LARGE_INTEGER;
+#endif
+
+typedef int PCO_HANDLE;
+typedef void* LPVOID;
+
+#define far
+
+#define FALSE 0
+#define TRUE 1
+
+#define MAX_TELEGRAM_LENGTH 300
+#define PCO_SC2_FW_REALSIZE 0x00010000
+
+
+#endif
+//-----------------------------------------------------------------//
+// Name        | file12.h                    | Type: ( ) source    //
+//-------------------------------------------|       (*) header    //
+// Project     | pco.camera                  |       ( ) others    //
+//-----------------------------------------------------------------//
+// Platform    | Linux                                             //
+//-----------------------------------------------------------------//
+// Environment |                                                   //
+//             |                                                   //
+//-----------------------------------------------------------------//
+// Purpose     | pco.camera - file functions                       //
+//-----------------------------------------------------------------//
+// Author      | MBL, PCO AG                                       //
+//-----------------------------------------------------------------//
+// Revision    | rev. 1.03                                         //
+//-----------------------------------------------------------------//
+// Notes       | functions exported from pcofile library           //
+//             |                                                   //
+//             |                                                   //
+//-----------------------------------------------------------------//
+// (c) 2010 - 2012 PCO AG                                          //
+// Donaupark 11 D-93309  Kelheim / Germany                         //
+// Phone: +49 (0)9441 / 2005-0   Fax: +49 (0)9441 / 2005-20        //
+// Email: info@pco.de                                              //
+//-----------------------------------------------------------------//
+
+#ifndef FILE12_H
+#define FILE12_H
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+int get_b16_fileparams(char *filename,int *width,int *height,int *colormode);
+int read_b16(char *filename,void *bufadr);
+int store_b16(char *filename,int width,int height,int colormode,void *bufadr);
+int store_tif(char *filename,int width,int height,int colormode,void *bufadr);
+int store_bmp(char *filename,int width,int height,int colormode,void *bufadr);
+int store_tif8bw(char *filename,int width,int height,int colormode,void *bufadr);
+int store_fits(char *filename,int width,int height,int colormode,void *bufadr);
+int store_fits_exp(char *filename,int W, int H, void *_img_data,int _exp_time_ms);
+#ifdef __cplusplus
+} //end C
+#endif
+
+/*
+int store_bmp24(char *filename,int width,int height,int colormode,void *bufadr);
+int store_tif8rgb(char *filename,int width,int height,int colormode,void *bufadr);
+*/
+#endif
+
+//-----------------------------------------------------------------//
+// Name        | pco_clhs_dc_cam.h           | Type: ( ) source    //
+//-------------------------------------------|       (*) header    //
+// Project     | pco clhs                    |       ( ) others    //
+//-----------------------------------------------------------------//
+// Platform    |                                                   //
+//-----------------------------------------------------------------//
+// Environment | gcc                                               //
+//             |                                                   //
+//-----------------------------------------------------------------//
+// Purpose     | pco CLHS camera class Header                      //
+//-----------------------------------------------------------------//
+// Author      | MBL, PCO AG                                       //
+//-----------------------------------------------------------------//
+// Revision    | rev. 0.01 rel. 0.00                               //
+//-----------------------------------------------------------------//
+// Notes       | public                                            //
+//             |                                                   //
+//             |                                                   // 
+//-----------------------------------------------------------------//
+// (c) 2016 PCO AG * Donaupark 11 *                                //
+// D-93309      Kelheim / Germany * Phone: +49 (0)9441 / 2005-0 *  //
+// Fax: +49 (0)9441 / 2005-20 * Email: info@pco.de                 //
+//-----------------------------------------------------------------//
+
+
+//-----------------------------------------------------------------//
+// Revision History:                                               //
+//-----------------------------------------------------------------//
+// Rev.:     | Date:      | Changed:                               //
+// --------- | ---------- | ---------------------------------------//
+//  0.01     | 22.07.2016 |  new file                              //
+//           |            |                                        //
+//-----------------------------------------------------------------//
+//  0.0x     | xx.xx.200x |                                        //
+//-----------------------------------------------------------------//
+
+#ifndef PCO_CLHS_CAM_H
+#define PCO_CLHS_CAM_H
+
+#include "clhs_register.h"
+#include "portable_endian.h"
+
+
+#ifndef PCO_CLHS_DC_CAM
+#define PCO_CLHS_DC_CAM
+
+#define MAX_PORT_NUM 4
+#define MAX_CAMERA_NUM MAX_GRABBER_NUM*MAX_PORT_NUM
+
+typedef struct _PCO_CLHS_DC_PORTASSIGNMENT
+{
+ int grabber_num;
+ int port_num;
+}PCO_CLHS_DC_PORTASSIGNMENT;
+
+typedef struct _PCO_CLHS_DC_CAMERA
+{
+ DWORD cam_flags;
+ DWORD pco_number;
+ DWORD process_id;
+ DWORD selected_config;
+ DWORD connected_ports;
+ DWORD acquire_ports;
+ DWORD sensor_width;
+ DWORD sensor_height;
+ DWORD sensor_bitpix;
+ PCO_CLHS_DC_PORTASSIGNMENT grabber_port_assign[MAX_PORT_NUM];
+}PCO_CLHS_DC_CAMERA;
+#endif
+
+class Cpco_clhs_dc;
+class Cpco_clhs_acq;
+
+class CPco_clhs_cam
+{
+ public:
+  CPco_clhs_cam();
+  ~CPco_clhs_cam();
+
+  void SetLog(CPco_Log *elog);
+
+  DWORD Open(DWORD num);
+  DWORD Close();
+  DWORD opencount();
+  DWORD is_master();
+
+  PCO_CLHS_DC_CAMERA* get_camera(DWORD cam_num);
+  DWORD assign_camera_ports(DWORD cam_num);
+  DWORD release_assigned_ports(DWORD connected_ports,PCO_CLHS_DC_PORTASSIGNMENT *grabber_port_assign);
+
+  DWORD read_cam(uint64_t adr,uint32_t* length,void *ret_buf);
+  DWORD write_cam(uint64_t  adr,uint32_t length,void *in_buf);
+
+  DWORD Start_acquisition();
+  DWORD Stop_acquisition();
+
+  DWORD Set_alignment(int align);
+  DWORD Set_acquire_param(int bitpix,int bufnr,int type);
+  DWORD Set_acquire_mem(int maxmem,int minbuf,int maxbuf);
+  DWORD Set_acquire_size(int width,int height);
+  DWORD Get_acquire_status();
+
+  DWORD Set_acquire_buffer(void *bufadr);
+  DWORD Wait_acquire_buffer(int waittime);
+  DWORD Cancel_acquire_buffer();
+
+ protected:
+  Cpco_clhs_dc *Cclhs_dc;
+  Cpco_clhs_acq *Cclhs_acq;
+  CPco_Log *clog;
+
+  DWORD status;
+  DWORD acquire_ports;
+  PCO_CLHS_DC_PORTASSIGNMENT camera_assign[MAX_PORT_NUM];
+  PCO_CLHS_DC_CAMERA *camera;
+
+  void writelog(DWORD lev,const char *str,...);
+};
+
+#endif
+//-----------------------------------------------------------------//
+// Name        | PCO_err.h                   | Type: ( ) source    //
+//-------------------------------------------|       (*) header    //
+// Project     | PCO                         |       ( ) others    //
+//-----------------------------------------------------------------//
+// Platform    | - Embedded platforms like M16C, AVR32, PIC32 etc. //
+//             | - PC with several Windows versions, Linux etc.    //
+//-----------------------------------------------------------------//
+// Environment | - Platform dependent                              //
+//-----------------------------------------------------------------//
+// Purpose     | PCO - Error defines                               //
+//-----------------------------------------------------------------//
+// Author      | FRE, MBL, LWA, PCO AG, Kelheim, Germany           //
+//-----------------------------------------------------------------//
+// Revision    | versioned using SVN                               //
+//-----------------------------------------------------------------//
+// Notes       | This error defines should be used in every future //
+//             | design. It is designed to hold a huge range of    //
+//             | errors and warnings                               //
+//-----------------------------------------------------------------//
+// (c) 2003-2014 PCO AG * Donaupark 11 * D-93309 Kelheim / Germany //
+// *  Phone: +49 (0)9441 / 2005-0  *                               //
+// *  Fax:   +49 (0)9441 / 2005-20 *  Email: info@pco.de           //
+//-----------------------------------------------------------------//
+
+
+//-----------------------------------------------------------------//
+// Revision History:                                               //
+//-----------------------------------------------------------------//
+// Rev.:     | Date:      | Changed:                               //
+// --------- | ---------- | ---------------------------------------//
+//  00.01    | 25.06.2003 |  new file, FRE                         //
+//-----------------------------------------------------------------//
+//  00.02    | 05.09.2003 |  - LWa 05.09.2003: error code added:   //
+//           |            |      PCO_ERROR_SEGMENT_TO_SMALL        //
+//           |            |    (just addition, no new version!)    //
+//-----------------------------------------------------------------//
+//  00.03    | 14.10.2003 |  - FRE: Error text file changed        //
+//           |            |    (new version)                       // 
+//           | 23.10.2003 |  - LWA:added:                          //
+//           |            |  SC2_ERROR_CONNY                       //
+//           |            |  PCO_ERROR_FIRMWARE_DEVICE_OPEN_FAILED // 
+//           |            |  (just addition, no new version!)      //
+//-----------------------------------------------------------------//
+//  00.04    | 23.10.2003 |  - LWA: reorganized error codes for    //
+//           |            |    firmware update commands.           //
+//-----------------------------------------------------------------//
+//  00.05    | 12.12.2003 |  - FRE: changed PCO_errt.h             //
+//           |            |                                        //
+//           | 17.03.2004 |  - LWA added:                          //
+//           |            |  PCO_ERROR_FIRMWARE_UNKNOWN_COMMAND    // 
+//           |            |  (just addition, no new version!)      //
+//           | 23.03.2004 |  - LWA added (by FRE):                 //
+//           |            |  PCO_WARNING_FIRMWARE_HIGH_TEMPERATURE //
+//           |            |  PCO_ERROR_FIRMWARE_HIGH_TEMPERATURE   //
+//           |            |  Device codes:                         //
+//           |            |  PCO_ERROR_PCOCAM_CCD                  // 
+//           |            |  PCO_ERROR_PCOCAM_POWER                // 
+//           |            |  MBL added:                            // 
+//           |            |  PCO_WARNING_FIRMWARE_CCDCAL_NOT_LOCKED// 
+//           | 24.03.2004 |  - FRE added:                          //
+//           |            |  PCO_ERROR_SDKDLL_WRONGBUFFERNR        //
+//           |            |  Commented SC2_xxx devices!            //
+//           | 26.07.2004 |  - FRE added:                          //
+//           |            |  PCO_ERROR_SDKDLL_DLLNOTFOUND          //
+//           | 10.11.2004 |  - FRE added:                          //
+//           |            |  PCO_ERROR_SDKDLL_BUFALREADYASSIGNED   //
+//           |            |  PCO_ERROR_SDKDLL_EVENTALREADYASSIGNED //
+//           | 08.03.2005 |  - FRE: Added                          //
+//           |            |        PCO_ERROR_APPLICATION_WRONGRES  //
+//           | 03.11.2005 | - LWA: Added new line at end of file   //
+//           |            |   to suppress warnings (Gnu Compiler)  //
+//           | 19.12.2005 | - FRE: Added                           //
+//           |            |   PCO_ERROR_APPLICATION_DISKFULL       //
+//           | 22.08.2006 | - FRE: Added                           //
+//           |            |   PCO_ERROR_NOTINIT                    //
+//           | 11.04.2007 | - FRE: Added                           //
+//           |            |   PCO_ERROR_FILEDLL                    //
+//           |            |   Added Disk Full to common            //
+//           | 25.06.2008 | - FRE: Added                           //
+//           |            |   PCO_ERROR_APPLICATION_SET_VALUES     //
+//           | 08.12.2008 | - FRE: Added                           //
+//           |            |   PCO_ERROR_SDKDLL_RECORDINGMUSTBEON   //
+//           | 12.01.2009 | - FRE: Reviewed error/txt assembly     //
+//           |            |   Enhanced error decoding due to       //
+//           |            |   device and layer numbering           //
+//-----------------------------------------------------------------//
+
+
+// Do not change any values after release! Only additions are allowed!
+
+#ifndef PCO_ERR_H
+#define PCO_ERR_H
+
+// Error messages are built with the error source + error layer + error code.
+// In case of 'no error' the error source is not added.
+
+// The error itself is 32bit signed. 
+// Bits 0-11 are used to indicate the error number.
+// Bits 12-15 shows the layer of the error source.
+// Bits 16-23 reflect the error source.
+// Bits 24-28 are not used.
+// Bit 29 is the common error group flag. This flag is used to lookup
+// the error text inside the correct array.
+// Bit 31 indicates an error.
+// Bit 30 is set in addition to bit 31 and indicates a warning. 
+
+// e.g.: 0xC0000080 indicates a warning,
+//       0x800A3001 is an error inside the SC2-SDK-dll.
+// There is a total of 15 layer sources
+// There is a total of 4095 errors and warnings for each device.
+// There is a total of 255 devices.
+
+// MSB                                 LSB
+// XXXX XXXX XXXX XXXX XXXX XXXX XXXX XXXX
+// |||| |||| |||| |||| |||| |||| |||| ||||
+// |||| |||| |||| |||| |||| --------------- Error or warning code
+// |||| |||| |||| |||| ||||
+// |||| |||| |||| |||| -------------------- Layer code
+// |||| |||| |||| |||| 
+// |||| |||| ------------------------------ Device code
+// |||| |||| 
+// |||------------------------------------- reserved for future use
+// |||
+// ||-------------------------------------- Common error code flag
+// ||
+// |--------------------------------------- Warning indication bit
+// |
+// ---------------------------------------- Error indication bit
+
+// It should be reached that most error codes reside inside the common
+// code range.
+
+#if defined PCO_ERR_H_CREATE_OBJECT
+
+DWORD GetError(DWORD dwerr)
+{
+  return dwerr & 0xC000FFFF;
+}
+
+DWORD GetErrorSource(DWORD dwerr)
+{
+  return dwerr & 0x3FFF0000;
+}
+
+#else
+
+//#if defined _WIN32
+//#pragma message( "Please define 'PCO_ERR_H_CREATE_OBJECT' in your files once," )
+//#pragma message( "to avoid a linker error-message if you call GetError or GetErrorSource!" )
+//#pragma message( "Compiling " __FILE__ ) 
+//#endif
+
+DWORD GetError(DWORD dwerr);
+DWORD GetErrorSource(DWORD dwerr);
+
+#endif
+
+
+// ====================================================================================================== //
+// -- 0. Code for Success: ------------------------------------------------------------------------------ //
+// ====================================================================================================== //
+
+#define PCO_NOERROR                        0x00000000    // no error
+
+
+
+// ====================================================================================================== //
+// -- 1. Masks for evaluating error layer, error device and error code: --------------------------------- //
+// ====================================================================================================== //
+
+#define PCO_ERROR_CODE_MASK                0x00000FFF    // in this bit range the error codes reside
+#define PCO_ERROR_LAYER_MASK               0x0000F000    // in this bit range the layer codes reside
+#define PCO_ERROR_DEVICE_MASK              0x00FF0000    // bit range for error devices / sources 
+#define PCO_ERROR_RESERVED_MASK            0x1F000000    // reserved for future use
+#define PCO_ERROR_IS_COMMON                0x20000000    // indicates error message common to all layers
+#define PCO_ERROR_IS_WARNING               0x40000000    // indicates a warning
+#define PCO_ERROR_IS_ERROR                 0x80000000    // indicates an error condition
+
+
+
+// ====================================================================================================== //
+// -- 2. Layer definitions: ----------------------------------------------------------------------------- //
+// ====================================================================================================== //
+
+#define PCO_ERROR_FIRMWARE                 0x00001000    // error inside the firmware
+#define PCO_ERROR_DRIVER                   0x00002000    // error inside the driver
+#define PCO_ERROR_SDKDLL                   0x00003000    // error inside the SDK-dll
+#define PCO_ERROR_APPLICATION              0x00004000    // error inside the application
+
+// Common device codes (should start with PCO_)
+// Device codes in each layer group should be numbered in ascending order.
+// No device code in a layer group MUST be used twice!!
+// ====================================================================================================== //
+// -- 3.1 FIRMWARE error sources / devices: ------------------------------------------------------------- //
+// ====================================================================================================== //
+
+// SC2 device codes (should start with SC2_)
+#define SC2_ERROR_POWER_CPLD               0x00010000    // error at CPLD in pco.power unit
+#define SC2_ERROR_HEAD_UP                  0x00020000    // error at uP of head board in pco.camera
+#define SC2_ERROR_MAIN_UP                  0x00030000    // error at uP of main board in pco.camera 
+#define SC2_ERROR_FWIRE_UP                 0x00040000    // error at uP of firewire board in pco.camera 
+#define SC2_ERROR_MAIN_FPGA                0x00050000    // error at FPGA of main board in pco.camera 
+#define SC2_ERROR_HEAD_FPGA                0x00060000    // error at FGPA of head board in pco.camera 
+#define SC2_ERROR_MAIN_BOARD               0x00070000    // error at main board in pco.camera
+#define SC2_ERROR_HEAD_CPLD                0x00080000    // error at CPLD of head board in pco.camera
+#define SC2_ERROR_SENSOR                   0x00090000    // error at image sensor (CCD or CMOS)
+#define SC2_ERROR_POWER                    0x000D0000    // error within power unit
+#define SC2_ERROR_GIGE                     0x000E0000    // error at uP of GigE board GigE firmware
+#define SC2_ERROR_USB                      0x000F0000    // error at uP of GigE board USB firmware
+#define SC2_ERROR_BOOT_FPGA                0x00100000    // error at Boot FPGA in pco.camera 
+#define SC2_ERROR_BOOT_UP                  0x00110000    // error at Boot FPGA in pco.camera 
+
+// Future camera/firmware device codes should be placed here:
+
+// obsolete (will be removed in a future release):
+// SC2_ERROR_SDKDLL renamed to PCO_ERROR_PCO_SDKDLL, since it was misplaced here
+#define SC2_ERROR_SDKDLL                   0x000A0000    // error inside the SDKDLL
+
+// ====================================================================================================== //
+// -- 3.2 DRIVER devices -------------------------------------------------------------------------------- //
+// ====================================================================================================== //
+
+#define PCI540_ERROR_DRIVER                0x00200000    // error at pixelfly driver
+//specific error codes are in file pccddk_e.h
+
+#define PCI525_ERROR_DRIVER                0x00210000    // error at sensicam driver
+
+#define PCO_ERROR_DRIVER_FIREWIRE          0x00300000    // error inside the firewire driver
+#define PCO_ERROR_DRIVER_USB               0x00310000    // error inside the usb driver
+#define PCO_ERROR_DRIVER_GIGE              0x00320000    // error inside the GigE driver
+#define PCO_ERROR_DRIVER_CAMERALINK        0x00330000    // error inside the CameraLink driver
+#define PCO_ERROR_DRIVER_USB3              0x00340000    // error inside the usb 3.0 driver
+#define PCO_ERROR_DRIVER_WLAN              0x00350000    // error inside the usb 3.0 driver
+
+// obsolete (will be removed in a future release):
+// SC2_ERROR_DRIVER renamed to PCO_ERROR_DRIVER_xyz
+#define SC2_ERROR_DRIVER                   0x000B0000    // error inside the driver
+
+// ====================================================================================================== //
+// -- 3.3 SDKDLL devices -------------------------------------------------------------------------------- //
+// ====================================================================================================== //
+#define PCO_ERROR_PCO_SDKDLL               0x000A0000    // error inside the camera sdk dll
+#define PCO_ERROR_CONVERTDLL               0x00110000    // error inside the convert dll
+#define PCO_ERROR_FILEDLL                  0x00120000    // error inside the file dll
+#define PCO_ERROR_JAVANATIVEDLL            0x00130000    // error inside a java native dll
+
+#define PCO_ERROR_PROGLIB                  0x00140000    // error inside the programmer library
+
+
+// ====================================================================================================== //
+// -- 3.4 Application devices --------------------------------------------------------------------------- //
+// ====================================================================================================== //
+#define PCO_ERROR_CAMWARE                  0x00100000    // error in CamWare (also some kind of "device")
+
+#define PCO_ERROR_PROGRAMMER               0x00110000    // error in Programmer
+
+#define PCO_ERROR_SDKAPPLICATION           0x00120000    // error in SDK Applikation
+
+// ====================================================================================================== //
+// -- 4. Error Messages: -------------------------------------------------------------------------------- //
+// ====================================================================================================== //
+
+
+  // Notes:
+  //
+  // 1. Common error codes
+  //
+  // The common error codes are codes which have been found inside more than one layer.
+  // The resulting error code is built by adding the layer and source device to the error code.
+  //
+  // e.g. CamWare - file I/O error: error = PCO_ERROR_CAMWARE 
+  //                                      + PCO_ERROR_APPLICATION 
+  //                                      + PCO_NOERROR_NOFILE
+  //
+  //      SC2 Driver - No memory:   error = SC2_ERROR_DRIVER 
+  //                                      + PCO_ERROR_DRIVER 
+  //                                      + PCO_ERROR_NOMEMORY
+  //
+  // 2. Specific error codes
+  //

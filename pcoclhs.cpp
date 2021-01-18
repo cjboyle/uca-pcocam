@@ -5,14 +5,21 @@
 
 #include "pcoclhs.h"
 
-#include "pco/Cpco_com_clhs.h"
-#include "pco/Cpco_grab_clhs.h"
-#include "pco/Cpco_log.h"
-#include "pco/reorderfunc.h"
+#include "pco/include/clhs/Cpco_com_clhs.h"
+#include "pco/include/clhs/Cpco_grab_clhs.h"
+#include "pco/include/clhs/Cpco_log.h"
+#include "pco/include/clhs/reorderfunc.h"
 
-#define PCO_ERRT_H_CREATE_OBJECT
+// PCO_errt.h is a header file w/ hard-coded function implementations.
+// It also contains non-standard function calls that must be escaped.
+#ifndef sprintf_s
 #define sprintf_s snprintf
-#include "pco/PCO_errt.h"
+#endif
+
+#ifndef PCO_ERRT_H_CREATE_OBJECT
+#define PCO_ERRT_H_CREATE_OBJECT
+#endif
+#include "pco/include/clhs/PCO_errt.h"
 
 /** 
  * This module serves as a wrapper to access the C++ implementations of
@@ -23,7 +30,7 @@
 #define CHECK_ERROR(code)                                                      \
     if ((code) != 0)                                                           \
     {                                                                          \
-        fprintf(stderr, "Error: %x at <%s:%i>\n", (code), __FILE__, __LINE__); \
+        fprintf(stderr, "Error: 0x%x at <%s:%i>\n", (code), __FILE__, __LINE__); \
         fprintf(stderr, "  %s\n", _get_error_text((code)));                    \
     }
 
@@ -536,6 +543,9 @@ unsigned int pcoclhs_set_pixelrate(pcoclhs_handle *pco, uint32_t rate)
 
 static void pcoclhs_post_update_pixelrate(pcoclhs_handle *pco)
 {
+    return;
+    ///////////////////////////////
+
     if (pco->cameraType == CAMERATYPE_PCO_EDGE ||
         pco->cameraType == CAMERATYPE_PCO_EDGE_HS ||
         pco->cameraType == CAMERATYPE_PCO_EDGE_GL ||
@@ -638,6 +648,12 @@ unsigned int pcoclhs_set_scan_mode(pcoclhs_handle *pco, uint32_t mode)
 
     if (pixelrate == 0)
         return PCO_ERROR_IS_ERROR;
+
+    err = pcoclhs_set_pixelrate(pco, pixelrate);
+    CHECK_ERROR_THEN_RETURN(err);
+
+    return 0;
+    //////////////////////////
 
     if (mode == PCO_SCANMODE_SLOW)
     {
