@@ -13,8 +13,8 @@ CXXFLAGS = -std=c++0x -O2 -Wall -fPIC
 LDFLAGS = -shared
 
 
-SRCS = $(PROJ_NAME)-camera.c $(PROJ_NAME)-enums.c pcoclhs.cpp
-HDRS = $(PROJ_NAME)-camera.h $(PROJ_NAME)-enums.h pcoclhs.h
+SRCS = $(PROJ_NAME)-camera.c $(PROJ_NAME)-enums.c pco.cpp pcoclhs.cpp
+HDRS = $(PROJ_NAME)-camera.h $(PROJ_NAME)-enums.h pco.h pcoclhs.h
 
 
 # UFO-KIT UCA
@@ -96,25 +96,13 @@ $(INST_DIR)/$(OUTFILE): $(BUILD_DIR)/$(OUTFILE)
 
 .PHONY: clean
 clean:
-	@rm -rf $(BUILD_DIR)
+	@rm -rf $(BUILD_DIR)/*clhs*
 
 
 .PHONY: uninstall
 uninstall:
 	@rm -f $(INST_DIR)/$(OUTFILE)
 
-
-.PHONY: check-vars
-check-vars:
-	@echo -n "SISODIR5: $(SISODIR5)" && test -d $(SISODIR5) && echo " (found)" || echo " (not found)"
-	@echo -n "PCOSDKDIR: $(PCOSDKDIR)" && test -d $(PCOSDKDIR) && echo " (found)" || echo " (not found)"
-	@echo
-	@echo "SRCS: $(SRCS)"
-	@echo "HDRS: $(HDRS)"
-	@echo "LIB_NAMES: $(LIB_NAMES)"
-	@echo
-	@echo "BUILD_DIR: $(BUILD_DIR)"
-	@echo "INST_DIR: $(INST_DIR)"
 
 .PHONY: check-cmds
 check-cmds:

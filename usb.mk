@@ -23,7 +23,7 @@ LIB_NAMES += uca
 # LIB_DIRS += /usr/local/lib
 # LIB_DIRS += /opt/PCO/pco_camera/pco_common/pco_lib
 PCO_LIB_DIR = ./pco/lib/usb
-PCO_LIB_NAMES += pcocam_usb reorderfunc
+PCO_LIB_NAMES += pcocam_usb
 #PCO_LIB_NAMES += pcolog pcofile pcocam_usb reorderfunc
 PCO_LIBS = -Wl,-Bstatic $(addprefix $(PCO_LIB_DIR)/lib,$(addsuffix .a,$(PCO_LIB_NAMES))) -Wl,-Bdynamic
 
@@ -87,7 +87,7 @@ $(INST_DIR)/$(OUTFILE): $(BUILD_DIR)/$(OUTFILE)
 
 .PHONY: clean
 clean:
-	@rm -rf $(BUILD_DIR)
+	@rm -rf $(BUILD_DIR)/*usb*
 
 
 .PHONY: uninstall
