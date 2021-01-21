@@ -9,6 +9,8 @@ extern "C"
 #include <stdint.h>
 #include <stdbool.h>
 
+#include "pco.h"
+
 #include "pco/include/clhs/defs.h"
 #include "pco/include/clhs/sc2_defs.h"
 #include "pco/include/clhs/PCO_err.h"
