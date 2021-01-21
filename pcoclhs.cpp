@@ -27,11 +27,11 @@
  * UFO-KIT's libpco library partial implementation.
  */
 
-#define CHECK_ERROR(code)                                                      \
-    if ((code) != 0)                                                           \
-    {                                                                          \
+#define CHECK_ERROR(code)                                                        \
+    if ((code) != 0)                                                             \
+    {                                                                            \
         fprintf(stderr, "Error: 0x%x at <%s:%i>\n", (code), __FILE__, __LINE__); \
-        fprintf(stderr, "  %s\n", _get_error_text((code)));                    \
+        fprintf(stderr, "  %s\n", _get_error_text((code)));                      \
     }
 
 #define CHECK_ERROR_AND_RETURN(code) \
@@ -49,10 +49,10 @@
 
 #define USR_TIMEBASE TIMEBASE_MS
 #define CAM_TIMEBASE TIMEBASE_NS
-#define CONVERT_CAM2SEC_TIMEBASE(val) (double)((val) * 1e-9)
-#define CONVERT_CAM2USR_TIMEBASE(val) (double)((val) * 1e-6)
-#define CONVERT_USR2SEC_TIMEBASE(val) (double)((val) * 1e-3)
-#define CONVERT_USR2CAM_TIMEBASE(val) (uint32_t)((val) * 1e6)
+#define CONVERT_CAM2SEC_TIMEBASE(val) (double)((val)*1e-9)
+#define CONVERT_CAM2USR_TIMEBASE(val) (double)((val)*1e-6)
+#define CONVERT_USR2SEC_TIMEBASE(val) (double)((val)*1e-3)
+#define CONVERT_USR2CAM_TIMEBASE(val) (uint32_t)((val)*1e6)
 
 /* Static helper functions */
 
@@ -245,7 +245,9 @@ static unsigned int _pcoclhs_init(pcoclhs_handle *pco, int board, int port)
 
     err = pco->com->PCO_SetBitAlignment(BIT_ALIGNMENT_LSB);
     CHECK_ERROR(err);
-    if (err != PCO_NOERROR) {}
+    if (err != PCO_NOERROR)
+    {
+    }
 
     // err = pcoclhs_arm_camera(pco);
     // CHECK_ERROR_AND_RETURN(err);
@@ -321,6 +323,7 @@ unsigned int pcoclhs_control_command(pcoclhs_handle *pco, void *buffer_in, uint3
 
 unsigned int pcoclhs_grabber_set_size(pcoclhs_handle *pco, uint32_t width, uint32_t height)
 {
+    // DWORD err = pco->grabber->Set_Grabber_Size(2 * cameraW, cameraH);  // CL v CLHS
     DWORD err = pco->grabber->Set_Grabber_Size(width, height);
     CHECK_ERROR_THEN_RETURN(err);
 }
@@ -328,14 +331,14 @@ unsigned int pcoclhs_grabber_set_size(pcoclhs_handle *pco, uint32_t width, uint3
 unsigned int pcoclhs_grabber_allocate_memory(pcoclhs_handle *pco, int size)
 {
     // not actually implemented, just returns PCO_NOERROR
-    return pco->grabber->Allocate_Framebuffer(size);
+    //return pco->grabber->Allocate_Framebuffer(size);  // CL v CLHS
+    return 0;
 }
 
 unsigned int pcoclhs_grabber_free_memory(pcoclhs_handle *pco)
 {
     // not actually implemented, just returns PCO_NOERROR
-    // return pco->grabber->Free_Framebuffer();
-    // seems like it actually throws an error
+    // return pco->grabber->Free_Framebuffer();  // CL v CLHS
     return 0;
 }
 
@@ -363,7 +366,7 @@ unsigned int pcoclhs_prepare_recording(pcoclhs_handle *pco)
 
     if (cameraW != grabberW || cameraH != grabberH)
     {
-        err = pco->grabber->Set_Grabber_Size(2 * cameraW, cameraH);
+        err = pcoclhs_grabber_set_size(pco, cameraW, cameraH);
         CHECK_ERROR_AND_RETURN(err);
 
         pcoclhs_grabber_allocate_memory(pco, 20);
@@ -380,7 +383,7 @@ unsigned int pcoclhs_start_recording(pcoclhs_handle *pco)
 
     err = pcoclhs_set_recording_state(pco, 1);
     CHECK_ERROR_AND_RETURN(err);
-    
+
     err = pco->grabber->Start_Acquire();
     CHECK_ERROR_THEN_RETURN(err);
 }
@@ -545,12 +548,9 @@ static void pcoclhs_post_update_pixelrate(pcoclhs_handle *pco)
 {
     return;
     ///////////////////////////////
+    // CL v CLHS
 
-    if (pco->cameraType == CAMERATYPE_PCO_EDGE ||
-        pco->cameraType == CAMERATYPE_PCO_EDGE_HS ||
-        pco->cameraType == CAMERATYPE_PCO_EDGE_GL ||
-        pco->cameraType == CAMERATYPE_PCO_EDGE_42 ||
-        pco->cameraType == CAMERATYPE_PCO_EDGE_USB3)
+    if (pco->cameraType == CAMERATYPE_PCO_EDGE)
     {
         uint32_t pixelrate;
         uint16_t w, h, wx, hx, lut = 0;
@@ -588,8 +588,9 @@ unsigned int pcoclhs_set_fps(pcoclhs_handle *pco, double fps)
     {
         fprintf(stderr, "Setting the FPS is not supported by the camera.\n");
         fprintf(stderr, "Please manually set the FPS through `exposure-time' and `delay-time'\n");
-    } else if (status == SET_FRAMERATE_STATUS_NOT_YET_VALIDATED)
-    return err;
+    }
+    else if (status == SET_FRAMERATE_STATUS_NOT_YET_VALIDATED)
+        return err;
 }
 
 unsigned int pcoclhs_get_fps(pcoclhs_handle *pco, double *fps)
@@ -599,7 +600,7 @@ unsigned int pcoclhs_get_fps(pcoclhs_handle *pco, double *fps)
     DWORD err = pco->com->PCO_GetFrameRate(&status, &rate, &discard);
     if (err == PCO_NOERROR)
     {
-        *fps = rate * 1e-3;  // mHz (sub-FPS) to Hz (FPS)
+        *fps = rate * 1e-3; // mHz (sub-FPS) to Hz (FPS)
     }
     else
     {
