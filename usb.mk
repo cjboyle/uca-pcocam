@@ -58,10 +58,10 @@ all: $(HDRS) $(SRCS) $(BUILD_DIR)/$(OUTFILE)
 .PHONY: enums
 enums:  $(HDRS) $(SRCS) .FORCE
 
-%-enums.c: %-enums.c.in %-enums.h
+%-enums.c: %-enums.c.in %-enums.h .FORCE
 	glib-mkenums --template=$< --output=$@ $(HDRS)
 
-%-enums.h: %-enums.h.in
+%-enums.h: %-enums.h.in .FORCE
 	glib-mkenums --template=$< --output=$@ $(PROJ_NAME)-camera.h
 
 
