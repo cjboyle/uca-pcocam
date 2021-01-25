@@ -5,10 +5,10 @@
 
 #include "pcousb.h"
 
-#include "pco/include/usb-desy/Cpco_com_usb.h"
-#include "pco/include/usb-desy/Cpco_grab_usb.h"
-#include "pco/include/usb-desy/Cpco_log.h"
-#include "pco/include/usb-desy/reorderfunc.h"
+#include "pco/include/usb/Cpco_com_usb.h"
+#include "pco/include/usb/Cpco_grab_usb.h"
+#include "pco/include/usb/Cpco_log.h"
+#include "pco/include/usb/reorderfunc.h"
 
 // PCO_errt.h is a header file w/ hard-coded function implementations.
 // It also contains non-standard function calls that must be escaped.
@@ -19,8 +19,8 @@
 #ifndef PCO_ERRT_H_CREATE_OBJECT
 #define PCO_ERRT_H_CREATE_OBJECT
 #endif
+#include "pco/include/usb/PCO_err.h"
 #include "pco/include/usb/PCO_errt_w.h"
-#include "pco/include/usb/PCO_errtext.h"
 
 /** 
  * This module serves as a wrapper to access the C++ implementations of

@@ -12,6 +12,13 @@ extern "C"
 #define PCO_SCANMODE_SLOW 0
 #define PCO_SCANMODE_FAST 1
 
+    enum _pco_edge_shutter
+    {
+        PCO_EDGE_ROLLING_SHUTTER = 1, // PCO_EDGE_SETUP_ROLLING_SHUTTER
+        PCO_EDGE_GLOBAL_SHUTTER = 2,  // PCO_EDGE_SETUP_GLOBAL_SHUTTER
+        PCO_EDGE_GLOBAL_RESET = 4,    // PCO_EDGE_SETUP_GLOBAL_RESET
+    };
+
     struct _pco_handle;
     /* Handle to a struct containing references to an
        implementation-specific PCO camera and grabber. */
@@ -232,7 +239,7 @@ extern "C"
      * @return 0 on success, otherwise less than 0
      */
     uint32_t pco_set_pixelrate(pco_handle *pco, uint32_t rate);
-    
+
     /**
      * Get the framerate of the camera, in Hz.
      * @param pco handle
@@ -240,7 +247,7 @@ extern "C"
      * @return 0 on success, otherwise less than 0
      */
     uint32_t pco_get_fps(pco_handle *pco, double *fps);
-    
+
     /**
      * Set the framerate of the camera, in Hz.
      * @param pco handle

@@ -41,7 +41,7 @@
 #endif
 
 #include "pco_includes.h"
-#include "../../pco_common/VersionNo.h"
+#include "VersionNo.h"
 
 #if !defined (MAX_PATH)
 #define MAX_PATH 1024
