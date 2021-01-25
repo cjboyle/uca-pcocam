@@ -20,6 +20,9 @@ extern "C"
     /* (DEPRECATED) Function pointer to reorder image lines  */
     typedef void (*pco_reorder_image_t)(uint16_t *bufout, uint16_t *bufin, int width, int height);
 
+    enum _pco_edge_shutter;
+    typedef enum _pco_edge_shutter pco_edge_shutter;
+
     /**
      * Constructor to get a wrapper to the PCO CLHS SDK.
      * @param board the index of the frame-grabber board
@@ -622,7 +625,7 @@ extern "C"
      * @param shutter the shutter mode [1=ROLLING, 2=GLOBAL, 4=RESET]
      * @return 0 on success, otherwise less than 0
      */
-    // uint32_t pco_edge_set_shutter(pco_handle *pco, pco_edge_shutter shutter);
+    uint32_t pco_edge_set_shutter(pco_handle *pco, pco_edge_shutter shutter);
 
     /**
      * Ensure the camera time is in sync with the current system time.

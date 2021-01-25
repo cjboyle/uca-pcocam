@@ -5,10 +5,10 @@
 
 #include "pcousb.h"
 
-#include "pco/include/usb/Cpco_com_usb.h"
-#include "pco/include/usb/Cpco_grab_usb.h"
-#include "pco/include/usb/Cpco_log.h"
-#include "pco/include/usb/reorderfunc.h"
+#include "pco/include/usb-desy/Cpco_com_usb.h"
+#include "pco/include/usb-desy/Cpco_grab_usb.h"
+#include "pco/include/usb-desy/Cpco_log.h"
+#include "pco/include/usb-desy/reorderfunc.h"
 
 // PCO_errt.h is a header file w/ hard-coded function implementations.
 // It also contains non-standard function calls that must be escaped.
@@ -64,105 +64,6 @@ static char *_get_error_text(DWORD code)
     return (char *)s;
 }
 
-static void _decode_line(int width, void *bufout, void *bufin)
-{
-    uint32_t *lineadr_in = (uint32_t *)bufin;
-    uint32_t *lineadr_out = (uint32_t *)bufout;
-    uint32_t a;
-
-    for (int x = 0; x < (width * 12) / 32; x += 3)
-    {
-        a = (*lineadr_in & 0x0000FFF0) >> 4;
-        a |= (*lineadr_in & 0x0000000F) << 24;
-        a |= (*lineadr_in & 0xFF000000) >> 8;
-        *lineadr_out = a;
-        lineadr_out++;
-
-        a = (*lineadr_in & 0x00FF0000) >> 12;
-        lineadr_in++;
-        a |= (*lineadr_in & 0x0000F000) >> 12;
-        a |= (*lineadr_in & 0x00000FFF) << 16;
-        *lineadr_out = a;
-        lineadr_out++;
-
-        a = (*lineadr_in & 0xFFF00000) >> 20;
-        a |= (*lineadr_in & 0x000F0000) << 8;
-        lineadr_in++;
-        a |= (*lineadr_in & 0x0000FF00) << 8;
-        *lineadr_out = a;
-        lineadr_out++;
-
-        a = (*lineadr_in & 0x000000FF) << 4;
-        a |= (*lineadr_in & 0xF0000000) >> 28;
-        a |= (*lineadr_in & 0x0FFF0000);
-        *lineadr_out = a;
-        lineadr_out++;
-        lineadr_in++;
-    }
-}
-
-static void func_reorder_image_5x12(uint16_t *bufout, uint16_t *bufin, int width, int height)
-{
-    uint16_t *line_top = bufout;
-    uint16_t *line_bottom = bufout + (height - 1) * width;
-    uint16_t *line_in = bufin;
-    int off = (width * 12) / 16;
-
-    for (int y = 0; y < height / 2; y++)
-    {
-        _decode_line(width, line_top, line_in);
-        line_in += off;
-        _decode_line(width, line_bottom, line_in);
-        line_in += off;
-        line_top += width;
-        line_bottom -= width;
-    }
-}
-
-static void func_reorder_image_5x16(uint16_t *bufout, uint16_t *bufin, int width, int height)
-{
-    uint16_t *line_top = bufout;
-    uint16_t *line_bottom = bufout + (height - 1) * width;
-    uint16_t *line_in = bufin;
-
-    for (int y = 0; y < height / 2; y++)
-    {
-        memcpy(line_top, line_in, width * sizeof(uint16_t));
-        line_in += width;
-        memcpy(line_bottom, line_in, width * sizeof(uint16_t));
-        line_in += width;
-        line_top += width;
-        line_bottom -= width;
-    }
-}
-
-static void _fill_binning_array(uint16_t *a, unsigned int n, int is_linear)
-{
-    if (is_linear)
-    {
-        for (int i = 0; i < n; i++)
-            a[i] = i + 1;
-    }
-    else
-    {
-        for (int i = 0, j = 1; i < n; i++, j *= 2)
-            a[i] = j;
-    }
-}
-
-static uint16_t _msb_position(uint16_t x)
-{
-    uint16_t val = 0;
-    while (x >>= 1)
-        ++val;
-    return val;
-}
-
-static uint16_t _get_num_binnings(uint16_t max_binning, int is_linear)
-{
-    return is_linear ? max_binning : _msb_position(max_binning) + 1;
-}
-
 /*************************/
 
 struct _pco_handle
@@ -172,7 +73,6 @@ struct _pco_handle
     CPco_Log *logger;
 
     double cachedDelay, cachedExposure;
-    pco_reorder_image_t reorder_func;
 
     uint16_t cameraType, cameraSubType;
     SC2_Camera_Description_Response description;
@@ -180,7 +80,7 @@ struct _pco_handle
     int board, port;
 };
 
-static unsigned int _pcousb_init(pco_handle *pco, int board, int port)
+static unsigned int _pco_init(pco_handle *pco, int board, int port)
 {
     DWORD err;
 
@@ -208,8 +108,6 @@ static unsigned int _pcousb_init(pco_handle *pco, int board, int port)
 
     err = pco->grabber->Open_Grabber(board);
     CHECK_ERROR_AND_RETURN(err);
-
-    pco->reorder_func = &func_reorder_image_5x16;
 
     err = pco->com->PCO_GetCameraDescriptor(&pco->description);
     CHECK_ERROR_AND_RETURN(err);
@@ -382,7 +280,7 @@ unsigned int pco_start_recording(pco_handle *pco)
     err = pco_set_recording_state(pco, 1);
     CHECK_ERROR_AND_RETURN(err);
     
-    err = pco->grabber->Start_Acquire();
+    // err = pco->grabber->Start_Acquire();
     CHECK_ERROR_THEN_RETURN(err);
 }
 
@@ -390,15 +288,19 @@ unsigned int pco_stop_recording(pco_handle *pco)
 {
     DWORD err = pco_set_recording_state(pco, 0);
     CHECK_ERROR_AND_RETURN(err);
-    err = pco->com->PCO_CancelImage();
+    pco->com->PCO_CancelImage();
     // ignore error
-    err = pco->grabber->Stop_Acquire();
-    CHECK_ERROR_THEN_RETURN(err);
+    // err = pco->grabber->Stop_Acquire();
+    // CHECK_ERROR_THEN_RETURN(err);
+    return err;
 }
 
 bool pco_is_recording(pco_handle *pco)
 {
-    return pco->grabber->started();
+    WORD state;
+    DWORD err = pco->com->PCO_GetRecordingState(&state);
+    CHECK_ERROR(err);
+    return state == 1;
 }
 
 bool pco_is_active(pco_handle *pco)
@@ -547,35 +449,35 @@ static void pco_post_update_pixelrate(pco_handle *pco)
     return;
     ///////////////////////////////
 
-    if (pco->cameraType == CAMERATYPE_PCO_EDGE ||
-        pco->cameraType == CAMERATYPE_PCO_EDGE_HS ||
-        pco->cameraType == CAMERATYPE_PCO_EDGE_GL ||
-        pco->cameraType == CAMERATYPE_PCO_EDGE_42 ||
-        pco->cameraType == CAMERATYPE_PCO_EDGE_USB3)
-    {
-        uint32_t pixelrate;
-        uint16_t w, h, wx, hx, lut = 0;
-        pco_get_pixelrate(pco, &pixelrate);
-        pco_get_resolution(pco, &w, &h, &wx, &hx);
+    // if (pco->cameraType == CAMERATYPE_PCO_EDGE ||
+    //     pco->cameraType == CAMERATYPE_PCO_EDGE_HS ||
+    //     pco->cameraType == CAMERATYPE_PCO_EDGE_GL ||
+    //     pco->cameraType == CAMERATYPE_PCO_EDGE_42 ||
+    //     pco->cameraType == CAMERATYPE_PCO_EDGE_USB3)
+    // {
+    //     uint32_t pixelrate;
+    //     uint16_t w, h, wx, hx, lut = 0;
+    //     pco_get_pixelrate(pco, &pixelrate);
+    //     pco_get_resolution(pco, &w, &h, &wx, &hx);
 
-        PCO_SC2_CL_TRANSFER_PARAM tparam;
-        pco->com->PCO_GetTransferParameter(&tparam, sizeof(tparam));
+    //     PCO_SC2_CL_TRANSFER_PARAM tparam;
+    //     pco->com->PCO_GetTransferParameter(&tparam, sizeof(tparam));
 
-        if ((w > 1920) && (pixelrate >= 286000000))
-        {
-            pco->reorder_func = &func_reorder_image_5x12;
-            tparam.DataFormat = SCCMOS_FORMAT_TOP_CENTER_BOTTOM_CENTER | PCO_CL_DATAFORMAT_5x12;
-            lut = 0x1612;
-        }
-        else
-        {
-            pco->reorder_func = &func_reorder_image_5x16;
-            tparam.DataFormat = SCCMOS_FORMAT_TOP_CENTER_BOTTOM_CENTER | PCO_CL_DATAFORMAT_5x16;
-        }
-        pco->grabber->Set_DataFormat(tparam.DataFormat);
-        pco->com->PCO_SetTransferParameter(&tparam, sizeof(tparam));
-        pco->com->PCO_SetLut(lut, 0);
-    }
+    //     if ((w > 1920) && (pixelrate >= 286000000))
+    //     {
+    //         pco->reorder_func = &func_reorder_image_5x12;
+    //         tparam.DataFormat = SCCMOS_FORMAT_TOP_CENTER_BOTTOM_CENTER | PCO_CL_DATAFORMAT_5x12;
+    //         lut = 0x1612;
+    //     }
+    //     else
+    //     {
+    //         pco->reorder_func = &func_reorder_image_5x16;
+    //         tparam.DataFormat = SCCMOS_FORMAT_TOP_CENTER_BOTTOM_CENTER | PCO_CL_DATAFORMAT_5x16;
+    //     }
+    //     pco->grabber->Set_DataFormat(tparam.DataFormat);
+    //     pco->com->PCO_SetTransferParameter(&tparam, sizeof(tparam));
+    //     pco->com->PCO_SetLut(lut, 0);
+    // }
 }
 
 unsigned int pco_set_fps(pco_handle *pco, double fps)
@@ -656,16 +558,16 @@ unsigned int pco_set_scan_mode(pco_handle *pco, uint32_t mode)
     return 0;
     //////////////////////////
 
-    if (mode == PCO_SCANMODE_SLOW)
-    {
-        pco->reorder_func = &func_reorder_image_5x16;
-        pco->grabber->Set_DataFormat(SCCMOS_FORMAT_TOP_CENTER_BOTTOM_CENTER | PCO_CL_DATAFORMAT_5x16);
-    }
-    else if (mode == PCO_SCANMODE_FAST)
-    {
-        pco->reorder_func = &func_reorder_image_5x12;
-        pco->grabber->Set_DataFormat(SCCMOS_FORMAT_TOP_CENTER_BOTTOM_CENTER | PCO_CL_DATAFORMAT_5x12);
-    }
+    // if (mode == PCO_SCANMODE_SLOW)
+    // {
+    //     pco->reorder_func = &func_reorder_image_5x16;
+    //     pco->grabber->Set_DataFormat(SCCMOS_FORMAT_TOP_CENTER_BOTTOM_CENTER | PCO_CL_DATAFORMAT_5x16);
+    // }
+    // else if (mode == PCO_SCANMODE_FAST)
+    // {
+    //     pco->reorder_func = &func_reorder_image_5x12;
+    //     pco->grabber->Set_DataFormat(SCCMOS_FORMAT_TOP_CENTER_BOTTOM_CENTER | PCO_CL_DATAFORMAT_5x12);
+    // }
 
     err = pco_set_pixelrate(pco, pixelrate);
     CHECK_ERROR_THEN_RETURN(err);
@@ -973,7 +875,7 @@ unsigned int pco_await_next_image_ex(pco_handle *pco, void *adr, int timeout)
         CHECK_ERROR_AND_RETURN(err);
     }
 
-    err = pco->grabber->Wait_For_Next_Image(adr, timeout);
+    err = pco->grabber->Acquire_Image_Async_wait(adr, timeout);
     CHECK_ERROR_THEN_RETURN(err);
 }
 
@@ -1079,6 +981,33 @@ unsigned int pco_set_binning(pco_handle *pco, uint16_t horizontal, uint16_t vert
     CHECK_ERROR_THEN_RETURN(err);
 }
 
+static uint16_t _msb_position(uint16_t x)
+{
+    uint16_t val = 0;
+    while (x >>= 1)
+        ++val;
+    return val;
+}
+
+static void _fill_binning_array(uint16_t *a, unsigned int n, int is_linear)
+{
+    if (is_linear)
+    {
+        for (int i = 0; i < n; i++)
+            a[i] = i + 1;
+    }
+    else
+    {
+        for (int i = 0, j = 1; i < n; i++, j *= 2)
+            a[i] = j;
+    }
+}
+
+static uint16_t _get_num_binnings(uint16_t max_binning, int is_linear)
+{
+    return is_linear ? max_binning : _msb_position(max_binning) + 1;
+}
+
 unsigned int pco_get_possible_binnings(pco_handle *pco, uint16_t **horizontal, unsigned int *num_horizontal, uint16_t **vertical, unsigned int *num_vertical)
 {
     /* uint16_t maxBinHorz, stepBinHorz, maxBinVert, stepBinVert; */
@@ -1130,14 +1059,10 @@ unsigned int pco_update_camera_datetime(pco_handle *pco)
     CHECK_ERROR_THEN_RETURN(err);
 }
 
-pco_reorder_image_t pco_get_reorder_func(pco_handle *pco)
-{
-    return pco->reorder_func;
-}
-
 void pco_reorder_image(pco_handle *pco, uint16_t *bufout, uint16_t *bufin, int width, int height)
 {
-    uint32_t format = pco->grabber->Get_DataFormat();
-    reorder_image(bufout, bufin, width, height, format);
+    //uint32_t format = pco->grabber->Get_DataFormat();
+    //reorder_image(bufout, bufin, width, height, format);
     //pco_get_reorder_func(pco)(bufout, bufin, width, height);
+    memcpy(bufout, bufin, sizeof(uint16_t) * width * height);
 }

@@ -11,9 +11,16 @@ extern "C"
 
 #include "pco.h"
 
-#include "pco/include/usb/defs.h"
-#include "pco/include/usb/sc2_defs.h"
-#include "pco/include/usb/PCO_err.h"
+#include "pco/include/usb-desy/defs.h"
+#include "pco/include/usb-desy/sc2_defs.h"
+#include "pco/include/usb-desy/PCO_err.h"
+
+    enum _pco_edge_shutter
+    {
+        PCO_EDGE_ROLLING_SHUTTER = PCO_EDGE_SETUP_ROLLING_SHUTTER,
+        PCO_EDGE_GLOBAL_SHUTTER = PCO_EDGE_SETUP_GLOBAL_SHUTTER,
+        PCO_EDGE_GLOBAL_RESET = PCO_EDGE_SETUP_GLOBAL_RESET,
+    };
 
 #ifdef __cplusplus
 }
