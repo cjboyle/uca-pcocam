@@ -418,10 +418,23 @@ static gboolean uca_pco_usb_camera_grab(UcaCamera *camera, gpointer data, GError
         return FALSE;
     }
 
+    data = g_realloc(data, size);
+
+    if (data == NULL)
+    {
+        g_set_error(error, UCA_PCO_USB_CAMERA_ERROR,
+                    UCA_PCO_USB_CAMERA_ERROR_FG_GENERAL,
+                    "Output buffer is NULL");
+        return FALSE;
+    }
+
     err = pco_acquire_image(priv->pco, frame);
     CHECK_AND_RETURN_VAL_ON_PCO_ERROR(err, FALSE);
 
     memcpy(data, frame, size);
+
+    g_free(frame);
+    frame = NULL;
 
     return TRUE;
 }
@@ -767,9 +780,9 @@ static void uca_pco_usb_camera_get_property(GObject *object, guint property_id, 
 
     case PROP_SENSOR_BITDEPTH:
     {
-        guint w, h, depth;
-        pco_grabber_get_actual_size_ex(priv->pco, &w, &h, &depth);
-        g_value_set_uint(value, depth);
+        // guint w, h, depth;
+        // pco_grabber_get_actual_size_ex(priv->pco, &w, &h, &depth);
+        g_value_set_uint(value, 16);
     }
     break;
 
