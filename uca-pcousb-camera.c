@@ -322,16 +322,18 @@ static void uca_pco_usb_camera_start_recording(UcaCamera *camera, GError **error
     binned_width /= bh;
     binned_height /= bv;
 
-    // check if x1==roi[2], y1==roi[3] are larger than the available width, height
-    if ((roi[2] > binned_width) || (roi[3] > binned_height))
+    // check if the ROI dimensions exceed the available binned dimensions
+    if ((roi[2] - roi[0] > binned_width) || (roi[3] - roi[1] > binned_height))
     {
         g_set_error(error, UCA_PCO_USB_CAMERA_ERROR, UCA_PCO_USB_CAMERA_ERROR_UNSUPPORTED,
                     "ROI of size %ix%i @ (%i, %i) is outside of (binned) sensor size %ix%i\n",
-                    roi[2], roi[3], roi[0], roi[1], binned_width, binned_height);
+                    roi[2] - roi[0], roi[3] - roi[1], roi[0], roi[1], binned_width, binned_height);
     }
 
     if (priv->grab_buffer)
         g_free(priv->grab_buffer);
+    
+    priv->buffer_size = binned_width * binned_height * sizeof(guint16);
 
     priv->grab_buffer = g_malloc0(priv->buffer_size);
     memset(priv->grab_buffer, 0, priv->buffer_size);
@@ -456,7 +458,6 @@ static void uca_pco_usb_camera_set_property(GObject *object, guint property_id, 
         guint16 window[4];
         pco_get_roi(priv->pco, window);
         window[0] = x;
-        window[2] = window[2] + x;
         pco_set_roi(priv->pco, window);
     }
     break;
@@ -467,7 +468,6 @@ static void uca_pco_usb_camera_set_property(GObject *object, guint property_id, 
         guint16 window[4];
         pco_get_roi(priv->pco, window);
         window[1] = y;
-        window[3] = window[3] + y;
         pco_set_roi(priv->pco, window);
     }
     break;
@@ -1255,22 +1255,6 @@ static gboolean setup_pco_usb_camera(UcaPcoUsbCameraPrivate *priv)
 
     priv->description = map_entry;
 
-    // err = pco_get_resolution(priv->pco, &priv->width, &priv->height, &priv->width_ex, &priv->height_ex);
-    // CHECK_AND_RETURN_VAL_ON_PCO_ERROR(err, FALSE);
-
-    // err = pco_get_binning(priv->pco, &priv->binning_horz, &priv->binning_vert);
-    // CHECK_AND_RETURN_VAL_ON_PCO_ERROR(err, FALSE);
-
-    // err = pco_get_roi(priv->pco, roi);
-    // CHECK_AND_RETURN_VAL_ON_PCO_ERROR(err, FALSE);
-
-    // err = pco_get_roi_steps(priv->pco, &priv->roi_horz_steps, &priv->roi_vert_steps);
-    // CHECK_AND_RETURN_VAL_ON_PCO_ERROR(err, FALSE);
-
-    // priv->roi_x = roi[0] - 1;
-    // priv->roi_y = roi[1] - 1;
-    // priv->roi_width = roi[2] - roi[0] + 1;
-    // priv->roi_height = roi[3] - roi[1] + 1;
     priv->num_recorded_images = 0;
 
     err = pco_get_camera_version(priv->pco, &serial, &version[0], &version[1], &version[2], &version[3]);
