@@ -410,8 +410,9 @@ static gboolean uca_pco_usb_camera_grab(UcaCamera *camera, gpointer data, GError
     if (err != PCO_NOERROR)
         return err;
 
-    gsize sz = w * h * sizeof(guint16);
-    guint16 *frame = (guint16 *)g_malloc0(sz);
+    gsize size = w * h * sizeof(guint16);
+    gpointer frame = g_malloc0(size);
+
     if (frame == NULL)
     {
         g_set_error(error, UCA_PCO_USB_CAMERA_ERROR,
@@ -423,7 +424,7 @@ static gboolean uca_pco_usb_camera_grab(UcaCamera *camera, gpointer data, GError
     err = pco_acquire_image(priv->pco, frame);
     CHECK_AND_RETURN_VAL_ON_PCO_ERROR(err, FALSE);
 
-    memcpy((gchar *)data, (gchar *) frame, w * h);
+    memcpy(data, frame, size);
 
     return TRUE;
 }
