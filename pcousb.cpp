@@ -627,11 +627,11 @@ unsigned int pco_get_lut(pco_handle *pco, uint16_t *key, uint16_t *val)
 
 unsigned int pco_set_roi(pco_handle *pco, uint16_t *window)
 {
-    DWORD err = pco->com->PCO_SetROI(
-        window[0] > 0 ? window[0] : 1,
-        window[1] > 0 ? window[1] : 1,
-        window[2], window[3]);
-    // DWORD err = pco->com->PCO_SetROI(window[0], window[1], window[2], window[3]);
+    // DWORD err = pco->com->PCO_SetROI(
+    //     window[0] > 0 ? window[0] : 1,
+    //     window[1] > 0 ? window[1] : 1,
+    //     window[2], window[3]);
+    DWORD err = pco->com->PCO_SetROI(window[0] + 1, window[1] + 1, window[2], window[3]);
     RETURN_ANY_CODE(err);
 }
 
@@ -642,8 +642,8 @@ unsigned int pco_get_roi(pco_handle *pco, uint16_t *window)
     CHECK_ERROR(err);
     if (err == 0)
     {
-        window[0] = x1;
-        window[1] = y1;
+        window[0] = x1 - 1;
+        window[1] = y1 - 1;
         window[2] = x2;
         window[3] = y2;
     }
