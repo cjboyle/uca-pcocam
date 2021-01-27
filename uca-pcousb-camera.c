@@ -423,7 +423,7 @@ static gboolean uca_pco_usb_camera_grab(UcaCamera *camera, gpointer data, GError
     err = pco_acquire_image(priv->pco, frame);
     CHECK_AND_RETURN_VAL_ON_PCO_ERROR(err, FALSE);
 
-    memcpy((guint16 *)data, (guint16 *) frame, sz);
+    memcpy((gchar *)data, (gchar *) frame, w * h);
 
     return TRUE;
 }

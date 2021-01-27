@@ -33,7 +33,7 @@ $(ENUMS_TARGETS):
 
 
 .PHONY: install
-install: $(INSTALL_TARGETS) all enums
+install: $(INSTALL_TARGETS)
 
 .PHONY: $(INSTALL_TARGETS)
 $(INSTALL_TARGETS):
