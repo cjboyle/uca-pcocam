@@ -768,7 +768,7 @@ static void uca_pco_usb_camera_get_property(GObject *object, guint property_id, 
     case PROP_SENSOR_BITDEPTH:
     {
         guint w, h, depth;
-        pco_grabber_get_actual_size(&w, &h, &depth);
+        pco_grabber_get_actual_size_ex(&w, &h, &depth);
         g_value_set_uint(value, depth);
     }
     break;
