@@ -253,7 +253,8 @@ static gpointer grab_func(gpointer rawptr)
 
     err = pco_await_next_image(priv->pco, frame);
     // CHECK_AND_RETURN_VAL_ON_PCO_ERROR(err, NULL);
-    if (err != 0) {
+    if (err != 0)
+    {
         g_error("Error acquiring next image at <%s:%i>", __FILE__, __LINE__);
         return NULL;
     }
@@ -327,7 +328,7 @@ static void uca_pco_usb_camera_start_recording(UcaCamera *camera, GError **error
 
     if (priv->grab_buffer)
         g_free(priv->grab_buffer);
-    
+
     priv->buffer_size = binned_width * binned_height * sizeof(guint16);
 
     priv->grab_buffer = g_malloc0(priv->buffer_size);
@@ -765,13 +766,12 @@ static void uca_pco_usb_camera_get_property(GObject *object, guint property_id, 
     break;
 
     case PROP_SENSOR_BITDEPTH:
-        switch (priv->description->type)
-        {
-        case CAMERATYPE_PCO_EDGE_HS:
-            g_value_set_uint(value, 16);
-            break;
-        }
-        break;
+    {
+        guint w, h, depth;
+        pco_grabber_get_actual_size(&w, &h, &depth);
+        g_value_set_uint(value, depth);
+    }
+    break;
 
     case PROP_SENSOR_TEMPERATURE:
     {

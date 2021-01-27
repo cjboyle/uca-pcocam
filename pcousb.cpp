@@ -975,6 +975,12 @@ unsigned int pco_grabber_get_actual_size(pco_handle *pco, uint32_t *width, uint3
     RETURN_ANY_CODE(err);
 }
 
+unsigned int pco_grabber_get_actual_size_ex(pco_handle *pco, uint32_t *width, uint32_t *height, uint32_t *depth)
+{
+    DWORD err = pco->grabber->Get_actual_size(width, height, depth);
+    RETURN_ANY_CODE(err);
+}
+
 unsigned int pco_get_binning(pco_handle *pco, uint16_t *horizontal, uint16_t *vertical)
 {
     DWORD err = pco->com->PCO_GetBinning(horizontal, vertical);
