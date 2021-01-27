@@ -259,10 +259,10 @@ static gboolean check_and_resize_memory(UcaPcoClhsCameraPrivate *priv, GError **
 {
     guint16 fg_width, fg_height, frm_width, frm_height;
 
-    guint err = pco_get_actual_size(priv->pco, &fg_width, &fg_height);
+    guint err = pco_grabber_get_actual_size(priv->pco, &fg_width, &fg_height);
     CHECK_AND_RETURN_VAL_ON_PCO_ERROR(err, FALSE);
 
-    err = pco_get_actual_size(priv->pco, &frm_width, &frm_height);
+    err = pco_grabber_get_actual_size(priv->pco, &frm_width, &frm_height);
     CHECK_AND_RETURN_VAL_ON_PCO_ERROR(err, FALSE);
 
     guint mult = is_edge(priv) ? 2 : 1;
@@ -313,7 +313,7 @@ static gpointer grab_func(gpointer rawptr)
 #endif
 
     guint16 width, height;
-    err += pco_get_actual_size(priv->pco, &width, &height);
+    err += pco_grabber_get_actual_size(priv->pco, &width, &height);
 
     if (err == PCO_NOERROR && priv->thread_running)
     {
@@ -460,7 +460,7 @@ static gboolean uca_pco_clhs_camera_grab(UcaCamera *camera, gpointer data, GErro
     g_return_val_if_fail(UCA_IS_PCO_CLHS_CAMERA(camera), FALSE);
     priv = UCA_PCO_CLHS_CAMERA_GET_PRIVATE(camera);
 
-    err = pco_get_actual_size(priv->pco, &width, &height);
+    err = pco_grabber_get_actual_size(priv->pco, &width, &height);
     CHECK_AND_RETURN_VAL_ON_PCO_ERROR(err, FALSE);
 
 #ifdef FGRAB_STRUCT_H
@@ -481,7 +481,7 @@ static gboolean uca_pco_clhs_camera_grab(UcaCamera *camera, gpointer data, GErro
         return FALSE;
     }
 
-    pco_reorder_image(priv->pco, (guint16 *)data, frame, width, height);
+    pco_reorder_image(priv->pco, data, frame, width, height);
 
     return TRUE;
 }
@@ -1037,7 +1037,7 @@ static void uca_pco_clhs_camera_get_property(GObject *object, guint property_id,
         g_value_set_double(value, rate);
         // guint16 w, h;
         // pco_get_pixelrate(priv->pco, &rate);
-        // pco_get_actual_size(priv->pco, &w, &h);
+        // pco_grabber_get_actual_size(priv->pco, &w, &h);
         // g_value_set_float(value, ((float)(w * h)) / (float)rate);
     }
     break;
@@ -1348,7 +1348,7 @@ static gboolean setup_pco_clhs_camera(UcaPcoClhsCameraPrivate *priv)
 static gboolean setup_frame_grabber(UcaPcoClhsCameraPrivate *priv)
 {
 //     guint16 w, h;
-//     pco_get_actual_size(priv->pco, &w, &h);
+//     pco_grabber_get_actual_size(priv->pco, &w, &h);
 //     return pco_grabber_set_size(priv->pco, w, h);
 #ifdef FGRAB_STRUCT_H
     char libacq[100];
@@ -1386,7 +1386,7 @@ static void override_property_ranges(UcaPcoClhsCamera *camera)
     oclass = G_OBJECT_CLASS(UCA_PCO_CLHS_CAMERA_GET_CLASS(camera));
 
     // guint16 w, h;
-    // pco_get_actual_size(priv->pco, &w, &h);
+    // pco_grabber_get_actual_size(priv->pco, &w, &h);
     // property_override_default_guint_value(oclass, "roi-width", w);
     // property_override_default_guint_value(oclass, "roi-height", h);
 

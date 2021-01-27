@@ -242,11 +242,6 @@ static void check_pco_usb_property_error(guint err, guint property_id)
     }
 }
 
-static gboolean is_edge(UcaPcoUsbCameraPrivate *priv)
-{
-    return TRUE; // temporary, all pco.usb cameras are pco.edge
-}
-
 static gpointer grab_func(gpointer rawptr)
 {
     UcaCamera *camera = UCA_CAMERA(rawptr);
@@ -264,7 +259,7 @@ static gpointer grab_func(gpointer rawptr)
     }
 
     guint16 width, height;
-    err += pco_get_actual_size(priv->pco, &width, &height);
+    err += pco_grabber_get_actual_size(priv->pco, &width, &height);
 
     if (err == PCO_NOERROR && priv->thread_running)
     {
@@ -408,9 +403,8 @@ static gboolean uca_pco_usb_camera_grab(UcaCamera *camera, gpointer data, GError
     guint w, h, l;
     guint counter;
 
-    err = pco_get_actual_size(priv->pco, &w, &h);
-    if (err != PCO_NOERROR)
-        return err;
+    err = pco_grabber_get_actual_size(priv->pco, &w, &h);
+    CHECK_AND_RETURN_VAL_ON_PCO_ERROR(err, FALSE);
 
     gsize size = w * h * sizeof(guint16);
     gpointer frame = g_malloc0(size);
@@ -980,7 +974,7 @@ static void uca_pco_usb_camera_get_property(GObject *object, guint property_id, 
         g_value_set_double(value, rate);
         // guint16 w, h;
         // pco_get_pixelrate(priv->pco, &rate);
-        // pco_get_actual_size(priv->pco, &w, &h);
+        // pco_grabber_get_actual_size(priv->pco, &w, &h);
         // g_value_set_float(value, ((float)(w * h)) / (float)rate);
     }
     break;
@@ -1280,7 +1274,7 @@ static void override_property_ranges(UcaPcoUsbCamera *camera)
     oclass = G_OBJECT_CLASS(UCA_PCO_USB_CAMERA_GET_CLASS(camera));
 
     // guint16 w, h;
-    // pco_get_actual_size(priv->pco, &w, &h);
+    // pco_grabber_get_actual_size(priv->pco, &w, &h);
     // property_override_default_guint_value(oclass, "roi-width", w);
     // property_override_default_guint_value(oclass, "roi-height", h);
 

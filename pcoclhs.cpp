@@ -1056,13 +1056,13 @@ unsigned int pco_get_segment_image(pco_handle *pco, void *adr, int seg, int nr)
 
     unsigned int w, h, l;
     WORD *buf;
-    pco_get_actual_size(pco, &w, &h);
+    pco_grabber_get_actual_size(pco, &w, &h);
 
     err = pco->grabber->Get_Image(seg, nr, adr);
     RETURN_IF_ERROR(err);
 }
 
-unsigned int pco_get_actual_size(pco_handle *pco, uint32_t *width, uint32_t *height)
+unsigned int pco_grabber_get_actual_size(pco_handle *pco, uint32_t *width, uint32_t *height)
 {
     // DWORD err = pco->com->PCO_GetActualSize(width, height);
     DWORD err = pco->grabber->Get_actual_size(width, height, NULL);

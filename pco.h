@@ -621,7 +621,7 @@ extern "C"
      * @param height output the area height
      * @return 0 on success, otherwise less than 0
      */
-    uint32_t pco_get_actual_size(pco_handle *pco, uint32_t *width, uint32_t *height);
+    uint32_t pco_grabber_get_actual_size(pco_handle *pco, uint32_t *width, uint32_t *height);
 
     /**
      * Get the binning values of the camera.
