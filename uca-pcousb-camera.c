@@ -11,22 +11,22 @@
 
 #define UCA_PCO_USB_CAMERA_GET_PRIVATE(obj) (G_TYPE_INSTANCE_GET_PRIVATE((obj), UCA_TYPE_PCO_USB_CAMERA, UcaPcoUsbCameraPrivate))
 
-#define CHECK_AND_RETURN_VOID_ON_PCO_ERROR(err)               \
-    if ((err) != 0)                                           \
-    {                                                         \
+#define CHECK_AND_RETURN_VOID_ON_PCO_ERROR(err)              \
+    if ((err) != 0)                                          \
+    {                                                        \
         g_set_error(error, UCA_PCO_USB_CAMERA_ERROR,         \
                     UCA_PCO_USB_CAMERA_ERROR_PCOSDK_GENERAL, \
                     "libpcousb error %x", err);              \
-        return;                                               \
+        return;                                              \
     }
 
-#define CHECK_AND_RETURN_VAL_ON_PCO_ERROR(err, val)           \
-    if ((err) != 0)                                           \
-    {                                                         \
+#define CHECK_AND_RETURN_VAL_ON_PCO_ERROR(err, val)          \
+    if ((err) != 0)                                          \
+    {                                                        \
         g_set_error(error, UCA_PCO_USB_CAMERA_ERROR,         \
                     UCA_PCO_USB_CAMERA_ERROR_PCOSDK_GENERAL, \
                     "libpcousb error %x", err);              \
-        return val;                                           \
+        return val;                                          \
     }
 
 static void uca_pco_usb_camera_initable_iface_init(GInitableIface *iface);
@@ -112,8 +112,10 @@ typedef struct
 } pco_usb_map_entry;
 
 static pco_usb_map_entry pco_usb_map[] = {
-    {CAMERATYPE_PCO_EDGE_HS, CAMERASUBTYPE_PCO_EDGE_42, 2048, 2048, 548000000, 200000000},
-    {CAMERATYPE_PCO_EDGE_HS, CAMERASUBTYPE_PCO_EDGE_55, 2560, 2160, 572000000, 190700000},
+    {CAMERATYPE_PCO_EDGE_USB3, CAMERASUBTYPE_PCO_EDGE_42, 2048, 2048, 548000000, 200000000},
+    {CAMERATYPE_PCO_EDGE_USB3, CAMERASUBTYPE_PCO_EDGE_55, 2560, 2160, 572000000, 190700000},
+    {CAMERATYPE_PCO_FAMILY_EDGE, CAMERASUBTYPE_PCO_EDGE_42_BI, 2048, 2048, 46000000, 46000000},
+    {CAMERATYPE_PCO_FAMILY_EDGE, CAMERASUBTYPE_PCO_EDGE_260, 5120, 5120, 186122240, 186122240}, // Check pixel rate
     {0, 0, 0, 0.0f, FALSE},
 };
 
@@ -245,23 +247,6 @@ static gboolean is_edge(UcaPcoUsbCameraPrivate *priv)
     return TRUE; // temporary, all pco.usb cameras are pco.edge
 }
 
-static gboolean check_and_resize_memory(UcaPcoUsbCameraPrivate *priv, GError **error)
-{
-    guint16 fg_width, fg_height, frm_width, frm_height;
-
-    guint err = pco_get_actual_size(priv->pco, &fg_width, &fg_height);
-    CHECK_AND_RETURN_VAL_ON_PCO_ERROR(err, FALSE);
-
-    err = pco_get_actual_size(priv->pco, &frm_width, &frm_height);
-    CHECK_AND_RETURN_VAL_ON_PCO_ERROR(err, FALSE);
-
-    guint mult = is_edge(priv) ? 2 : 1;
-    priv->buffer_size = mult * frm_width * frm_height;
-
-    pco_grabber_allocate_memory(priv->pco, priv->buffer_size);
-    return TRUE;
-}
-
 static gpointer grab_func(gpointer rawptr)
 {
     UcaCamera *camera = UCA_CAMERA(rawptr);
@@ -345,9 +330,6 @@ static void uca_pco_usb_camera_start_recording(UcaCamera *camera, GError **error
                     roi[2], roi[3], roi[0], roi[1], binned_width, binned_height);
     }
 
-    if (!check_and_resize_memory(priv, error))
-        return;
-
     if (priv->grab_buffer)
         g_free(priv->grab_buffer);
 
@@ -417,21 +399,19 @@ static void uca_pco_usb_camera_trigger(UcaCamera *camera, GError **error)
 
 static gboolean uca_pco_usb_camera_grab(UcaCamera *camera, gpointer data, GError **error)
 {
-    UcaPcoUsbCameraPrivate *priv;
-    gboolean is_readout;
-    guint16 *frame;
-    guint16 width, height;
-    guint err;
-
     g_return_val_if_fail(UCA_IS_PCO_USB_CAMERA(camera), FALSE);
-    priv = UCA_PCO_USB_CAMERA_GET_PRIVATE(camera);
+    UcaPcoUsbCameraPrivate *priv = UCA_PCO_USB_CAMERA_GET_PRIVATE(camera);
 
-    err = pco_get_actual_size(priv->pco, &width, &height);
-    CHECK_AND_RETURN_VAL_ON_PCO_ERROR(err, FALSE);
+    guint err;
+    guint w, h, l;
+    guint counter;
 
-    err = pco_acquire_image(priv->pco, frame);
-    CHECK_AND_RETURN_VAL_ON_PCO_ERROR(err, FALSE);
+    err = pco_get_actual_size(priv->pco, &w, &h);
+    if (err != PCO_NOERROR)
+        return err;
 
+    gsize sz = w * h * sizeof(guint16);
+    guint16 *frame = (guint16 *)g_malloc0(sz);
     if (frame == NULL)
     {
         g_set_error(error, UCA_PCO_USB_CAMERA_ERROR,
@@ -440,7 +420,10 @@ static gboolean uca_pco_usb_camera_grab(UcaCamera *camera, gpointer data, GError
         return FALSE;
     }
 
-    pco_reorder_image(priv->pco, (guint16 *)data, frame, width, height);
+    err = pco_acquire_image(priv->pco, frame);
+    CHECK_AND_RETURN_VAL_ON_PCO_ERROR(err, FALSE);
+
+    memcpy((guint16 *)data, (guint16 *) frame, sz);
 
     return TRUE;
 }
@@ -617,8 +600,8 @@ static void uca_pco_usb_camera_set_property(GObject *object, guint property_id, 
     case PROP_FAST_SCAN:
     {
         guint32 mode = g_value_get_boolean(value)
-                ? PCO_SCANMODE_FAST
-                : PCO_SCANMODE_SLOW;
+                           ? PCO_SCANMODE_FAST
+                           : PCO_SCANMODE_SLOW;
         err = pco_set_scan_mode(priv->pco, mode);
     }
     break;
@@ -1219,17 +1202,17 @@ static void uca_pco_usb_camera_class_init(UcaPcoUsbCameraClass *klass)
 
     pco_usb_properties[PROP_DELAY_TIME] =
         g_param_spec_double("delay-time",
-                          "Capture delay time",
-                          "Capture delay time in milliseconds",
-                          0., 1000., 0.,
-                          G_PARAM_READWRITE);
+                            "Capture delay time",
+                            "Capture delay time in milliseconds",
+                            0., 1000., 0.,
+                            G_PARAM_READWRITE);
 
     pco_usb_properties[PROP_EXPOSURE_TIME] =
         g_param_spec_double("exposure-time",
-                          "Capture exposure time",
-                          "Capture exposure time in milliseconds",
-                          0., 2000., 1,
-                          G_PARAM_READWRITE);
+                            "Capture exposure time",
+                            "Capture exposure time in milliseconds",
+                            0., 2000., 1,
+                            G_PARAM_READWRITE);
 
     for (guint id = N_BASE_PROPERTIES; id < N_PROPERTIES; id++)
         g_object_class_install_property(gobject_class, id, pco_usb_properties[id]);

@@ -205,6 +205,22 @@ extern "C"
     uint32_t pco_set_sensor_format(pco_handle *pco, uint16_t format);
 
     /**
+     * Get the camera cooling setpoint temperature.
+     * @param pco handle
+     * @param temperature output the temperature, in degrees Celsius
+     * @return 0 on success, otherwise less than 0
+     */
+    // uint32_t pco_get_cooling_setpoint(pco_handle *pco, short *temperature);
+
+    /**
+     * Set the camera cooling setpoint temperature.
+     * @param pco handle
+     * @param temperature the temperature, in degrees Celsius
+     * @return 0 on success, otherwise less than 0
+     */
+    // uint32_t pco_set_cooling_setpoint(pco_handle *pco, short temperature);
+
+    /**
      * Get the camera sensor resolution, in pixels.
      * @param pco handle
      * @param width_std output the maximum width in STANDARD format
@@ -563,6 +579,40 @@ extern "C"
      * @return 0 on success, otherwise less than 0
      */
     uint32_t pco_acquire_image_ex(pco_handle *pco, void *adr, int timeout);
+
+    /**
+     * Non-blocking image acquisition call to the pco.camera SDK with grabber-configured timeout.
+     * @param pco handle
+     * @param adr external buffer to write image data
+     * @return 0 on success, otherwise less than 0
+     */
+    uint32_t pco_acquire_image_async(pco_handle *pco, void *adr);
+
+    /**
+     * Non-blocking image acquisition call to the pco.camera SDK.
+     * @param pco handle
+     * @param adr external buffer to write image data
+     * @param timeout the number of milliseconds to wait before an error is produced.
+     * @return 0 on success, otherwise less than 0
+     */
+    uint32_t pco_acquire_image_ex_async(pco_handle *pco, void *adr, int timeout);
+
+    /**
+     * Blocking image acquisition call to the pco.camera SDK with grabber-configured timeout.
+     * @param pco handle
+     * @param adr external buffer to write image data
+     * @return 0 on success, otherwise less than 0
+     */
+    uint32_t pco_acquire_image_await(pco_handle *pco, void *adr);
+
+    /**
+     * Blocking image acquisition call to the pco.camera SDK ().
+     * @param pco handle
+     * @param adr external buffer to write image data
+     * @param timeout the number of milliseconds to wait before an error is produced.
+     * @return 0 on success, otherwise less than 0
+     */
+    uint32_t pco_acquire_image_ex_await(pco_handle *pco, void *adr, int timeout);
 
     /**
      * Get the actual size of the image capture area, accounting for binning and ROI.
