@@ -624,6 +624,16 @@ extern "C"
     uint32_t pco_grabber_get_actual_size(pco_handle *pco, uint32_t *width, uint32_t *height);
 
     /**
+     * Get the actual size of the image capture area, accounting for binning and ROI.
+     * @param pco handle
+     * @param width output the area width
+     * @param height output the area height
+     * @param depth output the pixel bit-depth
+     * @return 0 on success, otherwise less than 0
+     */
+    uint32_t pco_grabber_get_actual_size_ex(pco_handle *pco, uint32_t *width, uint32_t *height, uint32_t *depth);
+
+    /**
      * Get the binning values of the camera.
      * @param pco handle
      * @param horizontal output the horizontal binning value (usually 1, 2, or 4)
