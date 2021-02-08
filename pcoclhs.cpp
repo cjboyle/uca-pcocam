@@ -35,24 +35,17 @@
     }
 
 #define RETURN_IF_ERROR(code) \
-    {                                \
-        CHECK_ERROR(code);           \
-        if ((code) != 0)             \
-            return (code);           \
+    {                         \
+        CHECK_ERROR(code);    \
+        if ((code) != 0)      \
+            return (code);    \
     }
 
 #define RETURN_ANY_CODE(code) \
-    {                                 \
-        CHECK_ERROR(code);            \
-        return (code);                \
+    {                         \
+        CHECK_ERROR(code);    \
+        return (code);        \
     }
-
-#define USR_TIMEBASE TIMEBASE_MS
-#define CAM_TIMEBASE TIMEBASE_NS
-#define CONVERT_CAM2SEC_TIMEBASE(val) (double)((val)*1e-9)
-#define CONVERT_CAM2USR_TIMEBASE(val) (double)((val)*1e-6)
-#define CONVERT_USR2SEC_TIMEBASE(val) (double)((val)*1e-3)
-#define CONVERT_USR2CAM_TIMEBASE(val) (uint32_t)((val)*1e6)
 
 /* Static helper functions */
 
@@ -170,7 +163,7 @@ struct _pco_handle
     CPco_grab_clhs *grabber; /* Frame-grabber interface */
     CPco_Log *logger;
 
-    double cachedDelay, cachedExposure;
+    uint32_t cached_delay_ns, cached_exposure_ns;
     pco_reorder_image_t reorder_func;
 
     uint16_t cameraType, cameraSubType;
@@ -231,7 +224,7 @@ static unsigned int _pco_init(pco_handle *pco, int board, int port)
     err = pco_set_timestamp_mode(pco, TIMESTAMP_MODE_BINARYANDASCII);
     RETURN_IF_ERROR(err);
 
-    err = pco_set_timebase(pco, TIMEBASE_MS, TIMEBASE_MS);
+    err = pco_set_timebase(pco, CAMERA_TIMEBASE, CAMERA_TIMEBASE);
     RETURN_IF_ERROR(err);
 
     err = pco_set_delay_exposure(pco, 0.0, 10.0);
@@ -365,7 +358,7 @@ unsigned int pco_prepare_recording(pco_handle *pco)
 
     if (cameraW != grabberW || cameraH != grabberH)
     {
-        err = pco->grabber->Set_Grabber_Size(2 * cameraW, cameraH);
+        err = pco->grabber->Set_Grabber_Size(cameraW, cameraH);
         RETURN_IF_ERROR(err);
 
         pco_grabber_allocate_memory(pco, 20);
@@ -399,7 +392,10 @@ unsigned int pco_stop_recording(pco_handle *pco)
 
 bool pco_is_recording(pco_handle *pco)
 {
-    return pco->grabber->started();
+    WORD state;
+    DWORD err = pco->com->PCO_GetRecordingState(&state);
+    CHECK_ERROR(err);
+    return state == 1 && pco->grabber->started();
 }
 
 bool pco_is_active(pco_handle *pco)
@@ -583,7 +579,7 @@ unsigned int pco_set_fps(pco_handle *pco, double fps)
 {
     WORD status;
     uint32_t rate = (uint32_t)(fps * 1e3); // Hz (FPS) to milli-Hz (mFPS)
-    uint32_t expo_ns = CONVERT_USR2CAM_TIMEBASE(pco->cachedExposure);
+    uint32_t expo_ns = pco->cached_exposure_ns;
     DWORD err = pco->com->PCO_SetFrameRate(&status, SET_FRAMERATE_MODE_FRAMERATE_HAS_PRIORITY, &rate, &expo_ns);
     CHECK_ERROR(err);
     if (err != PCO_NOERROR)
@@ -612,7 +608,7 @@ unsigned int pco_get_fps(pco_handle *pco, double *fps)
         err = pco_get_delay_exposure(pco, &delay, &expo);
         RETURN_IF_ERROR(err);
         double msecs = expo + delay;
-        double secs = CONVERT_USR2SEC_TIMEBASE(msecs);
+        double secs = CNV_MILLI_TO_UNIT(msecs);
         *fps = 1.0 / secs;
     }
     return err;
@@ -712,10 +708,11 @@ unsigned int pco_get_lut(pco_handle *pco, uint16_t *key, uint16_t *val)
 
 unsigned int pco_set_roi(pco_handle *pco, uint16_t *window)
 {
-    DWORD err = pco->com->PCO_SetROI(
-        window[0] > 0 ? window[0] : 1,
-        window[1] > 0 ? window[1] : 1,
-        window[2], window[3]);
+    // DWORD err = pco->com->PCO_SetROI(
+    //     window[0] > 0 ? window[0] : 1,
+    //     window[1] > 0 ? window[1] : 1,
+    //     window[2], window[3]);
+    DWORD err = pco->com->PCO_SetROI(window[0] + 1, window[1] + 1, window[2], window[3]);
     RETURN_ANY_CODE(err);
 }
 
@@ -726,8 +723,8 @@ unsigned int pco_get_roi(pco_handle *pco, uint16_t *window)
     CHECK_ERROR(err);
     if (err == 0)
     {
-        window[0] = x1;
-        window[1] = y1;
+        window[0] = x1 - 1;
+        window[1] = y1 - 1;
         window[2] = x2;
         window[3] = y2;
     }
@@ -827,7 +824,7 @@ unsigned int pco_get_delay_time(pco_handle *pco, double *delay)
 
 unsigned int pco_set_delay_time(pco_handle *pco, double delay)
 {
-    DWORD err = pco_set_delay_exposure(pco, delay, pco->cachedExposure);
+    DWORD err = pco_set_delay_exposure(pco, delay, -1);
     RETURN_ANY_CODE(err);
 }
 
@@ -854,7 +851,7 @@ unsigned int pco_get_exposure_time(pco_handle *pco, double *exposure)
 
 unsigned int pco_set_exposure_time(pco_handle *pco, double exposure)
 {
-    DWORD err = pco_set_delay_exposure(pco, pco->cachedDelay, exposure);
+    DWORD err = pco_set_delay_exposure(pco, -1, exposure);
     RETURN_ANY_CODE(err);
 }
 
@@ -885,30 +882,34 @@ unsigned int pco_get_delay_exposure(pco_handle *pco, double *delay, double *expo
     CHECK_ERROR(err);
     if (err == 0)
     {
-        *delay = CONVERT_CAM2USR_TIMEBASE(delay_ns);
-        *exposure = CONVERT_CAM2USR_TIMEBASE(expos_ns);
-        pco->cachedDelay = *delay;
-        pco->cachedExposure = *exposure;
+        *delay = CNV_NANO_TO_MILLI(delay_ns);
+        *exposure = CNV_NANO_TO_MILLI(expos_ns);
+        pco->cached_delay_ns = delay_ns;
+        pco->cached_exposure_ns = expos_ns;
     }
     return err;
 }
 
 static unsigned int __pco_set_delay_exposure_ns(pco_handle *pco, uint32_t delay_ns, uint32_t expos_ns)
 {
-    DWORD err = pco->com->PCO_SetDelayExposureTime(delay_ns, expos_ns, CAM_TIMEBASE, CAM_TIMEBASE);
+    DWORD err = pco->com->PCO_SetDelayExposureTime(delay_ns, expos_ns, CAMERA_TIMEBASE, CAMERA_TIMEBASE);
     RETURN_ANY_CODE(err);
 }
 
 unsigned int pco_set_delay_exposure(pco_handle *pco, double delay, double exposure)
 {
-    uint32_t delay_ns = CONVERT_USR2CAM_TIMEBASE(delay);
-    uint32_t expo_ns = CONVERT_USR2CAM_TIMEBASE(exposure);
-    DWORD err = __pco_set_delay_exposure_ns(pco, delay_ns, expo_ns);
+    uint32_t delay_ns = delay < 0
+                            ? pco->cached_delay_ns
+                            : (uint32_t)CNV_MILLI_TO_NANO(delay);
+    uint32_t expos_ns = exposure < 0
+                            ? pco->cached_exposure_ns
+                            : (uint32_t)CNV_MILLI_TO_NANO(exposure);
+    DWORD err = __pco_set_delay_exposure_ns(pco, delay_ns, expos_ns);
     CHECK_ERROR(err);
     if (err == 0)
     {
-        pco->cachedDelay = delay;
-        pco->cachedExposure = exposure;
+        pco->cached_delay_ns = delay_ns;
+        pco->cached_exposure_ns = expos_ns;
     }
     return err;
 }
@@ -927,13 +928,9 @@ unsigned int pco_set_trigger_mode(pco_handle *pco, uint16_t mode)
 
 unsigned int pco_arm_camera(pco_handle *pco)
 {
-    // int tout;
-    // pco->grabber->Get_Grabber_Timeout(&tout);
-    // pco->grabber->Set_Grabber_Timeout(tout + 5000);
     DWORD err = pco->com->PCO_ArmCamera();
     RETURN_IF_ERROR(err);
     err = pco->grabber->PostArm();
-    // pco->grabber->Set_Grabber_Timeout(tout);
     RETURN_ANY_CODE(err);
 }
 
@@ -1026,6 +1023,28 @@ unsigned int pco_acquire_n_images(pco_handle *pco, WORD **adr, int count)
     return err;
 }
 
+unsigned int pco_acquire_image_async(pco_handle *pco, void *adr)
+{
+    RETURN_ANY_CODE(PCO_ERROR_APPLICATION_FUNCTIONNOTSUPPORTED);
+}
+
+unsigned int pco_acquire_image_ex_async(pco_handle *pco, void *adr, int timeout)
+{
+    RETURN_ANY_CODE(PCO_ERROR_APPLICATION_FUNCTIONNOTSUPPORTED);
+}
+
+unsigned int pco_acquire_image_await(pco_handle *pco, void *adr)
+{
+    DWORD err = pco->grabber->Wait_For_Next_Image(adr, 10000);
+    RETURN_ANY_CODE(err);
+}
+
+unsigned int pco_acquire_image_ex_await(pco_handle *pco, void *adr, int timeout)
+{
+    DWORD err = pco->grabber->Wait_For_Next_Image(adr, timeout);
+    RETURN_ANY_CODE(err);
+}
+
 unsigned int pco_get_segment_image(pco_handle *pco, void *adr, int seg, int nr)
 {
     DWORD err;
@@ -1064,8 +1083,13 @@ unsigned int pco_get_segment_image(pco_handle *pco, void *adr, int seg, int nr)
 
 unsigned int pco_grabber_get_actual_size(pco_handle *pco, uint32_t *width, uint32_t *height)
 {
-    // DWORD err = pco->com->PCO_GetActualSize(width, height);
     DWORD err = pco->grabber->Get_actual_size(width, height, NULL);
+    RETURN_ANY_CODE(err);
+}
+
+unsigned int pco_grabber_get_actual_size_ex(pco_handle *pco, uint32_t *width, uint32_t *height, uint32_t *depth)
+{
+    DWORD err = pco->grabber->Get_actual_size(width, height, depth);
     RETURN_ANY_CODE(err);
 }
 
@@ -1132,14 +1156,9 @@ unsigned int pco_update_camera_datetime(pco_handle *pco)
     RETURN_ANY_CODE(err);
 }
 
-// pco_reorder_image_t pco_get_reorder_func(pco_handle *pco)
-// {
-//     return pco->reorder_func;
-// }
-
 void pco_reorder_image(pco_handle *pco, uint16_t *bufout, uint16_t *bufin, int width, int height)
 {
-    //uint32_t format = pco->grabber->Get_DataFormat();
-    //reorder_image(bufout, bufin, width, height, format);
-    //pco_get_reorder_func(pco)(bufout, bufin, width, height);
+    uint32_t format = pco->grabber->Get_DataFormat();
+    reorder_image(bufout, bufin, width, height, format);
+    // memcpy(bufout, bufin, sizeof(uint16_t) * width * height);
 }

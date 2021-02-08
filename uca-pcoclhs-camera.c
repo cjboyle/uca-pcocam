@@ -250,44 +250,44 @@ static void check_pco_clhs_property_error(guint err, guint property_id)
     }
 }
 
-static gboolean is_edge(UcaPcoClhsCameraPrivate *priv)
-{
-    return TRUE; // temporary, all pco.clhs cameras are pco.edge
-}
+// static gboolean is_edge(UcaPcoClhsCameraPrivate *priv)
+// {
+//     return TRUE; // temporary, all pco.clhs cameras are pco.edge
+// }
 
-static gboolean check_and_resize_memory(UcaPcoClhsCameraPrivate *priv, GError **error)
-{
-    guint16 fg_width, fg_height, frm_width, frm_height;
+// static gboolean check_and_resize_memory(UcaPcoClhsCameraPrivate *priv, GError **error)
+// {
+//     guint16 fg_width, fg_height, frm_width, frm_height;
 
-    guint err = pco_grabber_get_actual_size(priv->pco, &fg_width, &fg_height);
-    CHECK_AND_RETURN_VAL_ON_PCO_ERROR(err, FALSE);
+//     guint err = pco_grabber_get_actual_size(priv->pco, &fg_width, &fg_height);
+//     CHECK_AND_RETURN_VAL_ON_PCO_ERROR(err, FALSE);
 
-    err = pco_grabber_get_actual_size(priv->pco, &frm_width, &frm_height);
-    CHECK_AND_RETURN_VAL_ON_PCO_ERROR(err, FALSE);
+//     err = pco_grabber_get_actual_size(priv->pco, &frm_width, &frm_height);
+//     CHECK_AND_RETURN_VAL_ON_PCO_ERROR(err, FALSE);
 
-    guint mult = is_edge(priv) ? 2 : 1;
-    priv->buffer_size = mult * frm_width * frm_height;
+//     guint mult = is_edge(priv) ? 2 : 1;
+//     priv->buffer_size = mult * frm_width * frm_height;
 
-#ifdef FGRAB_STRUCT_H
-    g_warning("Fg_FreeMemEx");
-    if (priv->fg_mem)
-        Fg_FreeMemEx(priv->fg, priv->fg_mem);
+// #ifdef FGRAB_STRUCT_H
+//     g_warning("Fg_FreeMemEx");
+//     if (priv->fg_mem)
+//         Fg_FreeMemEx(priv->fg, priv->fg_mem);
 
-    void* sts;
-    Fg_getParameter(priv->fg, FG_CAMSTATUS, &sts, priv->fg_mem);
-    g_warning("Fg_AllocMemEx");
-    priv->fg_mem = Fg_AllocMemEx(priv->fg, priv->num_buffers * priv->buffer_size, priv->num_buffers);
-    if (priv->fg_mem == NULL)
-    {
-        g_set_error(error, UCA_PCO_CLHS_CAMERA_ERROR, UCA_PCO_CLHS_CAMERA_ERROR_FG_INIT,
-                    "%s", Fg_getLastErrorDescription(priv->fg));
-        return FALSE;
-    }
-#else
-    pco_grabber_allocate_memory(priv->pco, priv->buffer_size);
-#endif
-    return TRUE;
-}
+//     void* sts;
+//     Fg_getParameter(priv->fg, FG_CAMSTATUS, &sts, priv->fg_mem);
+//     g_warning("Fg_AllocMemEx");
+//     priv->fg_mem = Fg_AllocMemEx(priv->fg, priv->num_buffers * priv->buffer_size, priv->num_buffers);
+//     if (priv->fg_mem == NULL)
+//     {
+//         g_set_error(error, UCA_PCO_CLHS_CAMERA_ERROR, UCA_PCO_CLHS_CAMERA_ERROR_FG_INIT,
+//                     "%s", Fg_getLastErrorDescription(priv->fg));
+//         return FALSE;
+//     }
+// #else
+//     pco_grabber_allocate_memory(priv->pco, priv->buffer_size);
+// #endif
+//     return TRUE;
+// }
 
 static gpointer grab_func(gpointer rawptr)
 {
@@ -306,7 +306,8 @@ static gpointer grab_func(gpointer rawptr)
 #else
     err = pco_await_next_image(priv->pco, frame);
     // CHECK_AND_RETURN_VAL_ON_PCO_ERROR(err, NULL);
-    if (err != 0) {
+    if (err != 0)
+    {
         g_error("Error acquiring next image at <%s:%i>", __FILE__, __LINE__);
         return NULL;
     }
@@ -371,19 +372,21 @@ static void uca_pco_clhs_camera_start_recording(UcaCamera *camera, GError **erro
     binned_width /= bh;
     binned_height /= bv;
 
-    // check if x1==roi[2], y1==roi[3] are larger than the available width, height
-    if ((roi[2] > binned_width) || (roi[3] > binned_height))
+    // check if the ROI dimensions exceed the available binned dimensions
+    if ((roi[2] - roi[0] > binned_width) || (roi[3] - roi[1] > binned_height))
     {
         g_set_error(error, UCA_PCO_CLHS_CAMERA_ERROR, UCA_PCO_CLHS_CAMERA_ERROR_UNSUPPORTED,
                     "ROI of size %ix%i @ (%i, %i) is outside of (binned) sensor size %ix%i\n",
-                    roi[2], roi[3], roi[0], roi[1], binned_width, binned_height);
+                    roi[2] - roi[0], roi[3] - roi[1], roi[0], roi[1], binned_width, binned_height);
     }
 
-    if (!check_and_resize_memory(priv, error))
-        return;
+    // if (!check_and_resize_memory(priv, error))
+    //     return;
 
     if (priv->grab_buffer)
         g_free(priv->grab_buffer);
+
+    priv->buffer_size = binned_width * binned_height * sizeof(guint16);
 
     priv->grab_buffer = g_malloc0(priv->buffer_size);
     memset(priv->grab_buffer, 0, priv->buffer_size);
@@ -451,27 +454,18 @@ static void uca_pco_clhs_camera_trigger(UcaCamera *camera, GError **error)
 
 static gboolean uca_pco_clhs_camera_grab(UcaCamera *camera, gpointer data, GError **error)
 {
-    UcaPcoClhsCameraPrivate *priv;
-    gboolean is_readout;
-    guint16 *frame;
-    guint16 width, height;
-    guint err;
-
     g_return_val_if_fail(UCA_IS_PCO_CLHS_CAMERA(camera), FALSE);
-    priv = UCA_PCO_CLHS_CAMERA_GET_PRIVATE(camera);
+    UcaPcoClhsCameraPrivate *priv = UCA_PCO_CLHS_CAMERA_GET_PRIVATE(camera);
 
-    err = pco_grabber_get_actual_size(priv->pco, &width, &height);
+    guint err;
+    guint w, h, l;
+    guint counter;
+
+    err = pco_grabber_get_actual_size(priv->pco, &w, &h);
     CHECK_AND_RETURN_VAL_ON_PCO_ERROR(err, FALSE);
 
-#ifdef FGRAB_STRUCT_H
-    g_warning("Fg_getLastPicNumber 2");
-    int nr = Fg_getLastPicNumber(priv->fg, priv->fg_port);
-    g_warning("Fg_getImagePtr 2");
-    frame = Fg_getImagePtr(priv->fg, 0, priv->fg_port);
-#else
-    err = pco_acquire_image(priv->pco, frame);
-    CHECK_AND_RETURN_VAL_ON_PCO_ERROR(err, FALSE);
-#endif
+    gsize size = w * h * sizeof(guint16);
+    gpointer frame = g_malloc0(size);
 
     if (frame == NULL)
     {
@@ -481,7 +475,23 @@ static gboolean uca_pco_clhs_camera_grab(UcaCamera *camera, gpointer data, GErro
         return FALSE;
     }
 
-    pco_reorder_image(priv->pco, data, frame, width, height);
+    data = g_realloc(data, size);
+
+    if (data == NULL)
+    {
+        g_set_error(error, UCA_PCO_CLHS_CAMERA_ERROR,
+                    UCA_PCO_CLHS_CAMERA_ERROR_FG_GENERAL,
+                    "Output buffer is NULL");
+        return FALSE;
+    }
+
+    err = pco_acquire_image(priv->pco, frame);
+    CHECK_AND_RETURN_VAL_ON_PCO_ERROR(err, FALSE);
+
+    memcpy(data, frame, size);
+
+    g_free(frame);
+    frame = NULL;
 
     return TRUE;
 }
@@ -513,7 +523,6 @@ static void uca_pco_clhs_camera_set_property(GObject *object, guint property_id,
         guint16 window[4];
         pco_get_roi(priv->pco, window);
         window[0] = x;
-        window[2] = window[2] + x;
         pco_set_roi(priv->pco, window);
     }
     break;
@@ -524,7 +533,6 @@ static void uca_pco_clhs_camera_set_property(GObject *object, guint property_id,
         guint16 window[4];
         pco_get_roi(priv->pco, window);
         window[1] = y;
-        window[3] = window[3] + y;
         pco_set_roi(priv->pco, window);
     }
     break;
@@ -585,12 +593,14 @@ static void uca_pco_clhs_camera_set_property(GObject *object, guint property_id,
     {
         uint32_t min_ns, max_ms, steps_ns;
         pco_get_delay_range(priv->pco, &min_ns, &max_ms, &steps_ns);
-        double delay_ms = (uint32_t)(g_value_get_double(value));
-        double delay_ns = delay_ms * 1e6;
+        double delay_sec = g_value_get_double(value);
+        double delay_ms = CNV_UNIT_TO_MILLI(delay_sec);
+        double delay_ns = CNV_UNIT_TO_NANO(delay_sec);
+        double min_ms = CNV_NANO_TO_MILLI(min_ns);
         if (delay_ms > max_ms)
             err = pco_set_delay_time(priv->pco, (double)max_ms);
         else if (delay_ns < min_ns)
-            err = pco_set_delay_time(priv->pco, (double)(min_ns * 1e-6));
+            err = pco_set_delay_time(priv->pco, (double)min_ms);
         else
             err = pco_set_delay_time(priv->pco, delay_ms);
     }
@@ -600,12 +610,14 @@ static void uca_pco_clhs_camera_set_property(GObject *object, guint property_id,
     {
         uint32_t min_ns, max_ms, steps_ns;
         pco_get_exposure_range(priv->pco, &min_ns, &max_ms, &steps_ns);
-        double exposure_ms = (uint32_t)(g_value_get_double(value));
-        double exposure_ns = exposure_ms * 1e6;
+        double exposure_sec = g_value_get_double(value);
+        double exposure_ms = CNV_UNIT_TO_MILLI(exposure_sec);
+        double exposure_ns = CNV_UNIT_TO_NANO(exposure_sec);
+        double min_ms = CNV_NANO_TO_MILLI(min_ns);
         if (exposure_ms > max_ms)
             err = pco_set_exposure_time(priv->pco, (double)max_ms);
         else if (exposure_ns < min_ns)
-            err = pco_set_exposure_time(priv->pco, (double)(min_ns * 1e-6));
+            err = pco_set_exposure_time(priv->pco, (double)min_ms);
         else
             err = pco_set_exposure_time(priv->pco, exposure_ms);
     }
@@ -658,8 +670,8 @@ static void uca_pco_clhs_camera_set_property(GObject *object, guint property_id,
     case PROP_FAST_SCAN:
     {
         guint32 mode = g_value_get_boolean(value)
-                ? PCO_SCANMODE_FAST
-                : PCO_SCANMODE_SLOW;
+                           ? PCO_SCANMODE_FAST
+                           : PCO_SCANMODE_SLOW;
         err = pco_set_scan_mode(priv->pco, mode);
     }
     break;
@@ -831,8 +843,15 @@ static void uca_pco_clhs_camera_get_property(GObject *object, guint property_id,
         switch (priv->description->type)
         {
         case CAMERATYPE_PCO_EDGE_HS:
+        {
             g_value_set_uint(value, 16);
             break;
+        }
+        default:
+        {
+            g_value_set_uint(value, 16);
+            break;
+        }
         }
         break;
 
@@ -858,17 +877,17 @@ static void uca_pco_clhs_camera_get_property(GObject *object, guint property_id,
 
     case PROP_DELAY_TIME:
     {
-        uint32_t delay;
+        double delay;
         err = pco_get_delay_time(priv->pco, &delay);
-        g_value_set_double(value, delay);
+        g_value_set_double(value, CNV_MILLI_TO_UNIT(delay));
     }
     break;
 
     case PROP_EXPOSURE_TIME:
     {
-        uint32_t exposure;
+        double exposure;
         err = pco_get_exposure_time(priv->pco, &exposure);
-        g_value_set_double(value, exposure);
+        g_value_set_double(value, CNV_MILLI_TO_UNIT(exposure));
     }
     break;
 
@@ -1074,7 +1093,7 @@ static void uca_pco_clhs_camera_finalize(GObject *object)
 #ifdef FGRAB_STRUCT_H
     if (priv->fg_mem)
         g_warning("Fg_FreeMemEx 2");
-        Fg_FreeMemEx(priv->fg, priv->fg_mem);
+    Fg_FreeMemEx(priv->fg, priv->fg_mem);
 #else
     pco_grabber_free_memory(priv->pco);
 #endif
@@ -1266,17 +1285,17 @@ static void uca_pco_clhs_camera_class_init(UcaPcoClhsCameraClass *klass)
 
     pco_clhs_properties[PROP_DELAY_TIME] =
         g_param_spec_double("delay-time",
-                          "Capture delay time",
-                          "Capture delay time in milliseconds",
-                          0., 1000., 0.,
-                          G_PARAM_READWRITE);
+                            "Capture delay time",
+                            "Capture delay time in seconds",
+                            0., 1., 0.,
+                            G_PARAM_READWRITE);
 
     pco_clhs_properties[PROP_EXPOSURE_TIME] =
         g_param_spec_double("exposure-time",
-                          "Capture exposure time",
-                          "Capture exposure time in milliseconds",
-                          0., 2000., 1,
-                          G_PARAM_READWRITE);
+                            "Capture exposure time",
+                            "Capture exposure time in seconds",
+                            0., 2., 1,
+                            G_PARAM_READWRITE);
 
     for (guint id = N_BASE_PROPERTIES; id < N_PROPERTIES; id++)
         g_object_class_install_property(gobject_class, id, pco_clhs_properties[id]);
@@ -1318,22 +1337,6 @@ static gboolean setup_pco_clhs_camera(UcaPcoClhsCameraPrivate *priv)
 
     priv->description = map_entry;
 
-    // err = pco_get_resolution(priv->pco, &priv->width, &priv->height, &priv->width_ex, &priv->height_ex);
-    // CHECK_AND_RETURN_VAL_ON_PCO_ERROR(err, FALSE);
-
-    // err = pco_get_binning(priv->pco, &priv->binning_horz, &priv->binning_vert);
-    // CHECK_AND_RETURN_VAL_ON_PCO_ERROR(err, FALSE);
-
-    // err = pco_get_roi(priv->pco, roi);
-    // CHECK_AND_RETURN_VAL_ON_PCO_ERROR(err, FALSE);
-
-    // err = pco_get_roi_steps(priv->pco, &priv->roi_horz_steps, &priv->roi_vert_steps);
-    // CHECK_AND_RETURN_VAL_ON_PCO_ERROR(err, FALSE);
-
-    // priv->roi_x = roi[0] - 1;
-    // priv->roi_y = roi[1] - 1;
-    // priv->roi_width = roi[2] - roi[0] + 1;
-    // priv->roi_height = roi[3] - roi[1] + 1;
     priv->num_recorded_images = 0;
 
     err = pco_get_camera_version(priv->pco, &serial, &version[0], &version[1], &version[2], &version[3]);
@@ -1428,7 +1431,7 @@ uca_pco_clhs_camera_init(UcaPcoClhsCamera *self)
     uca_camera_register_unit(camera, "sensor-width-extended", UCA_UNIT_PIXEL);
     uca_camera_register_unit(camera, "sensor-height-extended", UCA_UNIT_PIXEL);
     uca_camera_register_unit(camera, "sensor-temperature", UCA_UNIT_DEGREE_CELSIUS);
-    uca_camera_set_writable(camera, "exposure-time", TRUE);
+    uca_camera_register_unit(camera, "delay-time", UCA_UNIT_SECOND);
     uca_camera_set_writable(camera, "frames-per-second", TRUE);
 }
 

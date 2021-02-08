@@ -12,6 +12,24 @@ extern "C"
 #define PCO_SCANMODE_SLOW 0
 #define PCO_SCANMODE_FAST 1
 
+#define CAMERA_TIMEBASE 0x0000 /* Camera setting to store nanoseconds */
+
+#define CNV_NANO_TO_UNIT(val) (double)((val)*1e-9)
+#define CNV_NANO_TO_MILLI(val) (double)((val)*1e-6)
+#define CNV_NANO_TO_MICRO(val) (double)((val)*1e-3)
+
+#define CNV_MICRO_TO_UNIT(val) (double)((val)*1e-6)
+#define CNV_MICRO_TO_MILLI(val) (double)((val)*1e-3)
+#define CNV_MICRO_TO_NANO(val) (double)((val)*1e3)
+
+#define CNV_MILLI_TO_UNIT(val) (double)((val)*1e-3)
+#define CNV_MILLI_TO_MICRO(val) (double)((val)*1e3)
+#define CNV_MILLI_TO_NANO(val) (double)((val)*1e6)
+
+#define CNV_UNIT_TO_MILLI(val) (double)((val)*1e3)
+#define CNV_UNIT_TO_MICRO(val) (double)((val)*1e6)
+#define CNV_UNIT_TO_NANO(val) (double)((val)*1e9)
+
     enum _pco_edge_shutter
     {
         PCO_EDGE_ROLLING_SHUTTER = 1, // PCO_EDGE_SETUP_ROLLING_SHUTTER
@@ -404,7 +422,7 @@ extern "C"
     uint32_t pco_get_timestamp_mode(pco_handle *pco, uint16_t *mode);
 
     /**
-     * Set the delay and exposure timebases.
+     * (INTERNAL) Set the delay and exposure timebases.
      * @param pco handle
      * @param delay the delay timebase [0=nanoseconds, 1=microseconds, 2=milliseconds]
      * @param exposure the exposure timebase [0=nanoseconds, 1=microseconds, 2=milliseconds]
@@ -413,7 +431,7 @@ extern "C"
     uint32_t pco_set_timebase(pco_handle *pco, uint16_t delay, uint16_t expos);
 
     /**
-     * Get the delay and exposure timebases.
+     * (INTERNAL) Get the delay and exposure timebases.
      * @param pco handle
      * @param delay output the delay timebase [0=nanoseconds, 1=microseconds, 2=milliseconds]
      * @param exposure output the exposure timebase [0=nanoseconds, 1=microseconds, 2=milliseconds]

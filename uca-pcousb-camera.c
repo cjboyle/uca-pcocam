@@ -536,12 +536,14 @@ static void uca_pco_usb_camera_set_property(GObject *object, guint property_id, 
     {
         uint32_t min_ns, max_ms, steps_ns;
         pco_get_delay_range(priv->pco, &min_ns, &max_ms, &steps_ns);
-        double delay_ms = (uint32_t)(g_value_get_double(value));
-        double delay_ns = delay_ms * 1e6;
+        double delay_sec = g_value_get_double(value);
+        double delay_ms = CNV_UNIT_TO_MILLI(delay_sec);
+        double delay_ns = CNV_UNIT_TO_NANO(delay_sec);
+        double min_ms = CNV_NANO_TO_MILLI(min_ns);
         if (delay_ms > max_ms)
             err = pco_set_delay_time(priv->pco, (double)max_ms);
         else if (delay_ns < min_ns)
-            err = pco_set_delay_time(priv->pco, (double)(min_ns * 1e-6));
+            err = pco_set_delay_time(priv->pco, (double)min_ms);
         else
             err = pco_set_delay_time(priv->pco, delay_ms);
     }
@@ -551,12 +553,14 @@ static void uca_pco_usb_camera_set_property(GObject *object, guint property_id, 
     {
         uint32_t min_ns, max_ms, steps_ns;
         pco_get_exposure_range(priv->pco, &min_ns, &max_ms, &steps_ns);
-        double exposure_ms = (uint32_t)(g_value_get_double(value));
-        double exposure_ns = exposure_ms * 1e6;
+        double exposure_sec = g_value_get_double(value);
+        double exposure_ms = CNV_UNIT_TO_MILLI(exposure_sec);
+        double exposure_ns = CNV_UNIT_TO_NANO(exposure_sec);
+        double min_ms = CNV_NANO_TO_MILLI(min_ns);
         if (exposure_ms > max_ms)
             err = pco_set_exposure_time(priv->pco, (double)max_ms);
         else if (exposure_ns < min_ns)
-            err = pco_set_exposure_time(priv->pco, (double)(min_ns * 1e-6));
+            err = pco_set_exposure_time(priv->pco, (double)min_ms);
         else
             err = pco_set_exposure_time(priv->pco, exposure_ms);
     }
@@ -609,8 +613,8 @@ static void uca_pco_usb_camera_set_property(GObject *object, guint property_id, 
     case PROP_FAST_SCAN:
     {
         guint32 mode = g_value_get_boolean(value)
-                           ? PCO_SCANMODE_FAST
-                           : PCO_SCANMODE_SLOW;
+                     ? PCO_SCANMODE_FAST
+                     : PCO_SCANMODE_SLOW;
         err = pco_set_scan_mode(priv->pco, mode);
     }
     break;
@@ -808,17 +812,17 @@ static void uca_pco_usb_camera_get_property(GObject *object, guint property_id, 
 
     case PROP_DELAY_TIME:
     {
-        uint32_t delay;
+        double delay;
         err = pco_get_delay_time(priv->pco, &delay);
-        g_value_set_double(value, delay);
+        g_value_set_double(value, CNV_MILLI_TO_UNIT(delay));
     }
     break;
 
     case PROP_EXPOSURE_TIME:
     {
-        uint32_t exposure;
+        double exposure;
         err = pco_get_exposure_time(priv->pco, &exposure);
-        g_value_set_double(value, exposure);
+        g_value_set_double(value, CNV_MILLI_TO_UNIT(exposure));
     }
     break;
 
@@ -1211,15 +1215,15 @@ static void uca_pco_usb_camera_class_init(UcaPcoUsbCameraClass *klass)
     pco_usb_properties[PROP_DELAY_TIME] =
         g_param_spec_double("delay-time",
                             "Capture delay time",
-                            "Capture delay time in milliseconds",
-                            0., 1000., 0.,
+                            "Capture delay time in seconds",
+                            0., 1., 0.,
                             G_PARAM_READWRITE);
 
     pco_usb_properties[PROP_EXPOSURE_TIME] =
         g_param_spec_double("exposure-time",
                             "Capture exposure time",
-                            "Capture exposure time in milliseconds",
-                            0., 2000., 1,
+                            "Capture exposure time in seconds",
+                            0., 2., 1.,
                             G_PARAM_READWRITE);
 
     for (guint id = N_BASE_PROPERTIES; id < N_PROPERTIES; id++)
@@ -1329,7 +1333,7 @@ uca_pco_usb_camera_init(UcaPcoUsbCamera *self)
     uca_camera_register_unit(camera, "sensor-width-extended", UCA_UNIT_PIXEL);
     uca_camera_register_unit(camera, "sensor-height-extended", UCA_UNIT_PIXEL);
     uca_camera_register_unit(camera, "sensor-temperature", UCA_UNIT_DEGREE_CELSIUS);
-    uca_camera_set_writable(camera, "exposure-time", TRUE);
+    uca_camera_register_unit(camera, "delay-time", UCA_UNIT_SECOND);
     uca_camera_set_writable(camera, "frames-per-second", TRUE);
 }
 
