@@ -958,12 +958,11 @@ unsigned int pco_get_segment_image(pco_handle *pco, void *adr, int seg, int nr)
         }
     }
 
-    unsigned int w, h, l;
-    WORD *buf;
+    unsigned int w, h;
     pco_grabber_get_actual_size(pco, &w, &h);
 
     err = pco->grabber->Get_Image(seg, nr, adr);
-    RETURN_IF_ERROR(err);
+    RETURN_ANY_CODE(err);
 }
 
 unsigned int pco_grabber_get_actual_size(pco_handle *pco, uint32_t *width, uint32_t *height)

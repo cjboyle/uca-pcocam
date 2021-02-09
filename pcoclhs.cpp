@@ -132,12 +132,12 @@ static void _fill_binning_array(uint16_t *a, unsigned int n, int is_linear)
 {
     if (is_linear)
     {
-        for (int i = 0; i < n; i++)
+        for (unsigned int i = 0; i < n; i++)
             a[i] = i + 1;
     }
     else
     {
-        for (int i = 0, j = 1; i < n; i++, j *= 2)
+        for (unsigned int i = 0, j = 1; i < n; i++, j *= 2)
             a[i] = j;
     }
 }
@@ -994,7 +994,7 @@ unsigned int pco_acquire_image_ex(pco_handle *pco, void *adr, int timeout)
     RETURN_ANY_CODE(err);
 }
 
-unsigned int pco_acquire_n_images(pco_handle *pco, WORD **adr, int count)
+unsigned int pco_acquire_n_images(pco_handle *pco, WORD **adr, uint32_t count)
 {
     WORD img_size = sizeof(adr) / count, err = 0;
     // WORD *picbuf[4];
@@ -1073,12 +1073,11 @@ unsigned int pco_get_segment_image(pco_handle *pco, void *adr, int seg, int nr)
         }
     }
 
-    unsigned int w, h, l;
-    WORD *buf;
+    unsigned int w, h;
     pco_grabber_get_actual_size(pco, &w, &h);
 
     err = pco->grabber->Get_Image(seg, nr, adr);
-    RETURN_IF_ERROR(err);
+    RETURN_ANY_CODE(err);
 }
 
 unsigned int pco_grabber_get_actual_size(pco_handle *pco, uint32_t *width, uint32_t *height)
