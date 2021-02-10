@@ -318,6 +318,7 @@ unsigned int pco_control_command(pco_handle *pco, void *buffer_in, uint32_t size
 
 unsigned int pco_grabber_set_size(pco_handle *pco, uint32_t width, uint32_t height)
 {
+    // DWORD err = pco->grabber->Set_Grabber_Size(2 * cameraW, cameraH);  // CL v CLHS
     DWORD err = pco->grabber->Set_Grabber_Size(width, height);
     RETURN_ANY_CODE(err);
 }
@@ -325,14 +326,14 @@ unsigned int pco_grabber_set_size(pco_handle *pco, uint32_t width, uint32_t heig
 unsigned int pco_grabber_allocate_memory(pco_handle *pco, int size)
 {
     // not actually implemented, just returns PCO_NOERROR
-    return pco->grabber->Allocate_Framebuffer(size);
+    //return pco->grabber->Allocate_Framebuffer(size);  // CL v CLHS
+    return 0;
 }
 
 unsigned int pco_grabber_free_memory(pco_handle *pco)
 {
     // not actually implemented, just returns PCO_NOERROR
-    // return pco->grabber->Free_Framebuffer();
-    // seems like it actually throws an error
+    // return pco->grabber->Free_Framebuffer();  // CL v CLHS
     return 0;
 }
 
@@ -545,12 +546,9 @@ static void pco_post_update_pixelrate(pco_handle *pco)
 {
     return;
     ///////////////////////////////
+    // CL v CLHS
 
-    if (pco->cameraType == CAMERATYPE_PCO_EDGE ||
-        pco->cameraType == CAMERATYPE_PCO_EDGE_HS ||
-        pco->cameraType == CAMERATYPE_PCO_EDGE_GL ||
-        pco->cameraType == CAMERATYPE_PCO_EDGE_42 ||
-        pco->cameraType == CAMERATYPE_PCO_EDGE_USB3)
+    if (pco->cameraType == CAMERATYPE_PCO_EDGE)
     {
         uint32_t pixelrate;
         uint16_t w, h, wx, hx, lut = 0;

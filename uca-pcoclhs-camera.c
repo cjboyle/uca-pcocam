@@ -72,6 +72,7 @@ enum
     PROP_EDGE_GLOBAL_SHUTTER,
     PROP_FRAME_GRABBER_TIMEOUT,
     PROP_DELAY_TIME,
+    PROP_GRAB_N_BUFFERS,
     N_PROPERTIES
 };
 
@@ -624,16 +625,16 @@ static void uca_pco_clhs_camera_set_property(GObject *object, guint property_id,
     }
     break;
 
-        // case PROP_EDGE_GLOBAL_SHUTTER:
-        // {
-        //     pco_edge_shutter shutter;
+    case PROP_EDGE_GLOBAL_SHUTTER:
+    {
+    //     pco_edge_shutter shutter;
 
-        //     shutter = g_value_get_boolean(value) ? PCO_EDGE_GLOBAL_SHUTTER : PCO_EDGE_ROLLING_SHUTTER;
-        //     err = pco_edge_set_shutter(priv->pco, shutter);
-        //     pco_destroy(priv->pco);
-        //     g_warning("Camera rebooting... Create a new camera instance to continue.");
-        // }
-        // break;
+    //     shutter = g_value_get_boolean(value) ? PCO_EDGE_GLOBAL_SHUTTER : PCO_EDGE_ROLLING_SHUTTER;
+    //     err = pcoclhs_edge_set_shutter(priv->pco, shutter);
+    //     pcoclhs_destroy(priv->pco);
+    //     g_warning("Camera rebooting... Create a new camera instance to continue.");
+    }
+    break;
 
     case PROP_FRAMES_PER_SECOND:
     {
@@ -647,6 +648,12 @@ static void uca_pco_clhs_camera_set_property(GObject *object, guint property_id,
         if (timeout < 0)
             timeout = INT32_MAX;
         err = pco_grabber_set_timeout(priv->pco, timeout);
+    }
+    break;
+
+    case PROP_GRAB_N_BUFFERS:
+    {
+        priv->num_buffers = g_value_get_uint(value);
     }
     break;
 
@@ -975,6 +982,12 @@ static void uca_pco_clhs_camera_get_property(GObject *object, guint property_id,
         int timeout;
         pco_grabber_get_timeout(priv->pco, &timeout);
         g_value_set_uint(value, (guint)timeout);
+    }
+    break;
+
+    case PROP_GRAB_N_BUFFERS:
+    {
+        g_value_set_uint(value, priv->num_buffers);
     }
     break;
 
