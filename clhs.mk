@@ -30,12 +30,15 @@ LIB_NAMES += uca
 
 
 # PCO.Linux SDK
-LIB_DIRS += /usr/local/lib
-# LIB_DIRS += $(PCOSDKDIR)/pco_common/pco_lib
 PCO_LIB_DIR = ./pco/lib/clhs
 PCO_LIB_NAMES += pcolog pcofile pcocam_clhs pcoclhs
-PCO_LIBS = -Wl,-Bstatic $(addprefix $(PCO_LIB_DIR)/lib,$(addsuffix .a,$(PCO_LIB_NAMES))) -Wl,-Bdynamic
+#PCO_LIBS = -Wl,-Bstatic $(addprefix $(PCO_LIB_DIR)/lib,$(addsuffix .a,$(PCO_LIB_NAMES))) -Wl,-Bdynamic
 
+ifndef PCO_LIBS
+LIB_DIRS += /usr/local/lib
+LIB_DIRS += $(PCOSDKDIR)/pco_clhs/bindyn
+LIB_NAMES += $(PCO_LIB_NAMES)
+endif
 
 
 # GLib headers
