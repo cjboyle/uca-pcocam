@@ -253,6 +253,8 @@ static unsigned int _pco_init(pco_handle *pco, int board, int port)
 
 pco_handle *pco_init(int board, int port)
 {
+    setenv("SISODIR5", SISODIR5, 0);
+
     pco_handle *pco = (pco_handle *)malloc(sizeof(*pco));
     DWORD err = _pco_init(pco, 0, 0);
     if (err != PCO_NOERROR)

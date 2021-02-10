@@ -1,4 +1,4 @@
-SISODIR5 ?= /opt/SiliconSoftware/Runtime5.4.4
+SISODIR5 ?= /opt/SiliconSoftware/Runtime5.7.0
 PCOSDKDIR = /opt/PCO/pco_camera
 
 LIB_NAME = ucapcoclhs
@@ -7,7 +7,7 @@ PROJ_NAME = uca-pcoclhs
 
 
 CC = gcc
-CCFLAGS = -std=c99 -O2 -Wall -fPIC
+CCFLAGS = -std=c99 -O2 -Wall -fPIC -DSISODIR5=$(SISODIR5)
 CXX = g++
 CXXFLAGS = -std=c++0x -O2 -Wall -fPIC
 LDFLAGS = -shared
@@ -30,8 +30,8 @@ LIB_NAMES += uca
 
 
 # PCO.Linux SDK
-# LIB_DIRS += /usr/local/lib
-# LIB_DIRS += /opt/PCO/pco_camera/pco_common/pco_lib
+LIB_DIRS += /usr/local/lib
+# LIB_DIRS += $(PCOSDKDIR)/pco_common/pco_lib
 PCO_LIB_DIR = ./pco/lib/clhs
 PCO_LIB_NAMES += pcolog pcofile pcocam_clhs pcoclhs
 PCO_LIBS = -Wl,-Bstatic $(addprefix $(PCO_LIB_DIR)/lib,$(addsuffix .a,$(PCO_LIB_NAMES))) -Wl,-Bdynamic

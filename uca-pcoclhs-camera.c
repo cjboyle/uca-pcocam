@@ -1203,7 +1203,7 @@ static void uca_pco_clhs_camera_class_init(UcaPcoClhsCameraClass *klass)
         g_param_spec_double("exposure-time",
                             "Capture exposure time",
                             "Capture exposure time in seconds",
-                            0., 2., 1,
+                            0., 2., 1.,
                             G_PARAM_READWRITE);
 
     for (guint id = N_BASE_PROPERTIES; id < N_PROPERTIES; id++)
