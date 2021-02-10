@@ -31,9 +31,9 @@ Software plugin for UFO-KIT's Universal Camera Access library to support PCO Edg
     sudo symlink_pco -u  # symlinks libraries to /usr/local/lib
     
     # update library paths
-    sudo echo 'export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:/usr/local/lib"\n' > \
-            /etc/profile.d/setup-usr-local-lib.sh
-    sudo chmod 644 /etc/profile.d/setup-usr-local-lib.sh
+    sudo echo "export LD_LIBRARY_PATH=\"\$LD_LIBRARY_PATH:/usr/local/lib:$PWD/bindyn\"\n" > \
+            /etc/profile.d/setup-pco-clhs-env.sh
+    sudo chmod 644 /etc/profile.d/setup-pco-clhs-env.sh
     # *OR*
     # symlink the libraries to an existing LDD path, e.g.
     sudo symlink_pco /usr/lib

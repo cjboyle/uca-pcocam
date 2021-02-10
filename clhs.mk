@@ -94,7 +94,7 @@ $(BUILD_DIR)/%.cpp.o: %.cpp $(HDRS)
 install: $(INST_DIR)/$(OUTFILE)
 
 $(INST_DIR)/$(OUTFILE): $(BUILD_DIR)/$(OUTFILE)
-	install -m 644 $(BUILD_DIR)/$(OUTFILE) $(INST_DIR)
+	install -m 755 $(BUILD_DIR)/$(OUTFILE) $(INST_DIR)
 
 
 .PHONY: clean
