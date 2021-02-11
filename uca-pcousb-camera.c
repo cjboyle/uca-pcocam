@@ -564,8 +564,8 @@ static void uca_pco_usb_camera_set_property(GObject *object, guint property_id, 
     case PROP_FAST_SCAN:
     {
         guint32 mode = g_value_get_boolean(value)
-                     ? PCO_SCANMODE_FAST
-                     : PCO_SCANMODE_SLOW;
+                           ? PCO_SCANMODE_FAST
+                           : PCO_SCANMODE_SLOW;
         err = pco_set_scan_mode(priv->pco, mode);
     }
     break;
@@ -891,8 +891,12 @@ static void uca_pco_usb_camera_get_property(GObject *object, guint property_id, 
     break;
 
     case PROP_NAME:
-        g_value_set_string(value, "pco-usb");
-        break;
+    {
+        char *name;
+        pco_get_name(priv->pco, &name);
+        g_value_set_string(value, name);
+    }
+    break;
 
     case PROP_NOISE_FILTER:
     {

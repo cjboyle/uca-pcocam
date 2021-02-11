@@ -627,12 +627,12 @@ static void uca_pco_clhs_camera_set_property(GObject *object, guint property_id,
 
     case PROP_EDGE_GLOBAL_SHUTTER:
     {
-    //     pco_edge_shutter shutter;
+        //     pco_edge_shutter shutter;
 
-    //     shutter = g_value_get_boolean(value) ? PCO_EDGE_GLOBAL_SHUTTER : PCO_EDGE_ROLLING_SHUTTER;
-    //     err = pcoclhs_edge_set_shutter(priv->pco, shutter);
-    //     pcoclhs_destroy(priv->pco);
-    //     g_warning("Camera rebooting... Create a new camera instance to continue.");
+        //     shutter = g_value_get_boolean(value) ? PCO_EDGE_GLOBAL_SHUTTER : PCO_EDGE_ROLLING_SHUTTER;
+        //     err = pcoclhs_edge_set_shutter(priv->pco, shutter);
+        //     pcoclhs_destroy(priv->pco);
+        //     g_warning("Camera rebooting... Create a new camera instance to continue.");
     }
     break;
 
@@ -921,8 +921,12 @@ static void uca_pco_clhs_camera_get_property(GObject *object, guint property_id,
     break;
 
     case PROP_NAME:
-        g_value_set_string(value, "pco-clhs");
-        break;
+    {
+        char *name;
+        pco_get_name(priv->pco, &name);
+        g_value_set_string(value, name);
+    }
+    break;
 
     case PROP_NOISE_FILTER:
     {

@@ -375,10 +375,12 @@ unsigned int pco_get_name(pco_handle *pco, char **name)
     }
     else
     {
-        char *s;
-        strncpy(s, str, 40);
-        *name = s;
+        char *sout = (char*)malloc(strlen(str));
+        strncpy(sout, str, strlen(str));
+        *name = sout;
     }
+    free(str);
+    str = NULL;
     return err;
 }
 
