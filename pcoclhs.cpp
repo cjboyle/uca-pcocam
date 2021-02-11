@@ -470,16 +470,16 @@ unsigned int pco_get_temperature(pco_handle *pco, int16_t *ccd, int16_t *camera,
 
 unsigned int pco_get_name(pco_handle *pco, char **name)
 {
-    char *str = (char *)malloc(40);
-    DWORD err = pco->com->PCO_GetCameraName(str, sizeof(str));
+    char *str = (char *)malloc(40 * sizeof(char));
+    DWORD err = pco->com->PCO_GetCameraName(str, 40);
     if (err != 0)
     {
         *name = "Unknown Camera Type";
     }
     else
     {
-        char *sout = (char*)malloc(strlen(str));
-        strncpy(sout, str, strlen(str));
+        char *sout = (char *)malloc((strlen(str) + 1) * sizeof(char));
+        strncpy(sout, str, strlen(str) + 1);
         *name = sout;
     }
     free(str);
