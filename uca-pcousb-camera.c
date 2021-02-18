@@ -336,7 +336,6 @@ static void uca_pco_usb_camera_trigger(UcaCamera *camera, GError **error)
 
     priv = UCA_PCO_USB_CAMERA_GET_PRIVATE(camera);
 
-    /* TODO: Check if we can trigger */
     err = pco_force_trigger(priv->pco, &success);
 
     if (!success || err != 0)
@@ -1229,6 +1228,7 @@ static gboolean setup_pco_usb_camera(UcaPcoUsbCameraPrivate *priv)
 
 static gboolean setup_frame_grabber(UcaPcoUsbCameraPrivate *priv)
 {
+    // Handled by wrapper library
     return TRUE;
 }
 

@@ -828,7 +828,7 @@ unsigned int pco_await_next_image_ex(pco_handle *pco, void *adr, int timeout)
         RETURN_IF_ERROR(err);
     }
 
-    err = pco->grabber->Acquire_Image_Async_wait(adr, timeout);
+    err = pco_acquire_image_ex_await(pco, adr, timeout);
     RETURN_ANY_CODE(err);
 }
 
@@ -945,12 +945,12 @@ static void _fill_binning_array(uint16_t *a, unsigned int n, int is_linear)
 {
     if (is_linear)
     {
-        for (int i = 0; i < n; i++)
+        for (unsigned int i = 0; i < n; i++)
             a[i] = i + 1;
     }
     else
     {
-        for (int i = 0, j = 1; i < n; i++, j *= 2)
+        for (unsigned int i = 0, j = 1; i < n; i++, j *= 2)
             a[i] = j;
     }
 }
