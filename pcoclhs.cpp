@@ -163,7 +163,6 @@ struct _pco_handle
     CPco_grab_clhs *grabber; /* Frame-grabber interface */
     CPco_Log *logger;
 
-    uint32_t cached_delay_ns, cached_exposure_ns;
     pco_reorder_image_t reorder_func;
 
     uint16_t cameraType, cameraSubType;
@@ -224,10 +223,10 @@ static unsigned int _pco_init(pco_handle *pco, int board, int port)
     err = pco_set_timestamp_mode(pco, TIMESTAMP_MODE_BINARYANDASCII);
     RETURN_IF_ERROR(err);
 
-    err = pco_set_timebase(pco, CAMERA_TIMEBASE, CAMERA_TIMEBASE);
+    err = pco_set_timebase(pco, TIMEBASE_MS, TIMEBASE_MS);
     RETURN_IF_ERROR(err);
 
-    err = pco_set_delay_exposure(pco, 0.0, 10.0);
+    err = pco_set_delay_exposure(pco, 0.0, 0.01);
     RETURN_IF_ERROR(err);
 
     if (pco->description.wNumADCsDESC > 1)
@@ -318,7 +317,6 @@ unsigned int pco_control_command(pco_handle *pco, void *buffer_in, uint32_t size
 
 unsigned int pco_grabber_set_size(pco_handle *pco, uint32_t width, uint32_t height)
 {
-    // DWORD err = pco->grabber->Set_Grabber_Size(2 * cameraW, cameraH);  // CL v CLHS
     DWORD err = pco->grabber->Set_Grabber_Size(width, height);
     RETURN_ANY_CODE(err);
 }
@@ -499,37 +497,37 @@ unsigned int pco_set_sensor_format(pco_handle *pco, uint16_t format)
     RETURN_ANY_CODE(err);
 }
 
+uint32_t pco_get_cooling_setpoint(pco_handle *pco, short *temperature)
+{
+    DWORD err = pco->com->PCO_GetCoolingSetpointTemperature(temperature);
+    RETURN_ANY_CODE(err);
+}
+
+uint32_t pco_set_cooling_setpoint(pco_handle *pco, short temperature)
+{
+    DWORD err = pco->com->PCO_SetCoolingSetpointTemperature(temperature);
+    RETURN_ANY_CODE(err);
+}
+
 unsigned int pco_get_resolution(pco_handle *pco, uint16_t *width_std, uint16_t *height_std, uint16_t *width_ex, uint16_t *height_ex)
 {
-    SC2_Camera_Description_Response desc;
-    DWORD err = pco->com->PCO_GetCameraDescriptor(&desc);
-    CHECK_ERROR(err);
-    if (err == 0)
-    {
-        *width_std = desc.wMaxHorzResStdDESC;
-        *height_std = desc.wMaxVertResStdDESC;
-        *width_ex = desc.wMaxHorzResExtDESC;
-        *height_ex = desc.wMaxVertResExtDESC;
-    }
-    return err;
+    *width_std = pco->description.wMaxHorzResStdDESC;
+    *height_std = pco->description.wMaxVertResStdDESC;
+    *width_ex = pco->description.wMaxHorzResExtDESC;
+    *height_ex = pco->description.wMaxVertResExtDESC;
+    return 0;
 }
 
 unsigned int pco_get_available_pixelrates(pco_handle *pco, uint32_t rates[4], int *num_rates)
 {
-    SC2_Camera_Description_Response desc;
-    DWORD err = pco->com->PCO_GetCameraDescriptor(&desc);
-    CHECK_ERROR(err);
-    if (err == 0)
+    int n = 0;
+    for (int i = 0; i < 4; i++)
     {
-        int n = 0;
-        for (int i = 0; i < 4; i++)
-        {
-            if (desc.dwPixelRateDESC[i] > 0)
-                rates[n++] = desc.dwPixelRateDESC[i];
-        }
-        *num_rates = n;
+        if (pco->description.dwPixelRateDESC[i] > 0)
+            rates[n++] = pco->description.dwPixelRateDESC[i];
     }
-    return err;
+    *num_rates = n;
+    return 0;
 }
 
 unsigned int pco_get_pixelrate(pco_handle *pco, uint32_t *rate)
@@ -547,42 +545,44 @@ unsigned int pco_set_pixelrate(pco_handle *pco, uint32_t rate)
 static void pco_post_update_pixelrate(pco_handle *pco)
 {
     return;
-    ///////////////////////////////
     // CL v CLHS
 
-    if (pco->cameraType == CAMERATYPE_PCO_EDGE)
-    {
-        uint32_t pixelrate;
-        uint16_t w, h, wx, hx, lut = 0;
-        pco_get_pixelrate(pco, &pixelrate);
-        pco_get_resolution(pco, &w, &h, &wx, &hx);
+    // if (pco->cameraType == CAMERATYPE_PCO_EDGE)
+    // {
+    //     uint32_t pixelrate;
+    //     uint16_t w, h, wx, hx, lut = 0;
+    //     pco_get_pixelrate(pco, &pixelrate);
+    //     pco_get_resolution(pco, &w, &h, &wx, &hx);
 
-        PCO_SC2_CL_TRANSFER_PARAM tparam;
-        pco->com->PCO_GetTransferParameter(&tparam, sizeof(tparam));
+    //     PCO_SC2_CL_TRANSFER_PARAM tparam;
+    //     pco->com->PCO_GetTransferParameter(&tparam, sizeof(tparam));
 
-        if ((w > 1920) && (pixelrate >= 286000000))
-        {
-            pco->reorder_func = &func_reorder_image_5x12;
-            tparam.DataFormat = SCCMOS_FORMAT_TOP_CENTER_BOTTOM_CENTER | PCO_CL_DATAFORMAT_5x12;
-            lut = 0x1612;
-        }
-        else
-        {
-            pco->reorder_func = &func_reorder_image_5x16;
-            tparam.DataFormat = SCCMOS_FORMAT_TOP_CENTER_BOTTOM_CENTER | PCO_CL_DATAFORMAT_5x16;
-        }
-        pco->grabber->Set_DataFormat(tparam.DataFormat);
-        pco->com->PCO_SetTransferParameter(&tparam, sizeof(tparam));
-        pco->com->PCO_SetLut(lut, 0);
-    }
+    //     if ((w > 1920) && (pixelrate >= 286000000))
+    //     {
+    //         pco->reorder_func = &func_reorder_image_5x12;
+    //         tparam.DataFormat = SCCMOS_FORMAT_TOP_CENTER_BOTTOM_CENTER | PCO_CL_DATAFORMAT_5x12;
+    //         lut = 0x1612;
+    //     }
+    //     else
+    //     {
+    //         pco->reorder_func = &func_reorder_image_5x16;
+    //         tparam.DataFormat = SCCMOS_FORMAT_TOP_CENTER_BOTTOM_CENTER | PCO_CL_DATAFORMAT_5x16;
+    //     }
+    //     pco->grabber->Set_DataFormat(tparam.DataFormat);
+    //     pco->com->PCO_SetTransferParameter(&tparam, sizeof(tparam));
+    //     pco->com->PCO_SetLut(lut, 0);
+    // }
 }
 
 unsigned int pco_set_fps(pco_handle *pco, double fps)
 {
     WORD status;
     uint32_t rate = (uint32_t)(fps * 1e3); // Hz (FPS) to milli-Hz (mFPS)
-    uint32_t expo_ns = pco->cached_exposure_ns;
-    DWORD err = pco->com->PCO_SetFrameRate(&status, SET_FRAMERATE_MODE_FRAMERATE_HAS_PRIORITY, &rate, &expo_ns);
+    double expo;
+    DWORD err = pco_get_exposure_time(pco, &expo);
+    RETURN_IF_ERROR(err);
+    uint32_t expo_ns = (uint32_t)CNV_UNIT_TO_NANO(expo);
+    err = pco->com->PCO_SetFrameRate(&status, SET_FRAMERATE_MODE_FRAMERATE_HAS_PRIORITY, &rate, &expo_ns);
     CHECK_ERROR(err);
     if (err != PCO_NOERROR)
     {
@@ -590,6 +590,8 @@ unsigned int pco_set_fps(pco_handle *pco, double fps)
         fprintf(stderr, "Please manually set the FPS through `exposure-time' and `delay-time'\n");
     }
     else if (status == SET_FRAMERATE_STATUS_NOT_YET_VALIDATED)
+        return err;
+    else
         return err;
 }
 
@@ -600,7 +602,7 @@ unsigned int pco_get_fps(pco_handle *pco, double *fps)
     DWORD err = pco->com->PCO_GetFrameRate(&status, &rate, &discard);
     if (err == PCO_NOERROR)
     {
-        *fps = rate * 1e-3; // mHz (sub-FPS) to Hz (FPS)
+        *fps = rate * 1e-3; // mHz to Hz
     }
     else
     {
@@ -609,29 +611,22 @@ unsigned int pco_get_fps(pco_handle *pco, double *fps)
         double expo, delay;
         err = pco_get_delay_exposure(pco, &delay, &expo);
         RETURN_IF_ERROR(err);
-        double msecs = expo + delay;
-        double secs = CNV_MILLI_TO_UNIT(msecs);
+        double secs = expo + delay;
         *fps = 1.0 / secs;
     }
-    return err;
+    RETURN_ANY_CODE(err);
 }
 
 unsigned int pco_get_available_conversion_factors(pco_handle *pco, uint16_t factors[4], int *num_factors)
 {
-    SC2_Camera_Description_Response desc;
-    DWORD err = pco->com->PCO_GetCameraDescriptor(&desc);
-    CHECK_ERROR(err);
-    if (err == 0)
+    int n = 0;
+    for (int i = 0; i < 4; i++)
     {
-        int n = 0;
-        for (int i = 0; i < 4; i++)
-        {
-            if (desc.wConvFactDESC[i] > 0)
-                factors[n++] = desc.wConvFactDESC[i];
-        }
-        *num_factors = n;
+        if (pco->description.wConvFactDESC[i] > 0)
+            factors[n++] = pco->description.wConvFactDESC[i];
     }
-    return err;
+    *num_factors = n;
+    return 0;
 }
 
 /**
@@ -649,23 +644,6 @@ unsigned int pco_set_scan_mode(pco_handle *pco, uint32_t mode)
 
     if (pixelrate == 0)
         return PCO_ERROR_IS_ERROR;
-
-    err = pco_set_pixelrate(pco, pixelrate);
-    RETURN_ANY_CODE(err);
-
-    return 0;
-    //////////////////////////
-
-    if (mode == PCO_SCANMODE_SLOW)
-    {
-        pco->reorder_func = &func_reorder_image_5x16;
-        pco->grabber->Set_DataFormat(SCCMOS_FORMAT_TOP_CENTER_BOTTOM_CENTER | PCO_CL_DATAFORMAT_5x16);
-    }
-    else if (mode == PCO_SCANMODE_FAST)
-    {
-        pco->reorder_func = &func_reorder_image_5x12;
-        pco->grabber->Set_DataFormat(SCCMOS_FORMAT_TOP_CENTER_BOTTOM_CENTER | PCO_CL_DATAFORMAT_5x12);
-    }
 
     err = pco_set_pixelrate(pco, pixelrate);
     RETURN_ANY_CODE(err);
@@ -735,20 +713,14 @@ unsigned int pco_get_roi(pco_handle *pco, uint16_t *window)
 
 unsigned int pco_get_roi_steps(pco_handle *pco, uint16_t *horizontal, uint16_t *vertical)
 {
-    SC2_Camera_Description_Response desc;
-    DWORD err = pco->com->PCO_GetCameraDescriptor(&desc);
-    RETURN_IF_ERROR(err);
-    *horizontal = desc.wRoiHorStepsDESC;
-    *vertical = desc.wRoiVertStepsDESC;
+    *horizontal = pco->description.wRoiHorStepsDESC;
+    *vertical = pco->description.wRoiVertStepsDESC;
     return 0;
 }
 
 bool pco_is_double_image_mode_available(pco_handle *pco)
 {
-    SC2_Camera_Description_Response desc;
-    DWORD err = pco->com->PCO_GetCameraDescriptor(&desc);
-    CHECK_ERROR(err);
-    return err == 0 && desc.wDoubleImageDESC == 1;
+    return pco->description.wDoubleImageDESC == 1;
 }
 
 unsigned int pco_set_double_image_mode(pco_handle *pco, bool on)
@@ -832,16 +804,10 @@ unsigned int pco_set_delay_time(pco_handle *pco, double delay)
 
 unsigned int pco_get_delay_range(pco_handle *pco, uint32_t *min_ns, uint32_t *max_ms, uint32_t *step_ns)
 {
-    SC2_Camera_Description_Response desc;
-    DWORD err = pco->com->PCO_GetCameraDescriptor(&desc);
-    CHECK_ERROR(err);
-    if (err == 0)
-    {
-        *min_ns = desc.dwMinDelayDESC;
-        *max_ms = desc.dwMaxDelayDESC;
-        *step_ns = desc.dwMinDelayStepDESC;
-    }
-    return err;
+    *min_ns = pco->description.dwMinDelayDESC;
+    *max_ms = pco->description.dwMaxDelayDESC;
+    *step_ns = pco->description.dwMinDelayStepDESC;
+    return 0;
 }
 
 unsigned int pco_get_exposure_time(pco_handle *pco, double *exposure)
@@ -859,61 +825,81 @@ unsigned int pco_set_exposure_time(pco_handle *pco, double exposure)
 
 unsigned int pco_get_exposure_range(pco_handle *pco, uint32_t *min_ns, uint32_t *max_ms, uint32_t *step_ns)
 {
-    SC2_Camera_Description_Response desc;
-    DWORD err = pco->com->PCO_GetCameraDescriptor(&desc);
-    CHECK_ERROR(err);
-    if (err == 0)
-    {
-        *min_ns = desc.dwMinExposureDESC;
-        *max_ms = desc.dwMaxExposureDESC;
-        *step_ns = desc.dwMinExposureStepDESC;
-    }
-    return err;
-}
-
-static unsigned int __pco_get_delay_exposure_ns(pco_handle *pco, uint32_t *delay_ns, uint32_t *expos_ns)
-{
-    DWORD err = pco->com->PCO_GetDelayExposure(delay_ns, expos_ns);
-    RETURN_ANY_CODE(err);
+    *min_ns = pco->description.dwMinExposureDESC;
+    *max_ms = pco->description.dwMaxExposureDESC;
+    *step_ns = pco->description.dwMinExposureStepDESC;
+    return 0;
 }
 
 unsigned int pco_get_delay_exposure(pco_handle *pco, double *delay, double *exposure)
 {
-    uint32_t delay_ns, expos_ns;
-    DWORD err = __pco_get_delay_exposure_ns(pco, &delay_ns, &expos_ns);
-    CHECK_ERROR(err);
+    uint32_t curr_delay, curr_expos;
+    uint16_t tb_delay, tb_expos;
+    DWORD err = pco->com->PCO_GetDelayExposureTime(&curr_delay, &curr_expos, &tb_delay, &tb_expos);
     if (err == 0)
     {
-        *delay = CNV_NANO_TO_MILLI(delay_ns);
-        *exposure = CNV_NANO_TO_MILLI(expos_ns);
-        pco->cached_delay_ns = delay_ns;
-        pco->cached_exposure_ns = expos_ns;
+        if (tb_delay == TIMEBASE_NS)
+            *delay = CNV_NANO_TO_UNIT(curr_delay);
+        else if (tb_delay == TIMEBASE_US)
+            *delay = CNV_MICRO_TO_UNIT(curr_delay);
+        else if (tb_delay == TIMEBASE_MS)
+            *delay = CNV_MILLI_TO_UNIT(curr_delay);
+        else
+            err = PCO_ERROR_FIRMWARE_COC_TIMEBASE_INVALID;
     }
-    return err;
-}
-
-static unsigned int __pco_set_delay_exposure_ns(pco_handle *pco, uint32_t delay_ns, uint32_t expos_ns)
-{
-    DWORD err = pco->com->PCO_SetDelayExposureTime(delay_ns, expos_ns, CAMERA_TIMEBASE, CAMERA_TIMEBASE);
+    RETURN_IF_ERROR(err);
+    if (err == 0)
+    {
+        if (tb_expos == TIMEBASE_NS)
+            *exposure = CNV_NANO_TO_UNIT(curr_expos);
+        else if (tb_expos == TIMEBASE_US)
+            *exposure = CNV_MICRO_TO_UNIT(curr_expos);
+        else if (tb_expos == TIMEBASE_MS)
+            *exposure = CNV_MILLI_TO_UNIT(curr_expos);
+        else
+            err = PCO_ERROR_FIRMWARE_COC_TIMEBASE_INVALID;
+    }
     RETURN_ANY_CODE(err);
 }
 
 unsigned int pco_set_delay_exposure(pco_handle *pco, double delay, double exposure)
 {
-    uint32_t delay_ns = delay < 0
-                            ? pco->cached_delay_ns
-                            : (uint32_t)CNV_MILLI_TO_NANO(delay);
-    uint32_t expos_ns = exposure < 0
-                            ? pco->cached_exposure_ns
-                            : (uint32_t)CNV_MILLI_TO_NANO(exposure);
-    DWORD err = __pco_set_delay_exposure_ns(pco, delay_ns, expos_ns);
-    CHECK_ERROR(err);
-    if (err == 0)
-    {
-        pco->cached_delay_ns = delay_ns;
-        pco->cached_exposure_ns = expos_ns;
+    uint32_t curr_delay, curr_expos;
+    uint16_t tb_delay, tb_expos;
+    DWORD err = pco->com->PCO_GetDelayExposureTime(&curr_delay, &curr_expos, &tb_delay, &tb_expos);
+    RETURN_IF_ERROR(err);
+    if (delay >= 0) {
+        if (delay > 1e-9) {
+            tb_delay = TIMEBASE_NS;
+            curr_delay = (uint32_t)CNV_UNIT_TO_NANO(delay);
+        }
+        if (delay > 1e-6) {
+            tb_delay = TIMEBASE_US;
+            curr_delay = (uint32_t)CNV_UNIT_TO_MICRO(delay);
+        }
+        if (delay > 1e-3) {
+            tb_delay = TIMEBASE_MS;
+            curr_delay = (uint32_t)CNV_UNIT_TO_MILLI(delay);
+        }
+        else
+            curr_delay = 0;
     }
-    return err;
+    if (exposure >= 0) {
+        if (exposure > 1e-9) {
+            tb_expos = TIMEBASE_NS;
+            curr_expos = (uint32_t)CNV_UNIT_TO_NANO(exposure);
+        }
+        if (exposure > 1e-6) {
+            tb_expos = TIMEBASE_US;
+            curr_expos = (uint32_t)CNV_UNIT_TO_MICRO(exposure);
+        }
+        if (exposure > 1e-3) {
+            tb_expos = TIMEBASE_MS;
+            curr_expos = (uint32_t)CNV_UNIT_TO_MILLI(exposure);
+        }
+    }
+    err = pco->com->PCO_SetDelayExposureTime(curr_delay, curr_expos, tb_delay, tb_expos);
+    RETURN_ANY_CODE(err);
 }
 
 unsigned int pco_get_trigger_mode(pco_handle *pco, uint16_t *mode)
@@ -999,17 +985,6 @@ unsigned int pco_acquire_image_ex(pco_handle *pco, void *adr, int timeout)
 unsigned int pco_acquire_n_images(pco_handle *pco, WORD **adr, uint32_t count)
 {
     WORD img_size = sizeof(adr) / count, err = 0;
-    // WORD *picbuf[4];
-
-    // memset(picbuf, 0, sizeof(WORD *) * 4);
-    // for (int i = 0; i < 4; i++)
-    // {
-    //     adr[i] = (WORD *)malloc(img_size * sizeof(WORD));
-    //     if (adr[i] == NULL)
-    //     {
-    //         RETURN_IF_ERROR(PCO_ERROR_NOMEMORY);
-    //     }
-    // }
 
     for (DWORD i = 0; i < count; i++)
     {
@@ -1109,9 +1084,7 @@ unsigned int pco_set_binning(pco_handle *pco, uint16_t horizontal, uint16_t vert
 unsigned int pco_get_possible_binnings(pco_handle *pco, uint16_t **horizontal, unsigned int *num_horizontal, uint16_t **vertical, unsigned int *num_vertical)
 {
     /* uint16_t maxBinHorz, stepBinHorz, maxBinVert, stepBinVert; */
-    SC2_Camera_Description_Response desc;
-    DWORD err = pco->com->PCO_GetCameraDescriptor(&desc);
-    RETURN_IF_ERROR(err);
+    SC2_Camera_Description_Response desc = pco->description;
 
     unsigned int num_h = _get_num_binnings(desc.wMaxBinHorzDESC, desc.wBinHorzSteppingDESC);
     uint16_t *r_horizontal = (uint16_t *)malloc(num_h * sizeof(uint16_t));

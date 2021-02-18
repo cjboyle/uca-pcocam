@@ -440,17 +440,17 @@ extern "C"
     uint32_t pco_get_timebase(pco_handle *pco, uint16_t *delay, uint16_t *expos);
 
     /**
-     * Get the capture delay time-length, in milliseconds. 
+     * Get the capture delay time-length, in seconds. 
      * @param pco handle
-     * @param delay output the delay time (ms)
+     * @param delay output the delay time (sec)
      * @return 0 on success, otherwise less than 0
      */
     uint32_t pco_get_delay_time(pco_handle *pco, double *delay);
 
     /**
-     * Set the capture delay time-length, in milliseconds. 
+     * Set the capture delay time-length, in seconds. 
      * @param pco handle
-     * @param delay the delay time (ms)
+     * @param delay the delay time (sec)
      * @return 0 on success, otherwise less than 0
      */
     uint32_t pco_set_delay_time(pco_handle *pco, double delay);
@@ -466,17 +466,17 @@ extern "C"
     uint32_t pco_get_delay_range(pco_handle *pco, uint32_t *min_ns, uint32_t *max_ms, uint32_t *step_ns);
 
     /**
-     * Get the capture exposure time-length, in milliseconds
+     * Get the capture exposure time-length, in seconds
      * @param pco handle
-     * @param exposure output the exposure time (ms)
+     * @param exposure output the exposure time (sec)
      * @return 0 on success, otherwise less than 0
      */
     uint32_t pco_get_exposure_time(pco_handle *pco, double *exposure);
 
     /**
-     * Set the capture exposure time-length, in milliseconds
+     * Set the capture exposure time-length, in seconds
      * @param pco handle
-     * @param exposure the exposure time (ms)
+     * @param exposure the exposure time (sec)
      * @return 0 on success, otherwise less than 0
      */
     uint32_t pco_set_exposure_time(pco_handle *pco, double exposure);
@@ -492,19 +492,19 @@ extern "C"
     uint32_t pco_get_exposure_range(pco_handle *pco, uint32_t *min_ns, uint32_t *max_ms, uint32_t *step_ns);
 
     /**
-     * Get the capture delay and exposure time-lengths, both in milliseconds
+     * Get the capture delay and exposure time-lengths, both in seconds
      * @param pco handle
-     * @param delay the delay time (ms)
-     * @param exposure the exposure time (ms)
+     * @param delay output the delay time (sec)
+     * @param exposure output the exposure time (sec)
      * @return 0 on success, otherwise less than 0
      */
     uint32_t pco_get_delay_exposure(pco_handle *pco, double *delay, double *exposure);
 
     /**
-     * Set the capture delay and exposure time-lengths, both in milliseconds
+     * Set the capture delay and exposure time-lengths, both in seconds
      * @param pco handle
-     * @param delay the delay time (ms)
-     * @param exposure the exposure time (ms)
+     * @param delay the delay time (sec)
+     * @param exposure the exposure time (sec)
      * @return 0 on success, otherwise less than 0
      */
     uint32_t pco_set_delay_exposure(pco_handle *pco, double delay, double exposure);

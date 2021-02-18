@@ -506,13 +506,14 @@ static void uca_pco_clhs_camera_set_property(GObject *object, guint property_id,
         double delay_sec = g_value_get_double(value);
         double delay_ms = CNV_UNIT_TO_MILLI(delay_sec);
         double delay_ns = CNV_UNIT_TO_NANO(delay_sec);
-        double min_ms = CNV_NANO_TO_MILLI(min_ns);
+        double min_sec = CNV_NANO_TO_UNIT(min_ns);
+        double max_sec = CNV_MILLI_TO_UNIT(max_ms);
         if (delay_ms > max_ms)
-            err = pco_set_delay_time(priv->pco, (double)max_ms);
+            err = pco_set_delay_time(priv->pco, max_sec);
         else if (delay_ns < min_ns)
-            err = pco_set_delay_time(priv->pco, (double)min_ms);
+            err = pco_set_delay_time(priv->pco, min_sec);
         else
-            err = pco_set_delay_time(priv->pco, delay_ms);
+            err = pco_set_delay_time(priv->pco, delay_sec);
     }
     break;
 
@@ -523,13 +524,14 @@ static void uca_pco_clhs_camera_set_property(GObject *object, guint property_id,
         double exposure_sec = g_value_get_double(value);
         double exposure_ms = CNV_UNIT_TO_MILLI(exposure_sec);
         double exposure_ns = CNV_UNIT_TO_NANO(exposure_sec);
-        double min_ms = CNV_NANO_TO_MILLI(min_ns);
+        double min_sec = CNV_NANO_TO_UNIT(min_ns);
+        double max_sec = CNV_MILLI_TO_UNIT(max_ms);
         if (exposure_ms > max_ms)
-            err = pco_set_exposure_time(priv->pco, (double)max_ms);
+            err = pco_set_exposure_time(priv->pco, max_sec);
         else if (exposure_ns < min_ns)
-            err = pco_set_exposure_time(priv->pco, (double)min_ms);
+            err = pco_set_exposure_time(priv->pco, min_sec);
         else
-            err = pco_set_exposure_time(priv->pco, exposure_ms);
+            err = pco_set_exposure_time(priv->pco, exposure_sec);
     }
     break;
 
@@ -795,7 +797,7 @@ static void uca_pco_clhs_camera_get_property(GObject *object, guint property_id,
     {
         double delay;
         err = pco_get_delay_time(priv->pco, &delay);
-        g_value_set_double(value, CNV_MILLI_TO_UNIT(delay));
+        g_value_set_double(value, delay);
     }
     break;
 
@@ -803,7 +805,7 @@ static void uca_pco_clhs_camera_get_property(GObject *object, guint property_id,
     {
         double exposure;
         err = pco_get_exposure_time(priv->pco, &exposure);
-        g_value_set_double(value, CNV_MILLI_TO_UNIT(exposure));
+        g_value_set_double(value, exposure);
     }
     break;
 
@@ -1214,13 +1216,6 @@ static void uca_pco_clhs_camera_class_init(UcaPcoClhsCameraClass *klass)
                             "Capture delay time",
                             "Capture delay time in seconds",
                             0., 1., 0.,
-                            G_PARAM_READWRITE);
-
-    pco_clhs_properties[PROP_EXPOSURE_TIME] =
-        g_param_spec_double("exposure-time",
-                            "Capture exposure time",
-                            "Capture exposure time in seconds",
-                            0., 2., 1.,
                             G_PARAM_READWRITE);
 
     for (guint id = N_BASE_PROPERTIES; id < N_PROPERTIES; id++)
