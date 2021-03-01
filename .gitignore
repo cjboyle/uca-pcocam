@@ -5,6 +5,10 @@ build*/
 uca-pcoclhs-enums.[ch]
 uca-pcousb-enums.[ch]
 
+# ignore temporary test items
+*.out
+test*
+
 # other
 .vscode/
 .temp*/
