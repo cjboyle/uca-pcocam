@@ -220,14 +220,14 @@ unsigned int pco_grabber_set_size(pco_handle *pco, uint32_t width, uint32_t heig
 unsigned int pco_grabber_allocate_memory(pco_handle *pco, int size)
 {
     // not actually implemented, just returns PCO_NOERROR
-    return pco->grabber->Allocate_Framebuffer(size);
+    // return pco->grabber->Allocate_Framebuffer(size);
+    return 0;
 }
 
 unsigned int pco_grabber_free_memory(pco_handle *pco)
 {
     // not actually implemented, just returns PCO_NOERROR
     // return pco->grabber->Free_Framebuffer();
-    // seems like it actually throws an error
     return 0;
 }
 
@@ -271,9 +271,6 @@ unsigned int pco_start_recording(pco_handle *pco)
     RETURN_IF_ERROR(err);
 
     err = pco_set_recording_state(pco, 1);
-    RETURN_IF_ERROR(err);
-
-    // err = pco->grabber->Start_Acquire();
     RETURN_ANY_CODE(err);
 }
 
@@ -281,7 +278,7 @@ unsigned int pco_stop_recording(pco_handle *pco)
 {
     DWORD err = pco_set_recording_state(pco, 0);
     RETURN_IF_ERROR(err);
-    err = pco->com->PCO_CancelImage();
+    // err = pco->com->PCO_CancelImage();
     // ignore error
     return 0;
 }
@@ -814,7 +811,24 @@ unsigned int pco_set_acquire_mode(pco_handle *pco, uint16_t mode)
     RETURN_ANY_CODE(err);
 }
 
-unsigned int pco_await_next_image_ex(pco_handle *pco, void *adr, int timeout)
+unsigned int pco_read_segment_images(pco_handle *pco, uint16_t segment, uint32_t start, uint32_t end)
+{
+    if (pco->description.dwGeneralCaps1 & GENERALCAPS1_NO_RECORDER)
+    {
+        fprintf(stderr, "Camera does not support image readout from segments\n");
+        return -1;
+    }
+    DWORD err = pco->com->PCO_ReadImagesFromSegment(segment, start, end);
+    RETURN_ANY_CODE(err);
+}
+
+unsigned int pco_request_image(pco_handle *pco)
+{
+    DWORD err = pco->com->PCO_RequestImage();
+    RETURN_ANY_CODE(err);
+}
+
+unsigned int pco_force_trigger_ex(pco_handle *pco, void *adr, int timeout)
 {
     DWORD err;
     uint16_t mode, triggered;
@@ -832,9 +846,9 @@ unsigned int pco_await_next_image_ex(pco_handle *pco, void *adr, int timeout)
     RETURN_ANY_CODE(err);
 }
 
-unsigned int pco_await_next_image(pco_handle *pco, void *adr)
+unsigned int pco_force_trigger(pco_handle *pco, void *adr)
 {
-    DWORD err = pco_await_next_image_ex(pco, adr, 10000);
+    DWORD err = pco_force_trigger_ex(pco, adr, 10000);
     RETURN_ANY_CODE(err);
 }
 

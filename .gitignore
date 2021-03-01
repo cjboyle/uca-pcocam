@@ -8,3 +8,5 @@ uca-pcousb-enums.[ch]
 # other
 .vscode/
 .temp*/
+*.out
+test*

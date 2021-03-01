@@ -565,12 +565,29 @@ extern "C"
     uint32_t pco_set_acquire_mode(pco_handle *pco, uint16_t mode);
 
     /**
+     * Read the specified images from the camera memory segment. Only valid on cameras with on-board recorder capabilities.
+     * @param pco handle
+     * @param segment the camera memory segment
+     * @param start the number of the first image to receive
+     * @param end the number of the last image to receive
+     * @return 0 on success, otherwise less than 0
+     */
+    unsigned int pco_read_segment_images(pco_handle *pco, uint16_t segment, uint32_t start, uint32_t end);
+
+    /**
+     * Request a single image from the camera.
+     * @param pco handle
+     * @return 0 on success, otherwise less than 0
+     */
+    unsigned int pco_request_image(pco_handle *pco);
+
+    /**
      * Trigger an image capture and transfer with a 10 second timeout
      * @param pco handle
      * @param adr external buffer to write image data
      * @return 0 on success, otherwise less than 0
      */
-    uint32_t pco_await_next_image(pco_handle *pco, void *adr);
+    uint32_t pco_force_trigger(pco_handle *pco, void *adr);
 
     /**
      * Trigger an image capture and transfer.
@@ -579,7 +596,7 @@ extern "C"
      * @param timeout the number of milliseconds to wait before an error is produced.
      * @return 0 on success, otherwise less than 0
      */
-    uint32_t pco_await_next_image_ex(pco_handle *pco, void *adr, int timeout);
+    uint32_t pco_force_trigger_ex(pco_handle *pco, void *adr, int timeout);
 
     /**
      * Simple image acquisition call to the pco.camera SDK with grabber-configured timeout.

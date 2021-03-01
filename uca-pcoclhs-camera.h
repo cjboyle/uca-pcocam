@@ -36,6 +36,11 @@ typedef enum {
     UCA_PCO_CLHS_CAMERA_TIMESTAMP_ASCII
 } UcaPcoClhsCameraTimestamp;
 
+typedef enum {
+    UCA_PCO_CLHS_CAMERA_RECORD_MODE_SEQUENCE,
+    UCA_PCO_CLHS_CAMERA_RECORD_MODE_RING_BUFFER
+} UcaPcoClhsCameraRecordMode;
+
 typedef struct _UcaPcoClhsCamera UcaPcoClhsCamera;
 typedef struct _UcaPcoClhsCameraClass UcaPcoClhsCameraClass;
 typedef struct _UcaPcoClhsCameraPrivate UcaPcoClhsCameraPrivate;

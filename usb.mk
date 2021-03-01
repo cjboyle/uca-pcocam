@@ -10,8 +10,8 @@ CXXFLAGS = -std=c++0x -O2 -Wall -fPIC
 LDFLAGS = -shared
 
 
-SRCS = $(PROJ_NAME)-camera.c $(PROJ_NAME)-enums.c pco.cpp pcousb.cpp
-HDRS = $(PROJ_NAME)-camera.h $(PROJ_NAME)-enums.h pco.h pcousb.h
+SRCS = $(PROJ_NAME)-camera.c $(PROJ_NAME)-enums.c stackbuffer.c ringbuffer.c pco.cpp pcousb.cpp
+HDRS = $(PROJ_NAME)-camera.h $(PROJ_NAME)-enums.h stackbuffer.h ringbuffer.h pco.h pcousb.h
 
 
 # UFO-KIT UCA

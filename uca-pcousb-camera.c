@@ -6,6 +6,8 @@
 #include <signal.h>
 
 #include "pcousb.h"
+#include "stackbuffer.h"
+#include "ringbuffer.h"
 #include "uca-pcousb-camera.h"
 #include "uca-pcousb-enums.h"
 
@@ -142,7 +144,7 @@ struct _UcaPcoUsbCameraPrivate
     guint16 board;
     guint16 port;
 
-    gsize buffer_size;
+    gsize buffer_size; /* size = img-width * img-height * pixel-depth * num-buffers */
     guint *grab_buffer;
     guint num_buffers;
 
@@ -202,7 +204,7 @@ static gpointer grab_func(gpointer rawptr)
     gpointer frame = NULL;
     guint err;
 
-    err = pco_await_next_image(priv->pco, frame);
+    err = pco_force_trigger(priv->pco, frame);
     // CHECK_AND_RETURN_VAL_ON_PCO_ERROR(err, NULL);
     if (err != 0)
     {
@@ -277,7 +279,7 @@ static void uca_pco_usb_camera_start_recording(UcaCamera *camera, GError **error
                     roi[2] - roi[0], roi[3] - roi[1], roi[0], roi[1], binned_width, binned_height);
     }
 
-    if (priv->grab_buffer)
+    if (priv->grab_buffer != NULL)
         g_free(priv->grab_buffer);
 
     priv->buffer_size = binned_width * binned_height * sizeof(guint16);
@@ -352,7 +354,6 @@ static gboolean uca_pco_usb_camera_grab(UcaCamera *camera, gpointer data, GError
 
     guint err;
     guint w, h;
-    // guint counter;
 
     err = pco_grabber_get_actual_size(priv->pco, &w, &h);
     CHECK_AND_RETURN_VAL_ON_PCO_ERROR(err, FALSE);

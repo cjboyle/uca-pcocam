@@ -56,8 +56,6 @@ static char *_get_error_text(DWORD code)
     return (char *)s;
 }
 
-
-
 /*************************/
 
 struct _pco_handle
@@ -73,6 +71,9 @@ struct _pco_handle
 
     int board, port;
 };
+
+void func_reorder_image_5x12(uint16_t *bufout, uint16_t *bufin, int width, int height);
+void func_reorder_image_5x16(uint16_t *bufout, uint16_t *bufin, int width, int height);
 
 static unsigned int _pco_init(pco_handle *pco, int board, int port)
 {
@@ -227,14 +228,14 @@ unsigned int pco_grabber_set_size(pco_handle *pco, uint32_t width, uint32_t heig
 unsigned int pco_grabber_allocate_memory(pco_handle *pco, int size)
 {
     // not actually implemented, just returns PCO_NOERROR
-    //return pco->grabber->Allocate_Framebuffer(size);  // CL v CLHS
+    // return pco->grabber->Allocate_Framebuffer(size);
     return 0;
 }
 
 unsigned int pco_grabber_free_memory(pco_handle *pco)
 {
     // not actually implemented, just returns PCO_NOERROR
-    // return pco->grabber->Free_Framebuffer();  // CL v CLHS
+    // return pco->grabber->Free_Framebuffer();
     return 0;
 }
 
@@ -288,7 +289,7 @@ unsigned int pco_stop_recording(pco_handle *pco)
 {
     DWORD err = pco_set_recording_state(pco, 0);
     RETURN_IF_ERROR(err);
-    err = pco->com->PCO_CancelImage();
+    // err = pco->com->PCO_CancelImage();
     // ignore error
     err = pco->grabber->Stop_Acquire();
     RETURN_ANY_CODE(err);
@@ -849,7 +850,24 @@ unsigned int pco_set_acquire_mode(pco_handle *pco, uint16_t mode)
     RETURN_ANY_CODE(err);
 }
 
-unsigned int pco_await_next_image_ex(pco_handle *pco, void *adr, int timeout)
+unsigned int pco_read_segment_images(pco_handle *pco, uint16_t segment, uint32_t start, uint32_t end)
+{
+    if (pco->description.dwGeneralCaps1 & GENERALCAPS1_NO_RECORDER)
+    {
+        fprintf(stderr, "Camera does not support image readout from segments\n");
+        return -1;
+    }
+    DWORD err = pco->com->PCO_ReadImagesFromSegment(segment, start, end);
+    RETURN_ANY_CODE(err);
+}
+
+unsigned int pco_request_image(pco_handle *pco)
+{
+    DWORD err = pco->com->PCO_RequestImage();
+    RETURN_ANY_CODE(err);
+}
+
+unsigned int pco_force_trigger_ex(pco_handle *pco, void *adr, int timeout)
 {
     DWORD err;
     uint16_t mode, triggered;
@@ -857,7 +875,7 @@ unsigned int pco_await_next_image_ex(pco_handle *pco, void *adr, int timeout)
     err = pco_get_trigger_mode(pco, &mode);
     RETURN_IF_ERROR(err);
 
-    if (mode == 0x0001)
+    if (mode == 0x0001 || mode == 0x0002)
     {
         err = pco_force_trigger(pco, &triggered);
         RETURN_IF_ERROR(err);
@@ -867,9 +885,9 @@ unsigned int pco_await_next_image_ex(pco_handle *pco, void *adr, int timeout)
     RETURN_ANY_CODE(err);
 }
 
-unsigned int pco_await_next_image(pco_handle *pco, void *adr)
+unsigned int pco_force_trigger(pco_handle *pco, void *adr)
 {
-    DWORD err = pco_await_next_image_ex(pco, adr, 10000);
+    DWORD err = pco_force_trigger_ex(pco, adr, 10000);
     RETURN_ANY_CODE(err);
 }
 
@@ -883,24 +901,6 @@ unsigned int pco_acquire_image_ex(pco_handle *pco, void *adr, int timeout)
 {
     DWORD err = pco->grabber->Acquire_Image(adr, timeout);
     RETURN_ANY_CODE(err);
-}
-
-unsigned int pco_acquire_n_images(pco_handle *pco, WORD **adr, uint32_t count)
-{
-    WORD img_size = sizeof(adr) / count, err = 0;
-
-    for (DWORD i = 0; i < count; i++)
-    {
-        DWORD buf_nr = i * img_size;
-        err = pco_acquire_image(pco, adr[buf_nr]);
-        RETURN_ANY_CODE(err);
-
-        if (i == 0)
-            pco->logger->start_time_mess();
-    }
-
-    pco->logger->stop_time_mess();
-    return err;
 }
 
 unsigned int pco_acquire_image_async(pco_handle *pco, void *adr)
@@ -1021,7 +1021,7 @@ static void _decode_line(int width, void *bufout, void *bufin)
     }
 }
 
-static void func_reorder_image_5x12(uint16_t *bufout, uint16_t *bufin, int width, int height)
+void func_reorder_image_5x12(uint16_t *bufout, uint16_t *bufin, int width, int height)
 {
     uint16_t *line_top = bufout;
     uint16_t *line_bottom = bufout + (height - 1) * width;
@@ -1039,7 +1039,7 @@ static void func_reorder_image_5x12(uint16_t *bufout, uint16_t *bufin, int width
     }
 }
 
-static void func_reorder_image_5x16(uint16_t *bufout, uint16_t *bufin, int width, int height)
+void func_reorder_image_5x16(uint16_t *bufout, uint16_t *bufin, int width, int height)
 {
     uint16_t *line_top = bufout;
     uint16_t *line_bottom = bufout + (height - 1) * width;
