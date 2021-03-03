@@ -10,3 +10,4 @@ uca-pcousb-enums.[ch]
 .temp*/
 *.out
 test*
+*.bak
