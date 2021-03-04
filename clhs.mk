@@ -7,14 +7,14 @@ PROJ_NAME = uca-pcoclhs
 
 
 CC = gcc
-CCFLAGS = -std=c99 -O2 -Wall -fPIC -DSISODIR5=$(SISODIR5)
+CCFLAGS = -isystem -std=c99 -O2 -Wall -Wno-write-strings -fPIC -DSISODIR5=$(SISODIR5)
 CXX = g++
-CXXFLAGS = -std=c++0x -O2 -Wall -fPIC
+CXXFLAGS = -isystem -std=c++0x -O2 -Wall -Wno-write-strings -fPIC
 LDFLAGS = -shared
 
 
-SRCS = $(PROJ_NAME)-camera.c $(PROJ_NAME)-enums.c stackbuffer.c ringbuffer.c pco.cpp pcoclhs.cpp
-HDRS = $(PROJ_NAME)-camera.h $(PROJ_NAME)-enums.h stackbuffer.h ringbuffer.h pco.h pcoclhs.h
+SRCS = $(PROJ_NAME)-camera.c $(PROJ_NAME)-enums.c stackbuffer.c ringbuffer.c pcoclhs.cpp
+HDRS = $(PROJ_NAME)-camera.h $(PROJ_NAME)-enums.h stackbuffer.h ringbuffer.h pcoclhs.h pco.h
 
 
 # UFO-KIT UCA

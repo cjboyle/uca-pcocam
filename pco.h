@@ -587,7 +587,7 @@ extern "C"
      * @param adr external buffer to write image data
      * @return 0 on success, otherwise less than 0
      */
-    uint32_t pco_force_trigger(pco_handle *pco, void *adr);
+    uint32_t pco_force_acquire(pco_handle *pco, void *adr);
 
     /**
      * Trigger an image capture and transfer.
@@ -596,7 +596,7 @@ extern "C"
      * @param timeout the number of milliseconds to wait before an error is produced.
      * @return 0 on success, otherwise less than 0
      */
-    uint32_t pco_force_trigger_ex(pco_handle *pco, void *adr, int timeout);
+    uint32_t pco_force_acquire_ex(pco_handle *pco, void *adr, int timeout);
 
     /**
      * Simple image acquisition call to the pco.camera SDK with grabber-configured timeout.

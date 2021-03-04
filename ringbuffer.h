@@ -9,8 +9,8 @@ struct _RingBuffer;
 typedef struct _RingBuffer RingBuffer;
 
 /* Allocates a new RingBuffer with the given capacity. */
-RingBuffer *rbuf_sized_new(gsize n_blocks, gsize block_size);
-// RingBuffer *rbuf_sized_new(guint capacity);
+RingBuffer *rbuf_sized_new(guint capacity);
+// RingBuffer *rbuf_sized_new(gsize n_blocks, guint block_size);
 
 /* Frees a RingBuffer including its array contents. */
 void rbuf_free(RingBuffer *rbuf);
@@ -28,6 +28,12 @@ gpointer rbuf_read(RingBuffer *rbuf);
 /* Writes an element to a RingBuffer then advances its write pointer.
    May overwrite existing array elements. */
 void rbuf_write(RingBuffer *rbuf, gpointer data);
+
+gpointer rbuf_write_replace(RingBuffer *rbuf, gpointer data);
+
+// gpointer rbuf_get_write_pointer(RingBuffer *rbuf);
+
+void rbuf_advance(RingBuffer *rbuf);
 
 /* Returns the number of elements in the RingBuffer. */
 guint rbuf_length(RingBuffer *rbuf);

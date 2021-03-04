@@ -456,8 +456,7 @@ unsigned int pco_set_fps(pco_handle *pco, double fps)
     }
     else if (status == SET_FRAMERATE_STATUS_NOT_YET_VALIDATED)
         return err;
-    else
-        return err;
+    return err;
 }
 
 unsigned int pco_get_fps(pco_handle *pco, double *fps)
@@ -828,7 +827,7 @@ unsigned int pco_request_image(pco_handle *pco)
     RETURN_ANY_CODE(err);
 }
 
-unsigned int pco_force_trigger_ex(pco_handle *pco, void *adr, int timeout)
+unsigned int pco_force_acquire_ex(pco_handle *pco, void *adr, int timeout)
 {
     DWORD err;
     uint16_t mode, triggered;
@@ -846,9 +845,9 @@ unsigned int pco_force_trigger_ex(pco_handle *pco, void *adr, int timeout)
     RETURN_ANY_CODE(err);
 }
 
-unsigned int pco_force_trigger(pco_handle *pco, void *adr)
+unsigned int pco_force_acquire(pco_handle *pco, void *adr)
 {
-    DWORD err = pco_force_trigger_ex(pco, adr, 10000);
+    DWORD err = pco_force_acquire_ex(pco, adr, 10000);
     RETURN_ANY_CODE(err);
 }
 
