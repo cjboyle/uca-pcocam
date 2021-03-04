@@ -422,6 +422,11 @@ unsigned int pco_get_resolution(pco_handle *pco, uint16_t *width_std, uint16_t *
     return 0;
 }
 
+unsigned int pco_get_actual_size(pco_handle *pco, uint32_t *width, uint32_t *height)
+{
+    DWORD err = pco->com->PCO_GetActualSize(width, height);
+}
+
 unsigned int pco_get_available_pixelrates(pco_handle *pco, uint32_t rates[4], int *num_rates)
 {
     int n = 0;

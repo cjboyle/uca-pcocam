@@ -248,6 +248,15 @@ extern "C"
      * @return 0 on success, otherwise less than 0
      */
     uint32_t pco_get_resolution(pco_handle *pco, uint16_t *width_std, uint16_t *height_std, uint16_t *width_ex, uint16_t *height_ex);
+    
+    /**
+     * Get the actual image size of the armed camera, in pixels.
+     * @param pco handle
+     * @param width output the armed image width
+     * @param height output the armed image height
+     * @return 0 on success, otherwise less than 0
+     */
+    unsigned int pco_get_actual_size(pco_handle *pco, uint32_t *width, uint32_t *height);
 
     /**
      * Get list of available sensor pixel rates, in Hz.
