@@ -62,7 +62,7 @@ enum
     PROP_SENSOR_PIXELRATE,
     PROP_HAS_DOUBLE_IMAGE_MODE,
     PROP_DOUBLE_IMAGE_MODE,
-    PROP_RECORD_MODE,
+    // PROP_RECORD_MODE,
     PROP_ACQUIRE_MODE,
     PROP_FAST_SCAN,
     PROP_NOISE_FILTER,
@@ -94,7 +94,7 @@ static gint base_overrideables[] = {
     PROP_ROI_HEIGHT_MULTIPLIER,
     PROP_HAS_STREAMING,
     PROP_HAS_CAMRAM_RECORDING,
-    PROP_RECORDED_FRAMES,
+    // PROP_RECORDED_FRAMES,
     PROP_IS_RECORDING,
     0,
 };
@@ -145,10 +145,10 @@ struct _UcaPcoClhsCameraPrivate
     guint16 board;
     guint16 port;
 
-    gsize buffer_size; /* size = img-width * img-height * pixel-depth * num-buffers */
-    guint num_buffers;
-    gpointer image_buffer; /* either StackBuffer or RingBuffer */
-    gboolean is_stack_buffer;
+    // gsize buffer_size; /* size = img-width * img-height * pixel-depth * num-buffers */
+    // guint num_buffers;
+    // gpointer image_buffer; /* either StackBuffer or RingBuffer */
+    // gboolean is_stack_buffer;
     gsize image_size;
 
     GValueArray *pixelrates;
@@ -157,7 +157,7 @@ struct _UcaPcoClhsCameraPrivate
     // guint num_recorded_images;
     // guint idx_current_image;
     /* post-record frame buffer */
-    StackBuffer *recorded_frames;
+    // StackBuffer *recorded_frames;
 
     gchar *version;
 
@@ -170,9 +170,9 @@ struct _UcaPcoClhsCameraPrivate
     GThread *grab_thread;
     GAsyncQueue *grab_trigger_queue;
 
-    gboolean acq_thread_running;
-    GThread *acq_thread;
-    GAsyncQueue *acq_trigger_queue;
+    // gboolean acq_thread_running;
+    // GThread *acq_thread;
+    // GAsyncQueue *acq_trigger_queue;
 };
 
 static void fill_pixelrates(UcaPcoClhsCameraPrivate *priv, guint32 rates[4], gint num_rates)
@@ -214,58 +214,62 @@ static gpointer grab_func(gpointer rawptr)
     UcaPcoClhsCameraPrivate *priv = UCA_PCO_CLHS_CAMERA_GET_PRIVATE(camera);
     guint err;
 
-    gboolean has_data = priv->is_stack_buffer
-                            ? !sbuf_is_empty((StackBuffer *)priv->image_buffer)
-                            : rbuf_read_available((RingBuffer *)priv->image_buffer);
+    // gboolean has_data = priv->is_stack_buffer
+    //                         ? !sbuf_is_empty((StackBuffer *)priv->image_buffer)
+    //                         : rbuf_read_available((RingBuffer *)priv->image_buffer);
 
-    if (priv->grab_thread_running && has_data)
-    {
-        gpointer data = priv->is_stack_buffer
-                            ? sbuf_shift((StackBuffer *)priv->image_buffer)
-                            : rbuf_read((RingBuffer *)priv->image_buffer);
-        camera->grab_func(data, camera->user_data);
-    }
+    // if (priv->grab_thread_running && has_data)
+    // {
+    //     gpointer data = priv->is_stack_buffer
+    //                         ? sbuf_shift((StackBuffer *)priv->image_buffer)
+    //                         : rbuf_read((RingBuffer *)priv->image_buffer);
+    //     camera->grab_func(data, camera->user_data);
+    // }
+
+    gpointer frame = g_malloc0(priv->image_size);
+    err = pco_acquire_image_await(priv->pco, frame);
+    camera->grab_func(frame, camera->user_data);
 
     return NULL;
 }
 
-static gpointer acq_func(gpointer rawptr)
-{
-    UcaCamera *camera = UCA_CAMERA(rawptr);
-    g_return_val_if_fail(UCA_IS_PCO_CLHS_CAMERA(camera), NULL);
-    UcaPcoClhsCameraPrivate *priv = UCA_PCO_CLHS_CAMERA_GET_PRIVATE(camera);
-    guint32 err;
+// static gpointer acq_func(gpointer rawptr)
+// {
+//     UcaCamera *camera = UCA_CAMERA(rawptr);
+//     g_return_val_if_fail(UCA_IS_PCO_CLHS_CAMERA(camera), NULL);
+//     UcaPcoClhsCameraPrivate *priv = UCA_PCO_CLHS_CAMERA_GET_PRIVATE(camera);
+//     guint32 err;
 
-    if (priv->is_stack_buffer)
-    {
-        guint i;
-        for (i = 0; i < priv->num_buffers && pco_is_recording(priv->pco) && priv->acq_thread_running; i++)
-        {
-            gpointer image = g_malloc0(priv->image_size);
-            err = pco_acquire_image_await(priv->pco, image);
-            if (err != PCO_NOERROR)
-                break;
-            sbuf_push((StackBuffer *)priv->image_buffer, image);
-        }
-    }
-    else // is ring buffer
-    {
-        while (pco_is_recording(priv->pco) && priv->acq_thread_running)
-        {
-            gpointer image = g_malloc0(priv->image_size);
-            err = pco_acquire_image_await(priv->pco, image);
-            if (err != PCO_NOERROR)
-                break;
-            rbuf_write((RingBuffer *)priv->image_buffer, image);
-        }
-    }
+//     if (priv->is_stack_buffer)
+//     {
+//         guint i;
+//         for (i = 0; i < priv->num_buffers && pco_is_recording(priv->pco) && priv->acq_thread_running; i++)
+//         {
+//             gpointer image = g_malloc0(priv->image_size);
+//             err = pco_acquire_image_await(priv->pco, image);
+//             if (err != PCO_NOERROR)
+//                 break;
+//             sbuf_push((StackBuffer *)priv->image_buffer, image);
+//         }
+//     }
+//     else // is ring buffer
+//     {
+//         while (pco_is_recording(priv->pco) && priv->acq_thread_running)
+//         {
+//             gpointer image = g_malloc0(priv->image_size);
+//             err = pco_acquire_image_await(priv->pco, image);
+//             if (err != PCO_NOERROR)
+//                 break;
+//             rbuf_write((RingBuffer *)priv->image_buffer, image);
+//         }
+//     }
 
-    if (err != 0)
-    {
-        g_error("Error acquiring next image at <%s:%i>", __FILE__, __LINE__);
-    }
-    return NULL;
-}
+//     if (err != 0)
+//     {
+//         g_error("Error acquiring next image at <%s:%i>", __FILE__, __LINE__);
+//     }
+//     return NULL;
+// }
 
 static void uca_pco_clhs_camera_start_recording(UcaCamera *camera, GError **error)
 {
@@ -286,7 +290,7 @@ static void uca_pco_clhs_camera_start_recording(UcaCamera *camera, GError **erro
     g_object_get(camera,
                  "trigger-source", &priv->trigger_source,
                  "transfer-asynchronously", &transfer_async,
-                 "num-buffers", &priv->num_buffers,
+                //  "num-buffers", &priv->num_buffers,
                  "record-mode", &record_mode,
                  NULL);
 
@@ -324,28 +328,29 @@ static void uca_pco_clhs_camera_start_recording(UcaCamera *camera, GError **erro
                     roi[2] - roi[0], roi[3] - roi[1], roi[0], roi[1], binned_width, binned_height);
     }
 
-    if (priv->image_buffer != NULL)
-    {
-        // g_free(priv->image_buffer);
-        if (priv->is_stack_buffer)
-            sbuf_free((StackBuffer *)priv->image_buffer);
-        else
-            rbuf_free((RingBuffer *)priv->image_buffer);
-    }
-
     priv->image_size = binned_width * binned_height * sizeof(guint16);
-    priv->buffer_size = priv->num_buffers * priv->image_size;
 
-    if (record_mode == UCA_PCO_CLHS_CAMERA_RECORD_MODE_SEQUENCE)
-    {
-        priv->image_buffer = sbuf_sized_new(priv->num_buffers);
-        priv->is_stack_buffer = TRUE;
-    }
-    else // UCA_PCO_CLHS_CAMERA_RECORD_MODE_RING_BUFFER
-    {
-        priv->image_buffer = rbuf_sized_new(priv->num_buffers);
-        priv->is_stack_buffer = FALSE;
-    }
+    // if (priv->image_buffer != NULL)
+    // {
+    //     // g_free(priv->image_buffer);
+    //     if (priv->is_stack_buffer)
+    //         sbuf_free((StackBuffer *)priv->image_buffer);
+    //     else
+    //         rbuf_free((RingBuffer *)priv->image_buffer);
+    // }
+
+    // priv->buffer_size = priv->num_buffers * priv->image_size;
+
+    // if (record_mode == UCA_PCO_CLHS_CAMERA_RECORD_MODE_SEQUENCE)
+    // {
+    //     priv->image_buffer = sbuf_sized_new(priv->num_buffers);
+    //     priv->is_stack_buffer = TRUE;
+    // }
+    // else // UCA_PCO_CLHS_CAMERA_RECORD_MODE_RING_BUFFER
+    // {
+    //     priv->image_buffer = rbuf_sized_new(priv->num_buffers);
+    //     priv->is_stack_buffer = FALSE;
+    // }
 
     if (transfer_async)
     {
@@ -366,18 +371,18 @@ static void uca_pco_clhs_camera_start_recording(UcaCamera *camera, GError **erro
     err = pco_start_recording(priv->pco);
     CHECK_AND_RETURN_VOID_ON_PCO_ERROR(err);
 
-    GError *acq_thd_err = NULL;
-    priv->acq_thread_running = TRUE;
-#if GLIB_CHECK_VERSION(2, 32, 0)
-    priv->acq_thread = g_thread_try_new("acq-thread", acq_func, camera, &acq_thd_err);
-#else
-    priv->acq_thread = g_thread_create(acq_func, camera, TRUE, &acq_thd_err);
-#endif
-    if (acq_thd_err != NULL)
-    {
-        priv->acq_thread_running = TRUE;
-        g_propagate_error(error, acq_thd_err);
-    }
+//     GError *acq_thd_err = NULL;
+//     priv->acq_thread_running = TRUE;
+// #if GLIB_CHECK_VERSION(2, 32, 0)
+//     priv->acq_thread = g_thread_try_new("acq-thread", acq_func, camera, &acq_thd_err);
+// #else
+//     priv->acq_thread = g_thread_create(acq_func, camera, TRUE, &acq_thd_err);
+// #endif
+//     if (acq_thd_err != NULL)
+//     {
+//         priv->acq_thread_running = TRUE;
+//         g_propagate_error(error, acq_thd_err);
+//     }
 }
 
 static void uca_pco_clhs_camera_stop_recording(UcaCamera *camera, GError **error)
@@ -392,8 +397,8 @@ static void uca_pco_clhs_camera_stop_recording(UcaCamera *camera, GError **error
     err = pco_stop_recording(priv->pco);
     CHECK_AND_RETURN_VOID_ON_PCO_ERROR(err);
 
-    priv->acq_thread_running = FALSE;
-    g_thread_join(priv->acq_thread);
+    // priv->acq_thread_running = FALSE;
+    // g_thread_join(priv->acq_thread);
 
     gboolean transfer_async = FALSE;
     g_object_get(G_OBJECT(camera), "transfer-asynchronously", &transfer_async, NULL);
@@ -406,16 +411,16 @@ static void uca_pco_clhs_camera_stop_recording(UcaCamera *camera, GError **error
     // move buffered images to recorded_frames stack
 
     // first release any old frames
-    if (!sbuf_is_empty((StackBuffer *)priv->recorded_frames))
-        sbuf_free((StackBuffer *)priv->recorded_frames);
+    // if (!sbuf_is_empty((StackBuffer *)priv->recorded_frames))
+    //     sbuf_free((StackBuffer *)priv->recorded_frames);
 
-    // move the buffered images
-    priv->recorded_frames = priv->is_stack_buffer ? priv->image_buffer : rbuf_to_sbuf((RingBuffer *)priv->image_buffer);
+    // // move the buffered images
+    // priv->recorded_frames = priv->is_stack_buffer ? priv->image_buffer : rbuf_to_sbuf((RingBuffer *)priv->image_buffer);
 
-    // release the now-empty stack
-    if (!priv->is_stack_buffer)
-        rbuf_free((RingBuffer *)priv->image_buffer);
-    priv->image_buffer = NULL;
+    // // release the now-empty stack
+    // if (!priv->is_stack_buffer)
+    //     rbuf_free((RingBuffer *)priv->image_buffer);
+    // priv->image_buffer = NULL;
 }
 
 static void uca_pco_clhs_camera_trigger(UcaCamera *camera, GError **error)
@@ -443,11 +448,7 @@ static gboolean uca_pco_clhs_camera_grab(UcaCamera *camera, gpointer data, GErro
     UcaPcoClhsCameraPrivate *priv = UCA_PCO_CLHS_CAMERA_GET_PRIVATE(camera);
 
     guint err;
-    guint w, h;
-
-    err = pco_grabber_get_actual_size(priv->pco, &w, &h);
-    CHECK_AND_RETURN_VAL_ON_PCO_ERROR(err, FALSE);
-    gsize size = w * h * sizeof(guint16);
+    gsize size = priv->image_size;
 
     gboolean is_readout;
     g_object_get(G_OBJECT(camera), "is-readout", &is_readout, NULL);
@@ -458,16 +459,27 @@ static gboolean uca_pco_clhs_camera_grab(UcaCamera *camera, gpointer data, GErro
         return FALSE;
     }
 
-    if (sbuf_is_empty((StackBuffer *)priv->recorded_frames))
-    {
-        g_set_error(error, UCA_PCO_CLHS_CAMERA_ERROR, UCA_PCO_CLHS_CAMERA_ERROR_FG_GENERAL, "No images in buffer");
-        return FALSE;
-    }
+    // if (sbuf_is_empty((StackBuffer *)priv->recorded_frames))
+    // {
+    //     g_set_error(error, UCA_PCO_CLHS_CAMERA_ERROR, UCA_PCO_CLHS_CAMERA_ERROR_FG_GENERAL, "No images in buffer");
+    //     return FALSE;
+    // }
 
-    gpointer frame = sbuf_pop((StackBuffer *)priv->recorded_frames);
+    // gpointer frame = sbuf_pop((StackBuffer *)priv->recorded_frames);
+
+    gpointer frame = g_malloc0(size);
+    err = pco_acquire_image_await(priv->pco, frame);
+    CHECK_AND_RETURN_VAL_ON_PCO_ERROR(err, FALSE);
+
     if (frame == NULL)
     {
         g_set_error(error, UCA_PCO_CLHS_CAMERA_ERROR, UCA_PCO_CLHS_CAMERA_ERROR_FG_GENERAL, "Frame data is NULL");
+        return FALSE;
+    }
+
+    if (data == NULL)
+    {
+        g_set_error(error, UCA_CAMERA_ERROR, UCA_PCO_CLHS_CAMERA_ERROR_FG_GENERAL, "UcaCamera provided NULL recipient buffer");
         return FALSE;
     }
 
@@ -1025,24 +1037,20 @@ static void uca_pco_clhs_camera_get_property(GObject *object, guint property_id,
     }
     break;
 
-    case PROP_RECORDED_FRAMES:
-    {
-        if (priv->recorded_frames == NULL)
-            g_value_set_uint(value, 0);
-        else
-            g_value_set_uint(value, sbuf_length((StackBuffer *)priv->recorded_frames));
-    }
-    break;
+    // case PROP_RECORDED_FRAMES:
+    // {
+    //     if (priv->recorded_frames == NULL)
+    //         g_value_set_uint(value, 0);
+    //     else
+    //         g_value_set_uint(value, sbuf_length((StackBuffer *)priv->recorded_frames));
+    // }
+    // break;
 
     case PROP_FRAMES_PER_SECOND:
     {
         gdouble rate;
         err = pco_get_fps(priv->pco, &rate);
         g_value_set_double(value, rate);
-        // guint16 w, h;
-        // pco_get_pixelrate(priv->pco, &rate);
-        // pco_grabber_get_actual_size(priv->pco, &w, &h);
-        // g_value_set_float(value, ((float)(w * h)) / (float)rate);
     }
     break;
 
@@ -1074,11 +1082,11 @@ static void uca_pco_clhs_camera_finalize(GObject *object)
         g_thread_join(priv->grab_thread);
     }
 
-    if (priv->acq_thread_running)
-    {
-        priv->acq_thread_running = FALSE;
-        g_thread_join(priv->acq_thread);
-    }
+    // if (priv->acq_thread_running)
+    // {
+    //     priv->acq_thread_running = FALSE;
+    //     g_thread_join(priv->acq_thread);
+    // }
 
     // close camera connections
     pco_grabber_free_memory(priv->pco);
@@ -1091,20 +1099,20 @@ static void uca_pco_clhs_camera_finalize(GObject *object)
 
     // free buffers
 
-    if (priv->image_buffer != NULL)
-    {
-        if (priv->is_stack_buffer)
-            sbuf_free((StackBuffer *)priv->image_buffer);
-        else
-            rbuf_free((RingBuffer *)priv->image_buffer);
-        priv->image_buffer = NULL;
-    }
+    // if (priv->image_buffer != NULL)
+    // {
+    //     if (priv->is_stack_buffer)
+    //         sbuf_free((StackBuffer *)priv->image_buffer);
+    //     else
+    //         rbuf_free((RingBuffer *)priv->image_buffer);
+    //     priv->image_buffer = NULL;
+    // }
 
-    if (priv->recorded_frames != NULL)
-    {
-        sbuf_free((StackBuffer *)priv->recorded_frames);
-        priv->recorded_frames = NULL;
-    }
+    // if (priv->recorded_frames != NULL)
+    // {
+    //     sbuf_free((StackBuffer *)priv->recorded_frames);
+    //     priv->recorded_frames = NULL;
+    // }
 
     // free other allocated fields
 
@@ -1256,12 +1264,12 @@ static void uca_pco_clhs_camera_class_init(UcaPcoClhsCameraClass *klass)
                           UCA_TYPE_PCO_CLHS_CAMERA_ACQUIRE_MODE, UCA_PCO_CLHS_CAMERA_ACQUIRE_MODE_AUTO,
                           G_PARAM_READWRITE);
 
-    pco_clhs_properties[PROP_RECORD_MODE] =
-        g_param_spec_enum("record-mode",
-                          "Record mode",
-                          "Sequential (fixed buffer) or Ring Buffer",
-                          UCA_TYPE_PCO_CLHS_CAMERA_RECORD_MODE, UCA_PCO_CLHS_CAMERA_RECORD_MODE_RING_BUFFER,
-                          G_PARAM_READWRITE);
+    // pco_clhs_properties[PROP_RECORD_MODE] =
+    //     g_param_spec_enum("record-mode",
+    //                       "Record mode",
+    //                       "Sequential (fixed buffer) or Ring Buffer",
+    //                       UCA_TYPE_PCO_CLHS_CAMERA_RECORD_MODE, UCA_PCO_CLHS_CAMERA_RECORD_MODE_RING_BUFFER,
+    //                       G_PARAM_READWRITE);
 
     pco_clhs_properties[PROP_FAST_SCAN] =
         g_param_spec_boolean("fast-scan",
@@ -1396,8 +1404,8 @@ uca_pco_clhs_camera_init(UcaPcoClhsCamera *self)
     self->priv = priv = UCA_PCO_CLHS_CAMERA_GET_PRIVATE(self);
 
     priv->description = NULL;
-    priv->image_buffer = NULL;
-    priv->recorded_frames = NULL;
+    // priv->image_buffer = NULL;
+    // priv->recorded_frames = NULL;
     priv->construct_error = NULL;
     priv->version = g_strdup(DEFAULT_VERSION);
 
