@@ -8,7 +8,6 @@
 #include "pco/include/usb/Cpco_com_usb.h"
 #include "pco/include/usb/Cpco_grab_usb.h"
 #include "pco/include/usb/Cpco_log.h"
-#include "pco/include/usb/reorderfunc.h"
 
 // PCO_errt.h is a header file w/ hard-coded function implementations.
 // It also contains non-standard function calls that must be escaped.
@@ -28,24 +27,12 @@
  * UFO-KIT's libpco library partial implementation.
  */
 
+#undef CHECK_ERROR
 #define CHECK_ERROR(code)                                                        \
     if ((code) != 0)                                                             \
     {                                                                            \
         fprintf(stderr, "Error: 0x%x at <%s:%i>\n", (code), __FILE__, __LINE__); \
         fprintf(stderr, "  %s\n", _get_error_text((code)));                      \
-    }
-
-#define RETURN_IF_ERROR(code) \
-    {                         \
-        CHECK_ERROR(code);    \
-        if ((code) != 0)      \
-            return (code);    \
-    }
-
-#define RETURN_ANY_CODE(code) \
-    {                         \
-        CHECK_ERROR(code);    \
-        return (code);        \
     }
 
 /* Static helper functions */
@@ -134,16 +121,7 @@ static unsigned int _pco_init(pco_handle *pco, int board, int port)
     }
 
     err = pco->com->PCO_SetBitAlignment(BIT_ALIGNMENT_LSB);
-    CHECK_ERROR(err);
-    if (err != PCO_NOERROR)
-    {
-    }
-
-    // err = pco_arm_camera(pco);
-    // RETURN_IF_ERROR(err);
-
-    // DWORD times[3] = {2000, 10000, 10000};
-    // pco->com->Set_Timeouts(times, 3);
+    RETURN_IF_ERROR(err);
 
     return PCO_NOERROR;
 }
@@ -205,6 +183,25 @@ unsigned int pco_open_camera(pco_handle *pco, int port)
     RETURN_ANY_CODE(err);
 }
 
+static unsigned int pco_reboot_camera(pco_handle *pco)
+{
+    DWORD err = pco->com->PCO_RebootCamera();
+    RETURN_IF_ERROR(err);
+
+    sleep(10);
+
+    if (!pco_is_active(pco))
+        sleep(30);
+
+    if (!pco_is_active(pco))
+    {
+        err = pco_get_camera_type(pco, &discard.ui16, &discard.ui16);
+        RETURN_ANY_CODE(err);
+    }
+
+    return PCO_NOERROR;
+}
+
 unsigned int pco_control_command(pco_handle *pco, void *buffer_in, uint32_t size_in, void *buffer_out, uint32_t size_out)
 {
     DWORD err = pco->com->Control_Command(buffer_in, size_in, buffer_out, size_out);
@@ -257,8 +254,6 @@ unsigned int pco_prepare_recording(pco_handle *pco)
     {
         err = pco->grabber->Set_Grabber_Size(cameraW, cameraH);
         RETURN_IF_ERROR(err);
-
-        pco_grabber_allocate_memory(pco, 20);
     }
 
     err = pco_arm_camera(pco);
@@ -293,8 +288,7 @@ bool pco_is_recording(pco_handle *pco)
 
 bool pco_is_active(pco_handle *pco)
 {
-    uint16_t discard1, discard2;
-    DWORD err = pco_get_camera_type(pco, &discard1, &discard2);
+    DWORD err = pco_get_camera_type(pco, &discard.ui16, &discard.ui16);
     return err == PCO_NOERROR;
 }
 
@@ -358,6 +352,31 @@ unsigned int pco_get_temperature(pco_handle *pco, int16_t *ccd, int16_t *camera,
     RETURN_ANY_CODE(err);
 }
 
+uint32_t pco_get_cooling_range(pco_handle *pco, int16_t *min, int16_t *max, int16_t *dflt)
+{
+    *min = pco->description.sMinCoolSetDESC;
+    *max = pco->description.sMaxCoolSetDESC;
+    *dflt = pco->description.sDefaultCoolSetDESC;
+    return PCO_NOERROR;
+}
+
+uint32_t pco_get_cooling_setpoint(pco_handle *pco, int16_t *temperature)
+{
+    DWORD err = pco->com->PCO_GetCoolingSetpointTemperature(temperature);
+    if (err != 0)
+        *temperature = pco->description.sDefaultCoolSetDESC;
+    return 0;
+}
+
+uint32_t pco_set_cooling_setpoint(pco_handle *pco, int16_t temperature)
+{
+    bool supported = pco->description.sMinCoolSetDESC != pco->description.sMaxCoolSetDESC;
+    RETURN_IF_NOT_SUPPORTED(supported, "Camera does not support sensor cooling", -1);
+    
+    DWORD err = pco->com->PCO_SetCoolingSetpointTemperature(temperature);
+    RETURN_ANY_CODE(err);
+}
+
 unsigned int pco_get_name(pco_handle *pco, char **name)
 {
     char *str = (char *)malloc(40 * sizeof(char));
@@ -389,18 +408,6 @@ unsigned int pco_set_sensor_format(pco_handle *pco, uint16_t format)
     RETURN_ANY_CODE(err);
 }
 
-uint32_t pco_get_cooling_setpoint(pco_handle *pco, short *temperature)
-{
-    DWORD err = pco->com->PCO_GetCoolingSetpointTemperature(temperature);
-    RETURN_ANY_CODE(err);
-}
-
-uint32_t pco_set_cooling_setpoint(pco_handle *pco, short temperature)
-{
-    DWORD err = pco->com->PCO_SetCoolingSetpointTemperature(temperature);
-    RETURN_ANY_CODE(err);
-}
-
 unsigned int pco_get_resolution(pco_handle *pco, uint16_t *width_std, uint16_t *height_std, uint16_t *width_ex, uint16_t *height_ex)
 {
     *width_std = pco->description.wMaxHorzResStdDESC;
@@ -413,6 +420,7 @@ unsigned int pco_get_resolution(pco_handle *pco, uint16_t *width_std, uint16_t *
 unsigned int pco_get_actual_size(pco_handle *pco, uint32_t *width, uint32_t *height)
 {
     DWORD err = pco->com->PCO_GetActualSize(width, height);
+    RETURN_ANY_CODE(err);
 }
 
 unsigned int pco_get_available_pixelrates(pco_handle *pco, uint32_t rates[4], int *num_rates)
@@ -439,13 +447,11 @@ unsigned int pco_set_pixelrate(pco_handle *pco, uint32_t rate)
     RETURN_ANY_CODE(err);
 }
 
-static void pco_post_update_pixelrate(pco_handle *pco)
-{
-    return;
-}
-
 unsigned int pco_set_fps(pco_handle *pco, double fps)
 {
+    bool can_set_fps = (bool)pco->description.dwGeneralCaps1 & GENERALCAPS1_SETFRAMERATE_ENABLED;
+    RETURN_IF_NOT_SUPPORTED(can_set_fps, "Setting FPS directly is not supported", -1);
+
     WORD status;
     uint32_t rate = (uint32_t)(fps * 1e3); // Hz (FPS) to milli-Hz (mFPS)
     double expo;
@@ -453,22 +459,14 @@ unsigned int pco_set_fps(pco_handle *pco, double fps)
     RETURN_IF_ERROR(err);
     uint32_t expo_ns = (uint32_t)CNV_UNIT_TO_NANO(expo);
     err = pco->com->PCO_SetFrameRate(&status, SET_FRAMERATE_MODE_FRAMERATE_HAS_PRIORITY, &rate, &expo_ns);
-    CHECK_ERROR(err);
-    if (err != PCO_NOERROR)
-    {
-        fprintf(stderr, "Setting the FPS is not supported by the camera.\n");
-        fprintf(stderr, "Please manually set the FPS through `exposure-time' and `delay-time'\n");
-    }
-    else if (status == SET_FRAMERATE_STATUS_NOT_YET_VALIDATED)
-        return err;
-    return err;
+    RETURN_ANY_CODE(err);
 }
 
 unsigned int pco_get_fps(pco_handle *pco, double *fps)
 {
     WORD status;
-    uint32_t rate, discard;
-    DWORD err = pco->com->PCO_GetFrameRate(&status, &rate, &discard);
+    uint32_t rate;
+    DWORD err = pco->com->PCO_GetFrameRate(&status, &rate, &discard.ui32);
     if (err == PCO_NOERROR)
     {
         *fps = rate * 1e-3; // mHz to Hz
@@ -480,8 +478,7 @@ unsigned int pco_get_fps(pco_handle *pco, double *fps)
         double expo, delay;
         err = pco_get_delay_exposure(pco, &delay, &expo);
         RETURN_IF_ERROR(err);
-        double secs = expo + delay;
-        *fps = 1.0 / secs;
+        *fps = 1.0 / (expo + delay);
     }
     RETURN_ANY_CODE(err);
 }
@@ -503,11 +500,11 @@ unsigned int pco_get_available_conversion_factors(pco_handle *pco, uint16_t fact
  */
 unsigned int pco_set_scan_mode(pco_handle *pco, uint32_t mode)
 {
-    uint32_t pixelrates[4];
-    int n;
-    DWORD err = pco_get_available_pixelrates(pco, pixelrates, &n);
+    DWORD err = 0;
+    uint32_t *pixelrates = pco->description.dwPixelRateDESC;
 
-    RETURN_IF_ERROR(err);
+    if (mode > 1)
+        mode = 1;
 
     uint32_t pixelrate = pixelrates[mode];
 
@@ -520,13 +517,10 @@ unsigned int pco_set_scan_mode(pco_handle *pco, uint32_t mode)
 
 unsigned int pco_get_scan_mode(pco_handle *pco, uint32_t *mode)
 {
-    uint32_t pixelrates[4];
-    int n;
-    DWORD err = pco_get_available_pixelrates(pco, pixelrates, &n);
-    RETURN_IF_ERROR(err);
+    uint32_t *pixelrates = pco->description.dwPixelRateDESC;
 
     uint32_t curr_pixelrate;
-    err = pco_get_pixelrate(pco, &curr_pixelrate);
+    DWORD err = pco_get_pixelrate(pco, &curr_pixelrate);
     RETURN_IF_ERROR(err);
 
     for (int i = 0; i < 4; i++)
@@ -538,9 +532,8 @@ unsigned int pco_get_scan_mode(pco_handle *pco, uint32_t *mode)
         }
     }
 
-    *mode = 0xFFFF;
-    return 0x80000000;
-    // TODO
+    *mode = -1;
+    RETURN_ANY_CODE(PCO_ERROR_IS_ERROR);
 }
 
 unsigned int pco_set_lut(pco_handle *pco, uint16_t key, uint16_t val)
@@ -612,6 +605,22 @@ unsigned int pco_get_double_image_mode(pco_handle *pco, bool *on)
     return err;
 }
 
+uint32_t pco_set_pixel_offset_mode(pco_handle *pco, bool offset)
+{
+    DWORD err = pco->com->PCO_SetOffsetMode(offset ? 1 : 0);
+    RETURN_ANY_CODE(err);
+}
+
+uint32_t pco_get_pixel_offset_mode(pco_handle *pco, bool *offset)
+{
+    uint16_t tmp;
+    DWORD err = pco->com->PCO_GetOffsetMode(&tmp);
+    CHECK_ERROR(err);
+    if (err == 0)
+        *offset = tmp == 1;
+    return err;
+}
+
 unsigned int pco_get_bit_alignment(pco_handle *pco, bool *msb_aligned)
 {
     uint16_t alignment;
@@ -660,8 +669,7 @@ unsigned int pco_get_timebase(pco_handle *pco, uint16_t *delay, uint16_t *expos)
 
 unsigned int pco_get_delay_time(pco_handle *pco, double *delay)
 {
-    double discard;
-    DWORD err = pco_get_delay_exposure(pco, delay, &discard);
+    DWORD err = pco_get_delay_exposure(pco, delay, &discard.dbl);
     RETURN_ANY_CODE(err);
 }
 
@@ -681,8 +689,7 @@ unsigned int pco_get_delay_range(pco_handle *pco, uint32_t *min_ns, uint32_t *ma
 
 unsigned int pco_get_exposure_time(pco_handle *pco, double *exposure)
 {
-    double discard;
-    DWORD err = pco_get_delay_exposure(pco, &discard, exposure);
+    DWORD err = pco_get_delay_exposure(pco, &discard.dbl, exposure);
     RETURN_ANY_CODE(err);
 }
 
@@ -737,32 +744,40 @@ unsigned int pco_set_delay_exposure(pco_handle *pco, double delay, double exposu
     uint16_t tb_delay, tb_expos;
     DWORD err = pco->com->PCO_GetDelayExposureTime(&curr_delay, &curr_expos, &tb_delay, &tb_expos);
     RETURN_IF_ERROR(err);
-    if (delay >= 0) {
-        if (delay > 1e-9) {
+    if (delay >= 0)
+    {
+        if (delay > 1e-9)
+        {
             tb_delay = TIMEBASE_NS;
             curr_delay = (uint32_t)CNV_UNIT_TO_NANO(delay);
         }
-        if (delay > 1e-6) {
+        if (delay > 1e-6)
+        {
             tb_delay = TIMEBASE_US;
             curr_delay = (uint32_t)CNV_UNIT_TO_MICRO(delay);
         }
-        if (delay > 1e-3) {
+        if (delay > 1e-3)
+        {
             tb_delay = TIMEBASE_MS;
             curr_delay = (uint32_t)CNV_UNIT_TO_MILLI(delay);
         }
         else
             curr_delay = 0;
     }
-    if (exposure >= 0) {
-        if (exposure > 1e-9) {
+    if (exposure >= 0)
+    {
+        if (exposure > 1e-9)
+        {
             tb_expos = TIMEBASE_NS;
             curr_expos = (uint32_t)CNV_UNIT_TO_NANO(exposure);
         }
-        if (exposure > 1e-6) {
+        if (exposure > 1e-6)
+        {
             tb_expos = TIMEBASE_US;
             curr_expos = (uint32_t)CNV_UNIT_TO_MICRO(exposure);
         }
-        if (exposure > 1e-3) {
+        if (exposure > 1e-3)
+        {
             tb_expos = TIMEBASE_MS;
             curr_expos = (uint32_t)CNV_UNIT_TO_MILLI(exposure);
         }
@@ -812,17 +827,6 @@ unsigned int pco_get_acquire_mode(pco_handle *pco, uint16_t *mode)
 unsigned int pco_set_acquire_mode(pco_handle *pco, uint16_t mode)
 {
     DWORD err = pco->com->PCO_SetAcquireMode(mode);
-    RETURN_ANY_CODE(err);
-}
-
-unsigned int pco_read_segment_images(pco_handle *pco, uint16_t segment, uint32_t start, uint32_t end)
-{
-    if (pco->description.dwGeneralCaps1 & GENERALCAPS1_NO_RECORDER)
-    {
-        fprintf(stderr, "Camera does not support image readout from segments\n");
-        return -1;
-    }
-    DWORD err = pco->com->PCO_ReadImagesFromSegment(segment, start, end);
     RETURN_ANY_CODE(err);
 }
 
@@ -889,41 +893,6 @@ unsigned int pco_acquire_image_await(pco_handle *pco, void *adr)
 unsigned int pco_acquire_image_ex_await(pco_handle *pco, void *adr, int timeout)
 {
     DWORD err = pco->grabber->Acquire_Image_Async_wait(adr, timeout);
-    RETURN_ANY_CODE(err);
-}
-
-unsigned int pco_get_segment_image(pco_handle *pco, void *adr, int seg, int nr)
-{
-    DWORD err;
-
-    if (!pco_is_recording(pco))
-    {
-        if (pco->description.dwGeneralCaps1 & GENERALCAPS1_NO_RECORDER)
-        {
-            fprintf(stderr, "Camera does not support image readout from segments\n");
-            return -1;
-        }
-
-        DWORD valid, max;
-        err = pco->com->PCO_GetNumberOfImagesInSegment(seg, &valid, &max);
-        RETURN_IF_ERROR(err);
-
-        if (valid == 0)
-        {
-            fprintf(stderr, "No images available in segment %d\n", seg);
-            return -1;
-        }
-        if (nr > (int)valid)
-        {
-            fprintf(stderr, "Selected image number is out of range");
-            return -1;
-        }
-    }
-
-    unsigned int w, h;
-    pco_grabber_get_actual_size(pco, &w, &h);
-
-    err = pco->grabber->Get_Image(seg, nr, adr);
     RETURN_ANY_CODE(err);
 }
 
@@ -1011,6 +980,26 @@ unsigned int pco_set_noise_filter_mode(pco_handle *pco, uint16_t mode)
     RETURN_ANY_CODE(err);
 }
 
+unsigned int pco_get_nr_adcs(pco_handle *pco, uint16_t *nr_adcs)
+{
+    *nr_adcs = pco->description.wNumADCsDESC;
+    return PCO_NOERROR;
+}
+
+unsigned int pco_get_adc_mode(pco_handle *pco, uint16_t *mode)
+{
+    DWORD err = pco->com->PCO_GetADCOperation(mode);
+    if (err != PCO_NOERROR)
+        *mode = 0;
+    return err;
+}
+
+unsigned int pco_set_adc_mode(pco_handle *pco, uint16_t mode)
+{
+    DWORD err = pco->com->PCO_SetADCOperation(mode);
+    RETURN_ANY_CODE(err);
+}
+
 unsigned int pco_edge_get_shutter(pco_handle *pco, pco_edge_shutter *shutter)
 {
     DWORD *flags = (DWORD *)malloc(4 * sizeof(DWORD));
@@ -1025,11 +1014,4 @@ unsigned int pco_update_camera_datetime(pco_handle *pco)
 {
     DWORD err = pco->com->PCO_SetCameraToCurrentTime();
     RETURN_ANY_CODE(err);
-}
-
-void pco_reorder_image(pco_handle *pco, uint16_t *bufout, uint16_t *bufin, int width, int height)
-{
-    //uint32_t format = pco->grabber->Get_DataFormat();
-    //reorder_image(bufout, bufin, width, height, format);
-    memcpy(bufout, bufin, sizeof(uint16_t) * width * height);
 }

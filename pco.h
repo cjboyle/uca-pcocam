@@ -9,10 +9,31 @@ extern "C"
 #include <stdint.h>
 #include <stdbool.h>
 
+#define RETURN_IF_ERROR(code) \
+    {                         \
+        CHECK_ERROR(code);    \
+        if ((code) != 0)      \
+            return (code);    \
+    }
+
+#define RETURN_ANY_CODE(code) \
+    {                         \
+        CHECK_ERROR(code);    \
+        return (code);        \
+    }
+
+#define RETURN_IF_NOT_SUPPORTED(supported, msg, code)               \
+    if (!(supported))                                               \
+    {                                                               \
+        fprintf(stderr, "Error: in function '%s'\n", __FUNCTION__); \
+        fprintf(stderr, "   %s\n", (msg));                          \
+        return (code);                                              \
+    }
+
+#define RETURN_NOT_SUPPORTED(msg, code) RETURN_IF_NOT_SUPPORTED(false, msg, code);
+
 #define PCO_SCANMODE_SLOW 0
 #define PCO_SCANMODE_FAST 1
-
-#define CAMERA_TIMEBASE 0x0000 /* Camera setting to store nanoseconds */
 
 #define CNV_NANO_TO_UNIT(val) (double)((val)*1e-9)
 #define CNV_NANO_TO_MILLI(val) (double)((val)*1e-6)
@@ -41,9 +62,6 @@ extern "C"
     /* Handle to a struct containing references to an
        implementation-specific PCO camera and grabber. */
     typedef struct _pco_handle pco_handle;
-
-    /* (DEPRECATED) Function pointer to reorder image lines  */
-    typedef void (*pco_reorder_image_t)(uint16_t *bufout, uint16_t *bufin, int width, int height);
 
     enum _pco_edge_shutter;
     typedef enum _pco_edge_shutter pco_edge_shutter;
@@ -86,13 +104,13 @@ extern "C"
     /**
      * Allocate memory in the frame-grabber buffer.
      * @param pco handle
-     * @param size the amount of memory to allocate
+     * @param nr_buffers the number of image buffers to allocate
      * @return 0 on success, otherwise less than 0
      */
-    uint32_t pco_grabber_allocate_memory(pco_handle *pco, int size);
+    uint32_t pco_grabber_allocate_memory(pco_handle *pco, int nr_buffers);
 
     /**
-     * (NOT SUPPORTED) Free memory in the frame-grabber buffer.
+     * Free memory in the frame-grabber buffer.
      * @param pco handle
      * @return 0
      */
@@ -189,7 +207,7 @@ extern "C"
     uint32_t pco_reset(pco_handle *pco);
 
     /**
-     * Get the temperature of the camera hardware, in degree Celsius.
+     * Get the temperature of the camera hardware, in degrees Celsius.
      * @param pco handle
      * @param ccd output the camera sensor temperature
      * @param camera output the camera mainboard temperature
@@ -197,6 +215,32 @@ extern "C"
      * @return 0 on success, otherwise less than 0
      */
     uint32_t pco_get_temperature(pco_handle *pco, int16_t *ccd, int16_t *camera, int16_t *power);
+
+    /**
+     * Get the range of valid cooling setpoint temperatures, in degrees Celsius.
+     * @param pco handle
+     * @param min output the minimum cooling setpoint temperature
+     * @param max output the maximum cooling setpoint temperature
+     * @param dflt output the default cooling setpoint temperature
+     * @return 0
+     */
+    uint32_t pco_get_cooling_range(pco_handle *pco, int16_t *min, int16_t *max, int16_t *dflt);
+
+    /**
+     * Get the current cooling setpoint temperature, in degrees Celsius.
+     * @param pco handle
+     * @param temperature output the current cooling setpoint temperature
+     * @return 0
+     */
+    uint32_t pco_get_cooling_setpoint(pco_handle *pco, int16_t *temperature);
+
+    /**
+     * Set the sensor cooling setpoint temperature, in degrees Celsius.
+     * @param pco handle
+     * @param temperature the cooling setpoint temperature
+     * @return 0 on success, otherwise less than 0
+     */
+    uint32_t pco_set_cooling_setpoint(pco_handle *pco, int16_t temperature);
 
     /**
      * Get the name of the camera.
@@ -228,7 +272,7 @@ extern "C"
      * @param temperature output the temperature, in degrees Celsius
      * @return 0 on success, otherwise less than 0
      */
-    // uint32_t pco_get_cooling_setpoint(pco_handle *pco, short *temperature);
+    uint32_t pco_get_cooling_setpoint(pco_handle *pco, short *temperature);
 
     /**
      * Set the camera cooling setpoint temperature.
@@ -236,7 +280,7 @@ extern "C"
      * @param temperature the temperature, in degrees Celsius
      * @return 0 on success, otherwise less than 0
      */
-    // uint32_t pco_set_cooling_setpoint(pco_handle *pco, short temperature);
+    uint32_t pco_set_cooling_setpoint(pco_handle *pco, short temperature);
 
     /**
      * Get the camera sensor resolution, in pixels.
@@ -248,7 +292,7 @@ extern "C"
      * @return 0 on success, otherwise less than 0
      */
     uint32_t pco_get_resolution(pco_handle *pco, uint16_t *width_std, uint16_t *height_std, uint16_t *width_ex, uint16_t *height_ex);
-    
+
     /**
      * Get the actual image size of the armed camera, in pixels.
      * @param pco handle
@@ -375,7 +419,7 @@ extern "C"
     bool pco_is_double_image_mode_available(pco_handle *pco);
 
     /**
-     * Set the double image mode on the camera.
+     * Set the double image mode of the camera.
      * @param pco handle
      * @param on TRUE=on, FALSE=off
      * @return 0 on success, otherwise less than 0
@@ -383,12 +427,28 @@ extern "C"
     uint32_t pco_set_double_image_mode(pco_handle *pco, bool on);
 
     /**
-     * Get the double image mode on the camera.
+     * Get the double image mode of the camera.
      * @param pco handle
      * @param on output TRUE=on, FALSE=off
      * @return 0 on success, otherwise less than 0
      */
     uint32_t pco_get_double_image_mode(pco_handle *pco, bool *on);
+
+    /**
+     * Set the pixel offset mode of the camera.
+     * @param pco handle
+     * @param disabled TRUE=offset, FALSE=auto
+     * @return 0 on success, otherwise less than 0
+     */
+    uint32_t pco_set_pixel_offset_mode(pco_handle *pco, bool offset);
+
+    /**
+     * Get the pixel offset mode of the camera.
+     * @param pco handle
+     * @param disabled output TRUE=offset, FALSE=auto
+     * @return 0 on success, otherwise less than 0
+     */
+    uint32_t pco_get_pixel_offset_mode(pco_handle *pco, bool *offset);
 
     /**
      * Get the bit alignment for image data.
@@ -574,16 +634,6 @@ extern "C"
     uint32_t pco_set_acquire_mode(pco_handle *pco, uint16_t mode);
 
     /**
-     * Read the specified images from the camera memory segment. Only valid on cameras with on-board recorder capabilities.
-     * @param pco handle
-     * @param segment the camera memory segment
-     * @param start the number of the first image to receive
-     * @param end the number of the last image to receive
-     * @return 0 on success, otherwise less than 0
-     */
-    unsigned int pco_read_segment_images(pco_handle *pco, uint16_t segment, uint32_t start, uint32_t end);
-
-    /**
      * Request a single image from the camera.
      * @param pco handle
      * @return 0 on success, otherwise less than 0
@@ -602,7 +652,7 @@ extern "C"
      * Trigger an image capture and transfer.
      * @param pco handle
      * @param adr external buffer to write image data
-     * @param timeout the number of milliseconds to wait before an error is produced.
+     * @param timeout the number of milliseconds to wait before an error is produced
      * @return 0 on success, otherwise less than 0
      */
     uint32_t pco_force_acquire_ex(pco_handle *pco, void *adr, int timeout);
@@ -619,7 +669,7 @@ extern "C"
      * Simple image acquisition call to the pco.camera SDK.
      * @param pco handle
      * @param adr external buffer to write image data
-     * @param timeout the number of milliseconds to wait before an error is produced.
+     * @param timeout the number of milliseconds to wait before an error is produced
      * @return 0 on success, otherwise less than 0
      */
     uint32_t pco_acquire_image_ex(pco_handle *pco, void *adr, int timeout);
@@ -636,7 +686,7 @@ extern "C"
      * Non-blocking image acquisition call to the pco.camera SDK.
      * @param pco handle
      * @param adr external buffer to write image data
-     * @param timeout the number of milliseconds to wait before an error is produced.
+     * @param timeout the number of milliseconds to wait before an error is produced
      * @return 0 on success, otherwise less than 0
      */
     uint32_t pco_acquire_image_ex_async(pco_handle *pco, void *adr, int timeout);
@@ -653,7 +703,7 @@ extern "C"
      * Blocking image acquisition call to the pco.camera SDK ().
      * @param pco handle
      * @param adr external buffer to write image data
-     * @param timeout the number of milliseconds to wait before an error is produced.
+     * @param timeout the number of milliseconds to wait before an error is produced
      * @return 0 on success, otherwise less than 0
      */
     uint32_t pco_acquire_image_ex_await(pco_handle *pco, void *adr, int timeout);
@@ -746,25 +796,22 @@ extern "C"
      */
     uint32_t pco_update_camera_datetime(pco_handle *pco);
 
-    /**
-     * Get a pointer to the configured function for reordering image bytes. 
-     *    (uint16_t *bufout, uint16_t *bufin, int width, int height) -> void
-     * @note signature
-     * @param pco handle
-     * @return function pointer
-     */
-    pco_reorder_image_t pco_get_reorder_func(pco_handle *pco);
+    /* Helper discards to use as parameters */
+    typedef union
+    {
+        int8_t i8;
+        int16_t i16;
+        int32_t i32;
+        int64_t i64;
+        uint8_t ui8;
+        uint16_t ui16;
+        uint32_t ui32;
+        uint64_t ui64;
+        float flt;
+        double dbl;
+    } discard_t;
 
-    /**
-     * Reorder image data based on camera and format.
-     * @param pco handle
-     * @param bufout the output buffer
-     * @param bufin the input buffer
-     * @param width the image width
-     * @param height the image height
-     * @return void
-     */
-    void pco_reorder_image(pco_handle *pco, uint16_t *bufout, uint16_t *bufin, int width, int height);
+    static discard_t discard __attribute__((__used___)) = {};
 
 #ifdef __cplusplus
 }

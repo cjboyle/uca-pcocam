@@ -3,11 +3,12 @@
 #include <string.h>
 #include <time.h>
 
-#include "pcoclhs.h"
+#include "pcome4.h"
 
-#include "pco/include/clhs/Cpco_com_clhs.h"
-#include "pco/include/clhs/Cpco_grab_clhs.h"
-#include "pco/include/clhs/Cpco_log.h"
+#include "pco/include/me4/Cpco_com_cl_me4.h"
+#include "pco/include/me4/Cpco_grab_cl_me4.h"
+#include "pco/include/me4/Cpco_log.h"
+#include "pco/include/me4/reorderfunc.h"
 
 // PCO_errt.h is a header file w/ hard-coded function implementations.
 // It also contains non-standard function calls that must be escaped.
@@ -18,7 +19,7 @@
 #ifndef PCO_ERRT_H_CREATE_OBJECT
 #define PCO_ERRT_H_CREATE_OBJECT
 #endif
-#include "pco/include/clhs/PCO_errt.h"
+#include "pco/include/me4/PCO_errt.h"
 
 /** 
  * This module serves as a wrapper to access the C++ implementations of
@@ -47,8 +48,8 @@ static char *_get_error_text(DWORD code)
 
 struct _pco_handle
 {
-    CPco_com_clhs *com;      /* Comm. interface to a camera */
-    CPco_grab_clhs *grabber; /* Frame-grabber interface */
+    CPco_com_cl_me4 *com;      /* Comm. interface to a camera */
+    CPco_grab_cl_me4 *grabber; /* Frame-grabber interface */
     CPco_Log *logger;
 
     uint16_t cameraType, cameraSubType;
@@ -64,16 +65,32 @@ static unsigned int _pco_init(pco_handle *pco, int board, int port)
     pco->board = board;
     pco->port = port;
 
-    CPco_com_clhs *com;
-    com = new CPco_com_clhs();
+    CPco_com_cl_me4 *com;
+    com = new CPco_com_cl_me4();
     pco->com = com;
 
-    CPco_grab_clhs *grab;
-    grab = new CPco_grab_clhs(com);
-    pco->grabber = grab;
+    uint16_t camtype, camsn;
+    err = pco_get_camera_type(pco, &camtype, &camsn);
+    RETURN_IF_ERROR(err);
+
+    if (camtype == CAMERATYPE_PCO_EDGE)
+    {
+        CPco_grab_cl_me4_edge *grab = new CPco_grab_cl_me4_edge(com);
+        pco->grabber = grab;
+    }
+    else if (camtype == CAMERATYPE_PCO_EDGE_42)
+    {
+        CPco_grab_cl_me4_edge42 *grab = new CPco_grab_cl_me4_edge42(com);
+        pco->grabber = grab;
+    }
+    else
+    {
+        CPco_grab_cl_me4_camera *grab = new CPco_grab_cl_me4_camera(com);
+        pco->grabber = grab;
+    }
 
     CPco_Log *logger;
-    logger = new CPco_Log("pcoclhs.log");
+    logger = new CPco_Log("pcome4.log");
     logger->set_logbits(0x000FF0FF);
     pco->logger = logger;
 
@@ -121,6 +138,14 @@ static unsigned int _pco_init(pco_handle *pco, int board, int port)
 
     err = pco->com->PCO_SetBitAlignment(BIT_ALIGNMENT_LSB);
     RETURN_IF_ERROR(err);
+
+    if (pco->cameraType == CAMERATYPE_PCO_DIMAX_STD)
+    {
+        PCO_SC2_CL_TRANSFER_PARAM txParam;
+        pco->com->PCO_GetTransferParameter(&txParam, sizeof(txParam));
+        txParam.DataFormat = PCO_CL_DATAFORMAT_2x12;
+        pco->com->PCO_SetTransferParameter(&txParam, sizeof(txParam));
+    }
 
     return PCO_NOERROR;
 }
@@ -215,18 +240,15 @@ unsigned int pco_grabber_set_size(pco_handle *pco, uint32_t width, uint32_t heig
     RETURN_ANY_CODE(err);
 }
 
-unsigned int pco_grabber_allocate_memory(pco_handle *pco, int size)
+unsigned int pco_grabber_allocate_memory(pco_handle *pco, int nr_buffers)
 {
-    // not actually implemented, just returns PCO_NOERROR
-    // return pco->grabber->Allocate_Framebuffer(size);
-    return 0;
+    DWORD err = pco->grabber->Allocate_Framebuffer(nr_buffers);
+    RETURN_ANY_CODE(err);
 }
 
 unsigned int pco_grabber_free_memory(pco_handle *pco)
 {
-    // not actually implemented, just returns PCO_NOERROR
-    // return pco->grabber->Free_Framebuffer();
-    return 0;
+    return pco->grabber->Free_Framebuffer();
 }
 
 unsigned int pco_grabber_set_timeout(pco_handle *pco, int milliseconds)
@@ -263,13 +285,21 @@ unsigned int pco_prepare_recording(pco_handle *pco)
 
 unsigned int pco_start_recording(pco_handle *pco)
 {
+    return pco_start_recording_ex(pco, GRAB_INFINITE, false);
+}
+
+unsigned int pco_start_recording_ex(pco_handle *pco, int nr_images, bool block)
+{
     DWORD err = pco_prepare_recording(pco);
     RETURN_IF_ERROR(err);
 
     err = pco_set_recording_state(pco, 1);
     RETURN_IF_ERROR(err);
 
-    err = pco->grabber->Start_Acquire();
+    if (block)
+        err = pco->grabber->Start_Acquire(nr_images, PCO_SC2_CL_BLOCKING_BUFFER);
+    else
+        err = pco->grabber->Start_Acquire_NonBlock(nr_images);
     RETURN_ANY_CODE(err);
 }
 
@@ -280,6 +310,27 @@ unsigned int pco_stop_recording(pco_handle *pco)
     // err = pco->com->PCO_CancelImage();
     // ignore error
     err = pco->grabber->Stop_Acquire();
+    RETURN_ANY_CODE(err);
+}
+
+unsigned int pco_start_readout(pco_handle *pco)
+{
+    return pco_start_readout_ex(pco, GRAB_INFINITE, false);
+}
+
+unsigned int pco_start_readout_ex(pco_handle *pco, int nr_images, bool block)
+{
+    DWORD err;
+    if (block)
+        err = pco->grabber->Start_Acquire(nr_images, PCO_SC2_CL_BLOCKING_BUFFER);
+    else
+        err = pco->grabber->Start_Acquire_NonBlock(nr_images);
+    RETURN_ANY_CODE(err);
+}
+
+unsigned int pco_stop_readout(pco_handle *pco)
+{
+    DWORD err = pco->grabber->Stop_Acquire();
     RETURN_ANY_CODE(err);
 }
 
@@ -377,7 +428,7 @@ uint32_t pco_set_cooling_setpoint(pco_handle *pco, int16_t temperature)
 {
     bool supported = pco->description.sMinCoolSetDESC != pco->description.sMaxCoolSetDESC;
     RETURN_IF_NOT_SUPPORTED(supported, "Camera does not support sensor cooling", -1);
-
+    
     DWORD err = pco->com->PCO_SetCoolingSetpointTemperature(temperature);
     RETURN_ANY_CODE(err);
 }
@@ -448,7 +499,37 @@ unsigned int pco_get_pixelrate(pco_handle *pco, uint32_t *rate)
 
 unsigned int pco_set_pixelrate(pco_handle *pco, uint32_t rate)
 {
-    DWORD err = pco->com->PCO_SetPixelRate(rate);
+    DWORD err;
+
+    if (pco->cameraType == CAMERATYPE_PCO_EDGE)
+    {
+        uint32_t width;
+        err = pco->com->PCO_GetActualSize(&width, &discard.ui32);
+        RETURN_IF_ERROR(err);
+
+        PCO_SC2_CL_TRANSFER_PARAM txParam;
+        err = pco->com->PCO_GetTransferParameter(&txParam, sizeof(txParam));
+        RETURN_IF_ERROR(err);
+
+        DWORD lut;
+
+        if (rate >= 286000000 && width >= 1920)
+        {
+            txParam.DataFormat = SCCMOS_FORMAT_TOP_CENTER_BOTTOM_CENTER | PCO_CL_DATAFORMAT_5x12;
+            lut = 0x1612;
+        }
+        else
+        {
+            txParam.DataFormat = SCCMOS_FORMAT_TOP_CENTER_BOTTOM_CENTER | PCO_CL_DATAFORMAT_5x16;
+            lut = 0;
+        }
+
+        err = pco->grabber->Set_DataFormat(txParam.DataFormat);
+        err = pco->com->PCO_SetTransferParameter(&txParam, sizeof(txParam));
+        err = pco->com->PCO_SetLut(lut, 0);
+    }
+
+    err = pco->com->PCO_SetPixelRate(rate);
     RETURN_ANY_CODE(err);
 }
 
@@ -835,9 +916,63 @@ unsigned int pco_set_acquire_mode(pco_handle *pco, uint16_t mode)
     RETURN_ANY_CODE(err);
 }
 
+unsigned int pco_get_active_segment(pco_handle *pco, uint16_t *segment)
+{
+    DWORD err = pco->com->PCO_GetActiveRamSegment(segment);
+    RETURN_ANY_CODE(err);
+}
+
+unsigned int pco_set_active_segment(pco_handle *pco, uint16_t segment)
+{
+    DWORD err = pco->com->PCO_SetActiveRamSegment(segment);
+    RETURN_ANY_CODE(err);
+}
+
+unsigned int pco_clear_active_segment(pco_handle *pco)
+{
+    DWORD err = pco->com->PCO_ClearRamSegment();
+    RETURN_ANY_CODE(err);
+}
+
+unsigned int pco_get_nr_recorded_images(pco_handle *pco, uint16_t segment, uint32_t *nr_images, uint32_t *max_images)
+{
+    DWORD err = pco->com->PCO_GetNumberOfImagesInSegment(segment, nr_images, max_images);
+    RETURN_ANY_CODE(err);
+}
+
+unsigned int pco_read_segment_images(pco_handle *pco, uint16_t segment, uint32_t first_image, uint32_t last_image)
+{
+    DWORD err = pco->com->PCO_ReadImagesFromSegment(segment, first_image, last_image);
+    RETURN_ANY_CODE(err);
+}
+
+unsigned int pco_last_image_index(pco_handle *pco, int *image_nr)
+{
+    DWORD err = pco->grabber->Get_last_Image(image_nr);
+    RETURN_ANY_CODE(err);
+}
+
+unsigned int pco_next_image_index(pco_handle *pco, int *image_nr)
+{
+    DWORD err = pco->grabber->Wait_For_Next_Image(image_nr, 10000);
+    RETURN_ANY_CODE(err);
+}
+
+unsigned int pco_next_image_index_ex(pco_handle *pco, int *image_nr, int timeout)
+{
+    DWORD err = pco->grabber->Wait_For_Next_Image(image_nr, timeout);
+    RETURN_ANY_CODE(err);
+}
+
 unsigned int pco_request_image(pco_handle *pco)
 {
     DWORD err = pco->com->PCO_RequestImage();
+    RETURN_ANY_CODE(err);
+}
+
+unsigned int pco_get_image_ptr(pco_handle *pco, void **adr, int image_nr)
+{
+    DWORD err = pco->grabber->Get_Framebuffer_adr(image_nr, adr);
     RETURN_ANY_CODE(err);
 }
 
@@ -983,6 +1118,30 @@ unsigned int pco_set_noise_filter_mode(pco_handle *pco, uint16_t mode)
     RETURN_ANY_CODE(err);
 }
 
+unsigned int pco_get_nr_adcs(pco_handle *pco, uint16_t *nr_adcs)
+{
+    *nr_adcs = pco->description.wNumADCsDESC;
+    return PCO_NOERROR;
+}
+
+#define HAS_ADC_MODE_SUPPORT(t) ((t) == CAMERATYPE_PCO1600 || (t) == CAMERATYPE_PCO2000 || (t) == CAMERATYPE_PCO4000)
+
+unsigned int pco_get_adc_mode(pco_handle *pco, uint16_t *mode)
+{
+    DWORD err = 0;
+    if (HAS_ADC_MODE_SUPPORT(pco->cameraType))
+        err = pco->com->PCO_GetADCOperation(mode);
+    else
+        *mode = 0;
+    return err;
+}
+
+unsigned int pco_set_adc_mode(pco_handle *pco, uint16_t mode)
+{
+    DWORD err = pco->com->PCO_SetADCOperation(mode);
+    RETURN_ANY_CODE(err);
+}
+
 unsigned int pco_edge_get_shutter(pco_handle *pco, pco_edge_shutter *shutter)
 {
     DWORD *flags = (DWORD *)malloc(4 * sizeof(DWORD));
@@ -997,4 +1156,9 @@ unsigned int pco_update_camera_datetime(pco_handle *pco)
 {
     DWORD err = pco->com->PCO_SetCameraToCurrentTime();
     RETURN_ANY_CODE(err);
+}
+
+void pco_extract_image(pco_handle *pco, uint16_t *bufout, uint16_t *bufin, int width, int height)
+{
+    pco->grabber->Extract_Image(bufout, bufin, width, height);
 }
