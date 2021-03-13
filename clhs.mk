@@ -71,9 +71,9 @@ all: $(HDRS) $(SRCS) $(BUILD_DIR)/$(OUTFILE)
 enums:  $(HDRS) $(SRCS) .FORCE
 
 %-enums.c: %-enums.c.in %-enums.h
-	glib-mkenums --template=$< --output=$@ $(HDRS)
+	glib-mkenums --template=$< --output=$@ $(PROJ_NAME)-camera.h
 
-%-enums.h: %-enums.h.in
+%-enums.h: %-enums.h.in %-camera.h
 	glib-mkenums --template=$< --output=$@ $(PROJ_NAME)-camera.h
 
 

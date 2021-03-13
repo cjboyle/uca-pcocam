@@ -1,17 +1,20 @@
-LIB_NAME = ucapcousb
-PROJ_NAME = uca-pcousb
+SISODIR5 ?= /opt/SiliconSoftware/Runtime5.7.0
+PCOSDKDIR = /opt/PCO/pco_camera
+
+LIB_NAME = ucapcome4
+PROJ_NAME = uca-pcome4
 
 
 
 CC = gcc
-CCFLAGS = -isystem -std=c99 -O2 -Wall -Wno-write-strings -fPIC
+CCFLAGS = -isystem -std=c99 -O2 -Wall -Wno-write-strings -fPIC -DSISODIR5=$(SISODIR5)
 CXX = g++
 CXXFLAGS = -isystem -std=c++0x -O2 -Wall -Wno-write-strings -fPIC
 LDFLAGS = -shared
 
 
-SRCS = $(PROJ_NAME)-camera.c $(PROJ_NAME)-enums.c stackbuffer.c ringbuffer.c pcousb.cpp
-HDRS = $(PROJ_NAME)-camera.h $(PROJ_NAME)-enums.h stackbuffer.h ringbuffer.h pcousb.h pco.h
+SRCS = $(PROJ_NAME)-camera.c $(PROJ_NAME)-enums.c pcome4.cpp
+HDRS = $(PROJ_NAME)-camera.h $(PROJ_NAME)-enums.h pcome4.h pco.h
 
 
 # UFO-KIT UCA
@@ -19,14 +22,23 @@ INC_DIRS += /usr/include/uca
 LIB_NAMES += uca
 
 
+# SISO Runtime SDK
+INC_DIRS += $(SISODIR5)/include
+LIB_DIRS += $(SISODIR5)/lib
+LIB_DIRS += $(SISODIR5)/lib64
+LIB_NAMES += fglib5 clsersis
+
+
 # PCO.Linux SDK
-# LIB_DIRS += /usr/local/lib
-# LIB_DIRS += /opt/PCO/pco_camera/pco_common/pco_lib
-PCO_LIB_DIR = ./pco/lib/usb
-PCO_LIB_NAMES += pcocam_usb
-#PCO_LIB_NAMES += pcolog pcofile pcocam_usb reorderfunc
+PCO_LIB_DIR = ./pco/lib/me4
+PCO_LIB_NAMES += pcolog pcofile reorderfunc pcocam_me4
 PCO_LIBS = -Wl,-Bstatic $(addprefix $(PCO_LIB_DIR)/lib,$(addsuffix .a,$(PCO_LIB_NAMES))) -Wl,-Bdynamic
 
+ifndef PCO_LIBS
+LIB_DIRS += /usr/local/lib
+LIB_DIRS += $(PCOSDKDIR)/pco_me4/bindyn
+LIB_NAMES += $(PCO_LIB_NAMES)
+endif
 
 
 # GLib headers
@@ -35,7 +47,7 @@ LIB_NAMES += glib-2.0
 
 
 # Other libs
-LIB_NAMES += usb-1.0 pthread rt dl
+LIB_NAMES += pthread rt dl
 
 
 # Other
@@ -82,12 +94,13 @@ $(BUILD_DIR)/%.cpp.o: %.cpp $(HDRS)
 install: $(INST_DIR)/$(OUTFILE)
 
 $(INST_DIR)/$(OUTFILE): $(BUILD_DIR)/$(OUTFILE)
-	install -m 644 $(BUILD_DIR)/$(OUTFILE) $(INST_DIR)
+	install -m 755 $(BUILD_DIR)/$(OUTFILE) $(INST_DIR)
 
 
 .PHONY: clean
 clean:
-	@rm -rf $(BUILD_DIR)/*usb*
+	@rm -rf $(BUILD_DIR)/*me4*
+	@rm -rf $(BUILD_DIR)/*cl*
 
 
 .PHONY: uninstall

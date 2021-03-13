@@ -1,4 +1,4 @@
-TARGETS = clhs usb
+TARGETS = me4 usb clhs
 BUILD_DIR = ./build
 
 
