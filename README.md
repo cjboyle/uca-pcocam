@@ -39,6 +39,19 @@ Software plugin for UFO-KIT's Universal Camera Access library to support PCO Edg
     sudo symlink_pco /usr/lib
     ```
 
+### For CameraLink/microEnable4 cameras
+* Silicon Software microEnable kernel module for Linux (menable.ko)
+* Silicon Software Runtime & SDK >= 5.4.4
+    ```bash
+    # load the environment (e.g. for SISO-RT-5.7.0)
+    source /opt/SiliconSoftware/Runtime5.7.0/setup-siso-env.sh
+
+    # install the environment for all users
+    sudo install -m 644 /opt/SiliconSoftware/Runtime5.7.0/setup-siso-env.sh /etc/profile.d
+    ```
+* Applet ___________ (TODO, camera-dependent)
+   * Installed to ```$SISODIR5/dll/YOUR_FRAMEGRABBER_CARD/``` (or equivalent model directory) and flashed to the frame-grabber using ```microDiagnostic```
+
 ### For USB cameras
 * libusb
    * For most systems, install ```libusb-1.0``` and ```libusb-1.0-devel```
@@ -59,6 +72,10 @@ sudo make install
 # build and install libucapcoclhs.so only
 make clhs
 sudo make install-clhs
+
+# build and install libucapcome4.so only
+make me4
+sudo make install-me4
 
 # build and install libucapcousb.so only
 make usb
