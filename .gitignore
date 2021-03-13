@@ -2,8 +2,7 @@
 build*/
 
 # ignore non-essential GLib enum build files
-uca-pcoclhs-enums.[ch]
-uca-pcousb-enums.[ch]
+uca-*-enums.[ch]
 
 # ignore temporary test items
 *.out
