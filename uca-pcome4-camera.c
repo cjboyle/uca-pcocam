@@ -5,38 +5,38 @@
 #include <math.h>
 #include <signal.h>
 
-#include "pcousb.h"
-#include "uca-pcousb-camera.h"
-#include "uca-pcousb-enums.h"
+#include "pcome4.h"
+#include "uca-pcome4-camera.h"
+#include "uca-pcome4-enums.h"
 
-#define UCA_PCO_USB_CAMERA_GET_PRIVATE(obj) (G_TYPE_INSTANCE_GET_PRIVATE((obj), UCA_TYPE_PCO_USB_CAMERA, UcaPcoUsbCameraPrivate))
+#define UCA_PCO_ME4_CAMERA_GET_PRIVATE(obj) (G_TYPE_INSTANCE_GET_PRIVATE((obj), UCA_TYPE_PCO_ME4_CAMERA, UcaPcoMe4CameraPrivate))
 
 #define CHECK_AND_RETURN_VOID_ON_PCO_ERROR(err)              \
     if ((err) != 0)                                          \
     {                                                        \
-        g_set_error(error, UCA_PCO_USB_CAMERA_ERROR,         \
-                    UCA_PCO_USB_CAMERA_ERROR_PCOSDK_GENERAL, \
-                    "libpcousb error %x", err);              \
+        g_set_error(error, UCA_PCO_ME4_CAMERA_ERROR,         \
+                    UCA_PCO_ME4_CAMERA_ERROR_PCOSDK_GENERAL, \
+                    "libpcome4 error %x", err);              \
         return;                                              \
     }
 
 #define CHECK_AND_RETURN_VAL_ON_PCO_ERROR(err, val)          \
     if ((err) != 0)                                          \
     {                                                        \
-        g_set_error(error, UCA_PCO_USB_CAMERA_ERROR,         \
-                    UCA_PCO_USB_CAMERA_ERROR_PCOSDK_GENERAL, \
-                    "libpcousb error %x", err);              \
+        g_set_error(error, UCA_PCO_ME4_CAMERA_ERROR,         \
+                    UCA_PCO_ME4_CAMERA_ERROR_PCOSDK_GENERAL, \
+                    "libpcome4 error %x", err);              \
         return val;                                          \
     }
 
-static void uca_pco_usb_camera_initable_iface_init(GInitableIface *iface);
+static void uca_pco_me4_camera_initable_iface_init(GInitableIface *iface);
 
-G_DEFINE_TYPE_WITH_CODE(UcaPcoUsbCamera, uca_pco_usb_camera, UCA_TYPE_CAMERA,
-                        G_IMPLEMENT_INTERFACE(G_TYPE_INITABLE, uca_pco_usb_camera_initable_iface_init))
+G_DEFINE_TYPE_WITH_CODE(UcaPcoMe4Camera, uca_pco_me4_camera, UCA_TYPE_CAMERA,
+                        G_IMPLEMENT_INTERFACE(G_TYPE_INITABLE, uca_pco_me4_camera_initable_iface_init))
 
-GQuark uca_pco_usb_camera_error_quark()
+GQuark uca_pco_me4_camera_error_quark()
 {
-    return g_quark_from_static_string("uca-pco-usb-camera-error-quark");
+    return g_quark_from_static_string("uca-pco-me4-camera-error-quark");
 }
 
 static GMutex signal_mutex;
@@ -62,6 +62,8 @@ enum
     PROP_HAS_DOUBLE_IMAGE_MODE,
     PROP_DOUBLE_IMAGE_MODE,
     PROP_OFFSET_MODE,
+    PROP_RECORD_MODE,
+    PROP_STORAGE_MODE,
     PROP_ACQUIRE_MODE,
     PROP_FAST_SCAN,
     PROP_COOLING_POINT,
@@ -95,6 +97,7 @@ static gint base_overrideables[] = {
     PROP_ROI_HEIGHT_MULTIPLIER,
     PROP_HAS_STREAMING,
     PROP_HAS_CAMRAM_RECORDING,
+    PROP_RECORDED_FRAMES,
     PROP_IS_RECORDING,
     0,
 };
@@ -109,15 +112,14 @@ typedef struct
 {
     int type;
     unsigned int bitdepth;
+    gboolean has_camram;
 } pco_map_entry;
 
 static pco_map_entry pco_camera_map[] = {
-    {CAMERATYPE_PCO_EDGE_USB3, 16},
-    {CAMERATYPE_PCO_FAMILY_EDGE, 16},
-    {CAMERATYPE_PCO_PANDA, 16},
-    {CAMERATYPE_PCO_FAMILY_PANDA, 16},
-    {CAMERATYPE_PCO_USBPIXELFLY, 14},
-    {0, 0},
+    {CAMERATYPE_PCO_EDGE, 16, FALSE},
+    {CAMERATYPE_PCO4000, 14, TRUE},
+    {CAMERATYPE_PCO_DIMAX_STD, 12, TRUE},
+    {0, 0, FALSE},
 };
 
 static pco_map_entry *get_pco_map_entry(int camera_type, int camera_subtype)
@@ -134,7 +136,7 @@ static pco_map_entry *get_pco_map_entry(int camera_type, int camera_subtype)
     return NULL;
 }
 
-struct _UcaPcoUsbCameraPrivate
+struct _UcaPcoMe4CameraPrivate
 {
     GError *construct_error;
     pco_handle *pco;
@@ -144,6 +146,10 @@ struct _UcaPcoUsbCameraPrivate
     guint16 port;
 
     gsize image_size; /* size = img-width * img-height * pixel-depth */
+    guint image_width, image_height;
+    gsize num_recorded_images, max_recorded_images;
+    guint16 active_segment;
+    guint32 current_image, last_image;
 
     GValueArray *pixelrates;
 
@@ -160,7 +166,7 @@ struct _UcaPcoUsbCameraPrivate
     gpointer grab_thread_buffer;
 };
 
-static void fill_pixelrates(UcaPcoUsbCameraPrivate *priv, guint32 rates[4], gint num_rates)
+static void fill_pixelrates(UcaPcoMe4CameraPrivate *priv, guint32 rates[4], gint num_rates)
 {
     GValue val = {0};
     g_value_init(&val, G_TYPE_UINT);
@@ -185,31 +191,35 @@ static void check_pco_property_error(guint err, guint property_id)
 static gpointer grab_func(gpointer rawptr)
 {
     UcaCamera *camera = UCA_CAMERA(rawptr);
-    g_return_val_if_fail(UCA_IS_PCO_USB_CAMERA(camera), NULL);
-
-    UcaPcoUsbCameraPrivate *priv = UCA_PCO_USB_CAMERA_GET_PRIVATE(camera);
+    g_return_val_if_fail(UCA_IS_PCO_ME4_CAMERA(camera), NULL);
     guint err;
+
+    UcaPcoMe4CameraPrivate *priv = UCA_PCO_ME4_CAMERA_GET_PRIVATE(camera);
 
     while (priv->grab_thread_running)
     {
-        gpointer frame = g_malloc0(priv->image_size);
-        err = pco_acquire_image_await(priv->pco, frame);
-
-        if (err != 0)
+        int index;
+        err = pco_next_image_index(priv->pco, &index);
+        if (index <= 0 || err != 0)
             return NULL;
 
-        memcpy(priv->grab_thread_buffer, frame, priv->image_size);
-        camera->grab_func(priv->grab_thread_buffer, camera->user_data);
-        g_free(frame);
-    }
+        gpointer frame;
+        err = pco_get_image_ptr(priv->pco, &frame, index);
+        if (frame == NULL || err != 0)
+            return NULL;
 
+        pco_extract_image(priv->pco, priv->grab_thread_buffer, frame, priv->image_width, priv->image_height);
+
+        camera->grab_func(priv->grab_thread_buffer, camera->user_data);
+        // free(frame);
+    }
     return NULL;
 }
 
 static void setup_async_grab_thread(UcaCamera *camera, GError **error)
 {
-    g_return_if_fail(UCA_IS_PCO_USB_CAMERA(camera));
-    UcaPcoUsbCameraPrivate *priv = UCA_PCO_USB_CAMERA_GET_PRIVATE(camera);
+    g_return_if_fail(UCA_IS_PCO_ME4_CAMERA(camera));
+    UcaPcoMe4CameraPrivate *priv = UCA_PCO_ME4_CAMERA_GET_PRIVATE(camera);
 
     if (priv->grab_thread_buffer != NULL)
         g_free(priv->grab_thread_buffer);
@@ -229,24 +239,26 @@ static void setup_async_grab_thread(UcaCamera *camera, GError **error)
     }
 }
 
-static void uca_pco_usb_camera_start_recording(UcaCamera *camera, GError **error)
+static void uca_pco_me4_camera_start_recording(UcaCamera *camera, GError **error)
 {
-    UcaPcoUsbCameraPrivate *priv;
+    UcaPcoMe4CameraPrivate *priv;
     guint16 binned_width, width, width_ex, bh;
     guint16 binned_height, height, height_ex, bv;
     guint16 roi[4];
     guint16 use_extended;
     gboolean transfer_async;
+    guint record_mode;
     guint err;
 
-    g_return_if_fail(UCA_IS_PCO_USB_CAMERA(camera));
-    priv = UCA_PCO_USB_CAMERA_GET_PRIVATE(camera);
+    g_return_if_fail(UCA_IS_PCO_ME4_CAMERA(camera));
+    priv = UCA_PCO_ME4_CAMERA_GET_PRIVATE(camera);
 
     signal(SIGUSR1, handle_sigusr1);
 
     g_object_get(camera,
                  "trigger-source", &priv->trigger_source,
                  "transfer-asynchronously", &transfer_async,
+                 "record-mode", &record_mode,
                  NULL);
 
     err = pco_get_resolution(priv->pco, &width, &height, &width_ex, &height_ex);
@@ -278,7 +290,7 @@ static void uca_pco_usb_camera_start_recording(UcaCamera *camera, GError **error
     // check if the ROI dimensions exceed the available binned dimensions
     if ((roi[2] - roi[0] > binned_width) || (roi[3] - roi[1] > binned_height))
     {
-        g_set_error(error, UCA_PCO_USB_CAMERA_ERROR, UCA_PCO_USB_CAMERA_ERROR_UNSUPPORTED,
+        g_set_error(error, UCA_PCO_ME4_CAMERA_ERROR, UCA_PCO_ME4_CAMERA_ERROR_UNSUPPORTED,
                     "ROI of size %ix%i @ (%i, %i) is outside of (binned) sensor size %ix%i\n",
                     roi[2] - roi[0], roi[3] - roi[1], roi[0], roi[1], binned_width, binned_height);
     }
@@ -292,8 +304,30 @@ static void uca_pco_usb_camera_start_recording(UcaCamera *camera, GError **error
     else
         priv->image_size = binned_width * binned_height * sizeof(gint64);
 
+    priv->image_width = binned_width;
+    priv->image_height = binned_height;
+
     err = pco_grabber_set_size(priv->pco, binned_width, binned_height);
     CHECK_AND_RETURN_VOID_ON_PCO_ERROR(err);
+
+
+    err = pco_grabber_free_memory(priv->pco);
+    CHECK_AND_RETURN_VOID_ON_PCO_ERROR(err);
+
+    err = pco_grabber_allocate_memory(priv->pco, 4);
+    CHECK_AND_RETURN_VOID_ON_PCO_ERROR(err);
+
+    if (priv->description->type == CAMERATYPE_PCO4000 || priv->description->type == CAMERATYPE_PCO_DIMAX_STD)
+    {
+        err = pco_clear_active_segment(priv->pco);
+        CHECK_AND_RETURN_VOID_ON_PCO_ERROR(err);
+    }
+
+    if (priv->description->type == CAMERATYPE_PCO4000)
+    {
+        err = pco_set_storage_mode(priv->pco, STORAGE_MODE_FIFO_BUFFER);
+        CHECK_AND_RETURN_VOID_ON_PCO_ERROR(err);
+    }
 
     if (transfer_async)
         setup_async_grab_thread(camera, error);
@@ -302,14 +336,14 @@ static void uca_pco_usb_camera_start_recording(UcaCamera *camera, GError **error
     CHECK_AND_RETURN_VOID_ON_PCO_ERROR(err);
 }
 
-static void uca_pco_usb_camera_stop_recording(UcaCamera *camera, GError **error)
+static void uca_pco_me4_camera_stop_recording(UcaCamera *camera, GError **error)
 {
-    UcaPcoUsbCameraPrivate *priv;
+    UcaPcoMe4CameraPrivate *priv;
     guint err;
 
-    g_return_if_fail(UCA_IS_PCO_USB_CAMERA(camera));
+    g_return_if_fail(UCA_IS_PCO_ME4_CAMERA(camera));
 
-    priv = UCA_PCO_USB_CAMERA_GET_PRIVATE(camera);
+    priv = UCA_PCO_ME4_CAMERA_GET_PRIVATE(camera);
 
     err = pco_stop_recording(priv->pco);
     CHECK_AND_RETURN_VOID_ON_PCO_ERROR(err);
@@ -323,29 +357,73 @@ static void uca_pco_usb_camera_stop_recording(UcaCamera *camera, GError **error)
     }
 }
 
-static void uca_pco_usb_camera_trigger(UcaCamera *camera, GError **error)
+static void uca_pco_me4_camera_start_readout(UcaCamera *camera, GError **error)
 {
-    UcaPcoUsbCameraPrivate *priv;
+    UcaPcoMe4CameraPrivate *priv;
+    guint err;
+
+    g_return_if_fail(UCA_IS_PCO_ME4_CAMERA(camera));
+    priv = UCA_PCO_ME4_CAMERA_GET_PRIVATE(camera);
+
+    guint err, width, height;
+    err = pco_get_actual_size(priv->pco, &width, &height);
+    CHECK_AND_RETURN_VOID_ON_PCO_ERROR(err);
+
+    err = pco_grabber_set_size(priv->pco, width, height);
+    CHECK_AND_RETURN_VOID_ON_PCO_ERROR(err);
+
+    err = pco_grabber_free_memory(priv->pco);
+    CHECK_AND_RETURN_VOID_ON_PCO_ERROR(err);
+
+    err = pco_grabber_allocate_memory(priv->pco, 4);
+    CHECK_AND_RETURN_VOID_ON_PCO_ERROR(err);
+
+    err = pco_get_nr_recorded_images(priv->pco, priv->active_segment, &priv->num_recorded_images, &priv->max_recorded_images);
+    CHECK_AND_RETURN_VOID_ON_PCO_ERROR(err);
+
+    err = pco_start_readout(priv->pco);
+    CHECK_AND_RETURN_VOID_ON_PCO_ERROR(err);
+
+    priv->current_image = 1;
+    priv->last_image = 0;
+}
+
+static void uca_pco_me4_camera_stop_readout(UcaCamera *camera, GError **error)
+{
+    UcaPcoMe4CameraPrivate *priv;
+    guint err;
+
+    g_return_if_fail(UCA_IS_PCO_ME4_CAMERA(camera));
+
+    priv = UCA_PCO_ME4_CAMERA_GET_PRIVATE(camera);
+
+    err = pco_stop_readout(priv->pco);
+    CHECK_AND_RETURN_VOID_ON_PCO_ERROR(err);
+}
+
+static void uca_pco_me4_camera_trigger(UcaCamera *camera, GError **error)
+{
+    UcaPcoMe4CameraPrivate *priv;
     guint16 success;
     guint err;
 
-    g_return_if_fail(UCA_IS_PCO_USB_CAMERA(camera));
+    g_return_if_fail(UCA_IS_PCO_ME4_CAMERA(camera));
 
-    priv = UCA_PCO_USB_CAMERA_GET_PRIVATE(camera);
+    priv = UCA_PCO_ME4_CAMERA_GET_PRIVATE(camera);
 
     err = pco_force_trigger(priv->pco, &success);
 
     if (!success || err != 0)
     {
-        g_set_error(error, UCA_PCO_USB_CAMERA_ERROR, UCA_PCO_USB_CAMERA_ERROR_PCOSDK_GENERAL,
+        g_set_error(error, UCA_PCO_ME4_CAMERA_ERROR, UCA_PCO_ME4_CAMERA_ERROR_PCOSDK_GENERAL,
                     "Could not trigger frame acquisition");
     }
 }
 
-static gboolean uca_pco_usb_camera_grab(UcaCamera *camera, gpointer data, GError **error)
+static gboolean uca_pco_me4_camera_grab(UcaCamera *camera, gpointer data, GError **error)
 {
-    g_return_val_if_fail(UCA_IS_PCO_USB_CAMERA(camera), FALSE);
-    UcaPcoUsbCameraPrivate *priv = UCA_PCO_USB_CAMERA_GET_PRIVATE(camera);
+    g_return_val_if_fail(UCA_IS_PCO_ME4_CAMERA(camera), FALSE);
+    UcaPcoMe4CameraPrivate *priv = UCA_PCO_ME4_CAMERA_GET_PRIVATE(camera);
 
     guint err;
     gsize size = priv->image_size;
@@ -354,48 +432,108 @@ static gboolean uca_pco_usb_camera_grab(UcaCamera *camera, gpointer data, GError
     g_object_get(G_OBJECT(camera), "is-readout", &is_readout, NULL);
     if (is_readout)
     {
-        g_set_error(error, UCA_PCO_USB_CAMERA_ERROR, UCA_PCO_USB_CAMERA_ERROR_UNSUPPORTED,
-                    "DEBUG ERROR: should not get to here, camera doesn't support memory readout.");
+        if (priv->current_image == priv->num_recorded_images)
+            return FALSE;
+
+        err = pco_read_segment_images(priv->pco, priv->active_segment, priv->current_image, priv->current_image);
+        CHECK_AND_RETURN_VAL_ON_PCO_ERROR(err, FALSE);
+        priv->current_image++;
+    }
+    else
+    {
+        err = pco_request_image(priv->pco);
+        CHECK_AND_RETURN_VAL_ON_PCO_ERROR(err, FALSE);
+    }
+
+    err = pco_last_image(priv->pco, &priv->last_image);
+    CHECK_AND_RETURN_VAL_ON_PCO_ERROR(err, FALSE);
+
+    if (priv->last_image <= 0)
+    {
+        g_set_error(error, UCA_PCO_ME4_CAMERA_ERROR, UCA_PCO_ME4_CAMERA_ERROR_FG_GENERAL, "No images in frame buffer");
         return FALSE;
     }
 
-    gpointer frame = g_malloc0(size);
-    err = pco_acquire_image_await(priv->pco, frame);
+    gpointer frame;
+    err = pco_get_image_ptr(priv->pco, &frame, priv->last_image);
     CHECK_AND_RETURN_VAL_ON_PCO_ERROR(err, FALSE);
 
     if (frame == NULL)
     {
-        g_set_error(error, UCA_PCO_USB_CAMERA_ERROR,
-                    UCA_PCO_USB_CAMERA_ERROR_FG_GENERAL,
-                    "Frame data is NULL");
+        g_set_error(error, UCA_PCO_ME4_CAMERA_ERROR, UCA_PCO_ME4_CAMERA_ERROR_FG_GENERAL, "Frame data is NULL");
         return FALSE;
     }
 
     if (data == NULL)
     {
-        g_set_error(error, UCA_PCO_USB_CAMERA_ERROR,
-                    UCA_PCO_USB_CAMERA_ERROR_FG_GENERAL,
-                    "UcaCamera provided NULL recipient buffer");
+        g_set_error(error, UCA_CAMERA_ERROR, UCA_PCO_ME4_CAMERA_ERROR_FG_GENERAL, "UcaCamera provided NULL recipient buffer");
         return FALSE;
     }
 
-    memcpy(data, frame, size);
-
-    g_free(frame);
-    frame = NULL;
+    pco_extract_image(priv->pco, data, frame, priv->image_width, priv->image_height);
 
     return TRUE;
 }
 
-static void uca_pco_usb_camera_set_property(GObject *object, guint property_id, const GValue *value, GParamSpec *pspec)
+static gboolean uca_pco_me4_camera_readout(UcaCamera *camera, gpointer data, guint index, GError **error)
 {
-    g_return_if_fail(UCA_IS_PCO_USB_CAMERA(object));
-    UcaPcoUsbCameraPrivate *priv = UCA_PCO_USB_CAMERA_GET_PRIVATE(object);
+    UcaPcoMe4CameraPrivate *priv;
+    guint err;
+
+    g_return_val_if_fail(UCA_IS_PCO_ME4_CAMERA(camera), FALSE);
+
+    priv = UCA_PCO_ME4_CAMERA_GET_PRIVATE(camera);
+
+    if (priv->description->type == CAMERATYPE_PCO_EDGE || !priv->description->has_camram)
+    {
+        g_set_error(error, UCA_PCO_ME4_CAMERA_ERROR,
+                    UCA_PCO_ME4_CAMERA_ERROR_PCOSDK_GENERAL,
+                    "pco.edge does not have a readout mode");
+        return FALSE;
+    }
+
+    err = pco_read_segment_images(priv->pco, priv->active_segment, index, index);
+    CHECK_AND_RETURN_VAL_ON_PCO_ERROR(err, FALSE);
+
+    err = pco_last_image(priv->pco, &priv->last_image);
+    CHECK_AND_RETURN_VAL_ON_PCO_ERROR(err, FALSE);
+
+    if (priv->last_image <= 0)
+    {
+        g_set_error(error, UCA_PCO_ME4_CAMERA_ERROR, UCA_PCO_ME4_CAMERA_ERROR_FG_GENERAL, "No images in frame buffer");
+        return FALSE;
+    }
+
+    gpointer frame;
+    err = pco_get_image_ptr(priv->pco, &frame, priv->last_image);
+    CHECK_AND_RETURN_VAL_ON_PCO_ERROR(err, FALSE);
+
+    if (frame == NULL)
+    {
+        g_set_error(error, UCA_PCO_ME4_CAMERA_ERROR, UCA_PCO_ME4_CAMERA_ERROR_FG_GENERAL, "Frame data is NULL");
+        return FALSE;
+    }
+
+    if (data == NULL)
+    {
+        g_set_error(error, UCA_CAMERA_ERROR, UCA_PCO_ME4_CAMERA_ERROR_FG_GENERAL, "UcaCamera provided NULL recipient buffer");
+        return FALSE;
+    }
+
+    pco_extract_image(priv->pco, data, frame, priv->image_width, priv->image_height);
+
+    return TRUE;
+}
+
+static void uca_pco_me4_camera_set_property(GObject *object, guint property_id, const GValue *value, GParamSpec *pspec)
+{
+    g_return_if_fail(UCA_IS_PCO_ME4_CAMERA(object));
+    UcaPcoMe4CameraPrivate *priv = UCA_PCO_ME4_CAMERA_GET_PRIVATE(object);
     guint err = PCO_NOERROR;
 
     if (uca_camera_is_recording(UCA_CAMERA(object)) && !uca_camera_is_writable_during_acquisition(UCA_CAMERA(object), pspec->name))
     {
-        g_warning("Property '%s' cannot be changed during acquisition", pspec->name);
+        g_warning("Property '%s' cant be changed during acquisition", pspec->name);
         return;
     }
 
@@ -555,13 +693,38 @@ static void uca_pco_usb_camera_set_property(GObject *object, guint property_id, 
         err = pco_set_pixel_offset_mode(priv->pco, g_value_get_boolean(value));
         break;
 
+    case PROP_RECORD_MODE:
+    {
+        UcaPcoMe4CameraRecordMode mode = (UcaPcoMe4CameraRecordMode)g_value_get_enum(value);
+        if (mode == UCA_PCO_ME4_CAMERA_RECORD_MODE_SEQUENCE)
+            err = pco_set_record_mode(priv->pco, RECORDER_SUBMODE_SEQUENCE);
+        else if (mode == UCA_PCO_ME4_CAMERA_RECORD_MODE_RING_BUFFER)
+            err = pco_set_record_mode(priv->pco, RECORDER_SUBMODE_RINGBUFFER);
+        else
+            g_warning("Unknown record mode");
+    }
+    break;
+
+    case PROP_STORAGE_MODE:
+    {
+        UcaPcoMe4CameraStorageMode mode = (UcaPcoMe4CameraStorageMode)g_value_get_enum(value);
+
+        if (mode == UCA_PCO_ME4_CAMERA_STORAGE_MODE_FIFO_BUFFER)
+            err = pco_set_storage_mode(priv->pco, STORAGE_MODE_FIFO_BUFFER);
+        else if (mode == UCA_PCO_ME4_CAMERA_STORAGE_MODE_RECORDER)
+            err = pco_set_storage_mode(priv->pco, STORAGE_MODE_RECORDER);
+        else
+            g_warning("Unknown storage mode");
+    }
+    break;
+
     case PROP_ACQUIRE_MODE:
     {
-        UcaPcoUsbCameraAcquireMode mode = (UcaPcoUsbCameraAcquireMode)g_value_get_enum(value);
+        UcaPcoMe4CameraAcquireMode mode = (UcaPcoMe4CameraAcquireMode)g_value_get_enum(value);
 
-        if (mode == UCA_PCO_USB_CAMERA_ACQUIRE_MODE_AUTO)
+        if (mode == UCA_PCO_ME4_CAMERA_ACQUIRE_MODE_AUTO)
             err = pco_set_acquire_mode(priv->pco, ACQUIRE_MODE_AUTO);
-        else if (mode == UCA_PCO_USB_CAMERA_ACQUIRE_MODE_EXTERNAL)
+        else if (mode == UCA_PCO_ME4_CAMERA_ACQUIRE_MODE_EXTERNAL)
             err = pco_set_acquire_mode(priv->pco, ACQUIRE_MODE_EXTERNAL);
         else
             g_warning("Unknown acquire mode");
@@ -621,8 +784,8 @@ static void uca_pco_usb_camera_set_property(GObject *object, guint property_id, 
         //     pco_edge_shutter shutter;
 
         //     shutter = g_value_get_boolean(value) ? PCO_EDGE_GLOBAL_SHUTTER : PCO_EDGE_ROLLING_SHUTTER;
-        //     err = pco_edge_set_shutter(priv->pco, shutter);
-        //     pco_destroy(priv->pco);
+        //     err = pcome4_edge_set_shutter(priv->pco, shutter);
+        //     pcome4_destroy(priv->pco);
         //     g_warning("Camera rebooting... Create a new camera instance to continue.");
     }
     break;
@@ -657,12 +820,12 @@ static void uca_pco_usb_camera_set_property(GObject *object, guint property_id, 
     check_pco_property_error(err, property_id);
 }
 
-static void uca_pco_usb_camera_get_property(GObject *object, guint property_id, GValue *value, GParamSpec *pspec)
+static void uca_pco_me4_camera_get_property(GObject *object, guint property_id, GValue *value, GParamSpec *pspec)
 {
-    UcaPcoUsbCameraPrivate *priv;
+    UcaPcoMe4CameraPrivate *priv;
     guint err = PCO_NOERROR;
 
-    priv = UCA_PCO_USB_CAMERA_GET_PRIVATE(object);
+    priv = UCA_PCO_ME4_CAMERA_GET_PRIVATE(object);
 
     /* https://github.com/ufo-kit/libuca/issues/20 - Avoid property access while recording */
     if (uca_camera_is_recording(UCA_CAMERA(object)))
@@ -823,8 +986,35 @@ static void uca_pco_usb_camera_get_property(GObject *object, guint property_id, 
         break;
 
     case PROP_HAS_CAMRAM_RECORDING:
-        g_value_set_boolean(value, FALSE); /* Edge cameras don't have onboard RAM */
+        g_value_set_boolean(value, priv->description->has_camram);
         break;
+
+    case PROP_RECORD_MODE:
+    {
+        guint16 mode;
+        err = pco_get_record_mode(priv->pco, &mode);
+        if (mode = RECORDER_SUBMODE_SEQUENCE)
+            g_value_set_enum(value, UCA_PCO_ME4_CAMERA_RECORD_MODE_SEQUENCE);
+        else if (mode = RECORDER_SUBMODE_RINGBUFFER)
+            g_value_set_enum(value, UCA_PCO_ME4_CAMERA_RECORD_MODE_RING_BUFFER);
+        else
+            g_warning("pcome4 record mode not handled");
+    }
+    break;
+
+    case PROP_STORAGE_MODE:
+    {
+        guint16 mode;
+        err = pco_get_storage_mode(priv->pco, &mode);
+
+        if (mode == STORAGE_MODE_RECORDER)
+            g_value_set_enum(value, UCA_PCO_ME4_CAMERA_STORAGE_MODE_RECORDER);
+        else if (mode == STORAGE_MODE_FIFO_BUFFER)
+            g_value_set_enum(value, UCA_PCO_ME4_CAMERA_STORAGE_MODE_FIFO_BUFFER);
+        else
+            g_warning("pco record mode not handled");
+    }
+    break;
 
     case PROP_ACQUIRE_MODE:
     {
@@ -832,9 +1022,9 @@ static void uca_pco_usb_camera_get_property(GObject *object, guint property_id, 
         err = pco_get_acquire_mode(priv->pco, &mode);
 
         if (mode == ACQUIRE_MODE_AUTO)
-            g_value_set_enum(value, UCA_PCO_USB_CAMERA_ACQUIRE_MODE_AUTO);
+            g_value_set_enum(value, UCA_PCO_ME4_CAMERA_ACQUIRE_MODE_AUTO);
         else if (mode == ACQUIRE_MODE_EXTERNAL)
-            g_value_set_enum(value, UCA_PCO_USB_CAMERA_ACQUIRE_MODE_EXTERNAL);
+            g_value_set_enum(value, UCA_PCO_ME4_CAMERA_ACQUIRE_MODE_EXTERNAL);
         else
             g_warning("pco acquire mode not handled");
     }
@@ -952,11 +1142,11 @@ static void uca_pco_usb_camera_get_property(GObject *object, guint property_id, 
     case PROP_TIMESTAMP_MODE:
     {
         guint16 mode;
-        UcaPcoUsbCameraTimestamp table[] = {
-            UCA_PCO_USB_CAMERA_TIMESTAMP_NONE,
-            UCA_PCO_USB_CAMERA_TIMESTAMP_BINARY,
-            UCA_PCO_USB_CAMERA_TIMESTAMP_BOTH,
-            UCA_PCO_USB_CAMERA_TIMESTAMP_ASCII};
+        UcaPcoMe4CameraTimestamp table[] = {
+            UCA_PCO_ME4_CAMERA_TIMESTAMP_NONE,
+            UCA_PCO_ME4_CAMERA_TIMESTAMP_BINARY,
+            UCA_PCO_ME4_CAMERA_TIMESTAMP_BOTH,
+            UCA_PCO_ME4_CAMERA_TIMESTAMP_ASCII};
 
         err = pco_get_timestamp_mode(priv->pco, &mode);
         g_value_set_enum(value, table[mode]);
@@ -979,6 +1169,13 @@ static void uca_pco_usb_camera_get_property(GObject *object, guint property_id, 
     {
         bool is_recording = pco_is_recording(priv->pco);
         g_value_set_boolean(value, (gboolean)is_recording);
+    }
+    break;
+
+    case PROP_RECORDED_FRAMES:
+    {
+        err = pco_get_nr_recorded_images(priv->pco, priv->active_segment, &priv->num_recorded_images, &priv->max_recorded_images);
+        g_value_set_uint(value, priv->num_recorded_images);
     }
     break;
 
@@ -1006,9 +1203,9 @@ static void uca_pco_usb_camera_get_property(GObject *object, guint property_id, 
     check_pco_property_error(err, property_id);
 }
 
-static void uca_pco_usb_camera_finalize(GObject *object)
+static void uca_pco_me4_camera_finalize(GObject *object)
 {
-    UcaPcoUsbCameraPrivate *priv = UCA_PCO_USB_CAMERA_GET_PRIVATE(object);
+    UcaPcoMe4CameraPrivate *priv = UCA_PCO_ME4_CAMERA_GET_PRIVATE(object);
 
     // close any spawned threads
 
@@ -1049,15 +1246,15 @@ static void uca_pco_usb_camera_finalize(GObject *object)
 
     g_clear_error(&priv->construct_error);
 
-    G_OBJECT_CLASS(uca_pco_usb_camera_parent_class)->finalize(object);
+    G_OBJECT_CLASS(uca_pco_me4_camera_parent_class)->finalize(object);
 }
 
-static gboolean uca_pco_usb_camera_initable_init(GInitable *initable, GCancellable *cancellable, GError **error)
+static gboolean uca_pco_me4_camera_initable_init(GInitable *initable, GCancellable *cancellable, GError **error)
 {
-    UcaPcoUsbCamera *camera;
-    UcaPcoUsbCameraPrivate *priv;
+    UcaPcoMe4Camera *camera;
+    UcaPcoMe4CameraPrivate *priv;
 
-    g_return_val_if_fail(UCA_IS_PCO_USB_CAMERA(initable), FALSE);
+    g_return_val_if_fail(UCA_IS_PCO_ME4_CAMERA(initable), FALSE);
 
     if (cancellable != NULL)
     {
@@ -1066,7 +1263,7 @@ static gboolean uca_pco_usb_camera_initable_init(GInitable *initable, GCancellab
         return FALSE;
     }
 
-    camera = UCA_PCO_USB_CAMERA(initable);
+    camera = UCA_PCO_ME4_CAMERA(initable);
     priv = camera->priv;
 
     if (priv->construct_error != NULL)
@@ -1080,33 +1277,36 @@ static gboolean uca_pco_usb_camera_initable_init(GInitable *initable, GCancellab
     return TRUE;
 }
 
-static void uca_pco_usb_camera_initable_iface_init(GInitableIface *iface)
+static void uca_pco_me4_camera_initable_iface_init(GInitableIface *iface)
 {
-    iface->init = uca_pco_usb_camera_initable_init;
+    iface->init = uca_pco_me4_camera_initable_init;
 }
 
-static void uca_pco_usb_camera_class_init(UcaPcoUsbCameraClass *klass)
+static void uca_pco_me4_camera_class_init(UcaPcoMe4CameraClass *klass)
 {
     GObjectClass *gobject_class = G_OBJECT_CLASS(klass);
-    gobject_class->set_property = uca_pco_usb_camera_set_property;
-    gobject_class->get_property = uca_pco_usb_camera_get_property;
-    gobject_class->finalize = uca_pco_usb_camera_finalize;
+    gobject_class->set_property = uca_pco_me4_camera_set_property;
+    gobject_class->get_property = uca_pco_me4_camera_get_property;
+    gobject_class->finalize = uca_pco_me4_camera_finalize;
 
     UcaCameraClass *camera_class = UCA_CAMERA_CLASS(klass);
-    camera_class->start_recording = uca_pco_usb_camera_start_recording;
-    camera_class->stop_recording = uca_pco_usb_camera_stop_recording;
-    camera_class->trigger = uca_pco_usb_camera_trigger;
-    camera_class->grab = uca_pco_usb_camera_grab;
+    camera_class->start_recording = uca_pco_me4_camera_start_recording;
+    camera_class->stop_recording = uca_pco_me4_camera_stop_recording;
+    camera_class->trigger = uca_pco_me4_camera_trigger;
+    camera_class->grab = uca_pco_me4_camera_grab;
+    camera_class->start_readout = uca_pco_me4_camera_start_readout;
+    camera_class->readout = uca_pco_me4_camera_readout;
+    camera_class->stop_readout = uca_pco_me4_camera_stop_readout;
 
     for (guint i = 0; base_overrideables[i] != 0; i++)
         g_object_class_override_property(gobject_class, base_overrideables[i], uca_camera_props[base_overrideables[i]]);
 
     /**
-     * UcaPcoUsbCamera:sensor-extended:
+     * UcaPcoMe4Camera:sensor-extended:
      *
      * Activate larger sensor area that contains surrounding pixels for dark
-     * references and dummies. Use #UcaPcoUsbCamera:sensor-width-extended and
-     * #UcaPcoUsbCamera:sensor-height-extended to query the resolution of the
+     * references and dummies. Use #UcaPcoMe4Camera:sensor-width-extended and
+     * #UcaPcoMe4Camera:sensor-height-extended to query the resolution of the
      * larger area.
      */
     pco_properties[PROP_SENSOR_EXTENDED] =
@@ -1130,11 +1330,11 @@ static void uca_pco_usb_camera_class_init(UcaPcoUsbCameraClass *klass)
                           G_PARAM_READABLE);
 
     /**
-     * UcaPcoUsbCamera:sensor-pixelrate:
+     * UcaPcoMe4Camera:sensor-pixelrate:
      *
      * Read and write the pixel rate or clock of the sensor in terms of Hertz.
      * Make sure to query the possible pixel rates through the
-     * #UcaPcoUsbCamera:sensor-pixelrates property. Any other value will be
+     * #UcaPcoMe4Camera:sensor-pixelrates property. Any other value will be
      * rejected by the camera.
      */
     pco_properties[PROP_SENSOR_PIXELRATE] =
@@ -1204,7 +1404,14 @@ static void uca_pco_usb_camera_class_init(UcaPcoUsbCameraClass *klass)
         g_param_spec_enum("acquire-mode",
                           "Acquire mode",
                           "Acquire mode",
-                          UCA_TYPE_PCO_USB_CAMERA_ACQUIRE_MODE, UCA_PCO_USB_CAMERA_ACQUIRE_MODE_AUTO,
+                          UCA_TYPE_PCO_ME4_CAMERA_ACQUIRE_MODE, UCA_PCO_ME4_CAMERA_ACQUIRE_MODE_AUTO,
+                          G_PARAM_READWRITE);
+
+    pco_properties[PROP_RECORD_MODE] =
+        g_param_spec_enum("record-mode",
+                          "Record mode",
+                          "Record mode",
+                          UCA_TYPE_PCO_ME4_CAMERA_RECORD_MODE, UCA_PCO_ME4_CAMERA_RECORD_MODE_SEQUENCE,
                           G_PARAM_READWRITE);
 
     pco_properties[PROP_FAST_SCAN] =
@@ -1223,7 +1430,7 @@ static void uca_pco_usb_camera_class_init(UcaPcoUsbCameraClass *klass)
         g_param_spec_enum("timestamp-mode",
                           "Timestamp mode",
                           "Timestamp mode",
-                          UCA_TYPE_PCO_USB_CAMERA_TIMESTAMP, UCA_PCO_USB_CAMERA_TIMESTAMP_NONE,
+                          UCA_TYPE_PCO_ME4_CAMERA_TIMESTAMP, UCA_PCO_ME4_CAMERA_TIMESTAMP_NONE,
                           G_PARAM_READWRITE);
 
     pco_properties[PROP_VERSION] =
@@ -1256,10 +1463,10 @@ static void uca_pco_usb_camera_class_init(UcaPcoUsbCameraClass *klass)
     for (guint id = N_BASE_PROPERTIES; id < N_PROPERTIES; id++)
         g_object_class_install_property(gobject_class, id, pco_properties[id]);
 
-    g_type_class_add_private(klass, sizeof(UcaPcoUsbCameraPrivate));
+    g_type_class_add_private(klass, sizeof(UcaPcoMe4CameraPrivate));
 }
 
-static gboolean setup_pco_camera(UcaPcoUsbCameraPrivate *priv)
+static gboolean setup_pco_camera(UcaPcoMe4CameraPrivate *priv)
 {
     pco_map_entry *map_entry;
     guint16 camera_type;
@@ -1274,7 +1481,7 @@ static gboolean setup_pco_camera(UcaPcoUsbCameraPrivate *priv)
     if (priv->pco == NULL)
     {
         g_set_error(error,
-                    UCA_PCO_USB_CAMERA_ERROR, UCA_PCO_USB_CAMERA_ERROR_PCOSDK_INIT,
+                    UCA_PCO_ME4_CAMERA_ERROR, UCA_PCO_ME4_CAMERA_ERROR_PCOSDK_INIT,
                     "Initializing pco wrapper failed");
         return FALSE;
     }
@@ -1285,12 +1492,15 @@ static gboolean setup_pco_camera(UcaPcoUsbCameraPrivate *priv)
     if (map_entry == NULL)
     {
         g_set_error(error,
-                    UCA_PCO_USB_CAMERA_ERROR, UCA_PCO_USB_CAMERA_ERROR_UNSUPPORTED,
+                    UCA_PCO_ME4_CAMERA_ERROR, UCA_PCO_ME4_CAMERA_ERROR_UNSUPPORTED,
                     "Camera type is not supported: 0x%x::0x%x", camera_type, camera_subtype);
         return FALSE;
     }
 
     priv->description = map_entry;
+
+    err = pco_get_active_segment(priv->pco, &priv->active_segment);
+    CHECK_AND_RETURN_VAL_ON_PCO_ERROR(err, FALSE);
 
     err = pco_get_camera_version(priv->pco, &serial, &version[0], &version[1], &version[2], &version[3]);
     CHECK_AND_RETURN_VAL_ON_PCO_ERROR(err, FALSE);
@@ -1301,7 +1511,7 @@ static gboolean setup_pco_camera(UcaPcoUsbCameraPrivate *priv)
     return TRUE;
 }
 
-static gboolean setup_frame_grabber(UcaPcoUsbCameraPrivate *priv)
+static gboolean setup_frame_grabber(UcaPcoMe4CameraPrivate *priv)
 {
     guint err, width, height;
 
@@ -1313,13 +1523,13 @@ static gboolean setup_frame_grabber(UcaPcoUsbCameraPrivate *priv)
     return err == PCO_NOERROR;
 }
 
-static void override_property_ranges(UcaPcoUsbCamera *camera)
+static void override_property_ranges(UcaPcoMe4Camera *camera)
 {
-    UcaPcoUsbCameraPrivate *priv;
+    UcaPcoMe4CameraPrivate *priv;
     GObjectClass *oclass;
 
-    priv = UCA_PCO_USB_CAMERA_GET_PRIVATE(camera);
-    oclass = G_OBJECT_CLASS(UCA_PCO_USB_CAMERA_GET_CLASS(camera));
+    priv = UCA_PCO_ME4_CAMERA_GET_PRIVATE(camera);
+    oclass = G_OBJECT_CLASS(UCA_PCO_ME4_CAMERA_GET_CLASS(camera));
     
     // fill pixelrates array
     guint rates[4] = {0}, num_rates = 0;
@@ -1351,12 +1561,12 @@ static void override_property_ranges(UcaPcoUsbCamera *camera)
 }
 
 static void
-uca_pco_usb_camera_init(UcaPcoUsbCamera *self)
+uca_pco_me4_camera_init(UcaPcoMe4Camera *self)
 {
     UcaCamera *camera;
-    UcaPcoUsbCameraPrivate *priv;
+    UcaPcoMe4CameraPrivate *priv;
 
-    self->priv = priv = UCA_PCO_USB_CAMERA_GET_PRIVATE(self);
+    self->priv = priv = UCA_PCO_ME4_CAMERA_GET_PRIVATE(self);
 
     priv->description = NULL;
     priv->construct_error = NULL;
@@ -1385,5 +1595,5 @@ uca_pco_usb_camera_init(UcaPcoUsbCamera *self)
 
 G_MODULE_EXPORT GType camera_plugin_get_type(void)
 {
-    return UCA_TYPE_PCO_USB_CAMERA;
+    return UCA_TYPE_PCO_ME4_CAMERA;
 }
