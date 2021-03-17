@@ -161,7 +161,8 @@ static void fill_pixelrates(UcaPcoClhsCameraPrivate *priv, guint32 rates[4], gin
     g_value_init(&val, G_TYPE_UINT);
     priv->pixelrates = g_value_array_new(num_rates);
 
-    for (gint i = 0; i < num_rates; i++)
+    gint i;
+    for (i = 0; i < num_rates; i++)
     {
         g_value_set_uint(&val, (guint)rates[i]);
         g_value_array_append(priv->pixelrates, &val);
@@ -517,7 +518,8 @@ static void uca_pco_clhs_camera_set_property(GObject *object, guint property_id,
         guint desired_pixel_rate = g_value_get_uint(value);
         guint32 pixel_rate = 0;
 
-        for (guint i = 0; i < priv->pixelrates->n_values; i++)
+        guint i;
+        for (i = 0; i < priv->pixelrates->n_values; i++)
         {
             if (g_value_get_uint(g_value_array_get_nth(priv->pixelrates, i)) == desired_pixel_rate)
             {
@@ -1079,7 +1081,8 @@ static void uca_pco_clhs_camera_class_init(UcaPcoClhsCameraClass *klass)
     camera_class->trigger = uca_pco_clhs_camera_trigger;
     camera_class->grab = uca_pco_clhs_camera_grab;
 
-    for (guint i = 0; base_overrideables[i] != 0; i++)
+    guint i;
+    for (i = 0; base_overrideables[i] != 0; i++)
         g_object_class_override_property(gobject_class, base_overrideables[i], uca_camera_props[base_overrideables[i]]);
 
     /**
@@ -1228,7 +1231,8 @@ static void uca_pco_clhs_camera_class_init(UcaPcoClhsCameraClass *klass)
                             0., 1., 0.,
                             G_PARAM_READWRITE);
 
-    for (guint id = N_BASE_PROPERTIES; id < N_PROPERTIES; id++)
+    guint id;
+    for (id = N_BASE_PROPERTIES; id < N_PROPERTIES; id++)
         g_object_class_install_property(gobject_class, id, pco_properties[id]);
 
     g_type_class_add_private(klass, sizeof(UcaPcoClhsCameraPrivate));
