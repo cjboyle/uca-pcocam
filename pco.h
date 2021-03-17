@@ -811,7 +811,10 @@ extern "C"
         double dbl;
     } discard_t;
 
-    static discard_t discard __attribute__((__used___)) = {};
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-variable"
+    static discard_t discard = {};
+#pragma GCC diagnostic pop
 
 #ifdef __cplusplus
 }
