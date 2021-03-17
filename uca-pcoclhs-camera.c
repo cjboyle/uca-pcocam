@@ -190,8 +190,8 @@ static gpointer grab_func(gpointer rawptr)
         gpointer frame = g_malloc0(priv->image_size);
         err = pco_acquire_image_await(priv->pco, frame);
 
-        if (err != 0)
-            return NULL;
+        if (frame == NULL || err != 0)
+            continue;
 
         memcpy(priv->grab_thread_buffer, frame, priv->image_size);
         camera->grab_func(priv->grab_thread_buffer, camera->user_data);
@@ -329,8 +329,9 @@ static void uca_pco_clhs_camera_trigger(UcaCamera *camera, GError **error)
     priv = UCA_PCO_CLHS_CAMERA_GET_PRIVATE(camera);
 
     err = pco_force_trigger(priv->pco, &success);
+    CHECK_AND_RETURN_VOID_ON_PCO_ERROR(err);
 
-    if (!success || err != 0)
+    if (!success)
     {
         g_set_error(error, UCA_PCO_CLHS_CAMERA_ERROR, UCA_PCO_CLHS_CAMERA_ERROR_PCOSDK_GENERAL,
                     "Could not trigger frame acquisition");

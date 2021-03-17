@@ -206,7 +206,7 @@ static gpointer grab_func(gpointer rawptr)
         gpointer frame;
         err = pco_get_image_ptr(priv->pco, &frame, index);
         if (frame == NULL || err != 0)
-            return NULL;
+            continue;
 
         pco_extract_image(priv->pco, priv->grab_thread_buffer, frame, priv->image_width, priv->image_height);
 
@@ -365,7 +365,7 @@ static void uca_pco_me4_camera_start_readout(UcaCamera *camera, GError **error)
     g_return_if_fail(UCA_IS_PCO_ME4_CAMERA(camera));
     priv = UCA_PCO_ME4_CAMERA_GET_PRIVATE(camera);
 
-    guint err, width, height;
+    guint width, height;
     err = pco_get_actual_size(priv->pco, &width, &height);
     CHECK_AND_RETURN_VOID_ON_PCO_ERROR(err);
 
@@ -412,8 +412,9 @@ static void uca_pco_me4_camera_trigger(UcaCamera *camera, GError **error)
     priv = UCA_PCO_ME4_CAMERA_GET_PRIVATE(camera);
 
     err = pco_force_trigger(priv->pco, &success);
+    CHECK_AND_RETURN_VOID_ON_PCO_ERROR(err);
 
-    if (!success || err != 0)
+    if (!success)
     {
         g_set_error(error, UCA_PCO_ME4_CAMERA_ERROR, UCA_PCO_ME4_CAMERA_ERROR_PCOSDK_GENERAL,
                     "Could not trigger frame acquisition");
