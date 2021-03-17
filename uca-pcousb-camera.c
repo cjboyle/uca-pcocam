@@ -814,7 +814,7 @@ static void uca_pco_usb_camera_get_property(GObject *object, guint property_id, 
     case PROP_OFFSET_MODE:
     {
         bool offset;
-        err = pco_get_offset_mode(priv->pco, &offset);
+        err = pco_get_pixel_offset_mode(priv->pco, &offset);
         g_value_set_boolean(value, offset);
     }
     break;
