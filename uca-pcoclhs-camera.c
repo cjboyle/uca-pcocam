@@ -1173,7 +1173,7 @@ static void uca_pco_clhs_camera_class_init(UcaPcoClhsCameraClass *klass)
                              FALSE, G_PARAM_READWRITE);
 
     pco_properties[PROP_OFFSET_MODE] =
-        g_param_spec_boolean("double-image-mode",
+        g_param_spec_boolean("double-offset-mode",
                              "Use pixel offset mode",
                              "Use pixel offset mode",
                              FALSE, G_PARAM_READWRITE);
