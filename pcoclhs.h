@@ -1,13 +1,10 @@
 #ifndef _PCOCLHS_H_
 #define _PCOCLHS_H_
 
-// #ifdef __cplusplus
-// extern "C"
-// {
-// #endif
-
-#include <stdint.h>
-#include <stdbool.h>
+#ifdef __cplusplus
+extern "C"
+{
+#endif
 
 #include "pco.h"
 
@@ -19,8 +16,8 @@
 #define SISODIR5 "/opt/SiliconSoftware/Runtime5.7.0"
 #endif
 
-// #ifdef __cplusplus
-// }
-// #endif /*__cplusplus*/
+#ifdef __cplusplus
+}
+#endif /*__cplusplus*/
 
 #endif /*_PCOCLHS_H_*/

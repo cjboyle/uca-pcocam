@@ -1,5 +1,3 @@
-#include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
 #include <time.h>
 
@@ -26,17 +24,7 @@
  * UFO-KIT's libpco library partial implementation.
  */
 
-#undef CHECK_ERROR
-#define CHECK_ERROR(code)                                                        \
-    if ((code) != 0 && strstr(__FUNCTION__, "_get_") == NULL)                                                             \
-    {                                                                            \
-        fprintf(stderr, "Error: 0x%x at <%s:%i>\n", (code), __FILE__, __LINE__); \
-        fprintf(stderr, "  %s\n", _get_error_text((code)));                      \
-    }
-
-/* Static helper functions */
-
-static char *_get_error_text(DWORD code)
+char *_get_error_text(DWORD code)
 {
     char *s = (char *)malloc(255);
     PCO_GetErrorText(code, s, 255);

@@ -6,9 +6,6 @@ extern "C"
 {
 #endif
 
-#include <stdint.h>
-#include <stdbool.h>
-
 #include "pco.h"
 
 #include "pco/include/usb/defs.h"

@@ -8,6 +8,19 @@ extern "C"
 
 #include <stdint.h>
 #include <stdbool.h>
+#include <stdio.h>
+#include <stdlib.h>
+
+    char *_get_error_text(unsigned int code);
+
+#define CHECK_ERROR(code)                                                                                     \
+    if ((code) != 0 && strstr(__FUNCTION__, "_get_") == NULL)                                                 \
+    {                                                                                                         \
+        fprintf(stderr, "Error: 0x%x at <%s:%i> in function %s\n", (code), __FILE__, __LINE__, __FUNCTION__); \
+        char *txt = _get_error_text((code));                                                                  \
+        fprintf(stderr, "  %s\n", txt);                                                                       \
+        free(txt);                                                                                            \
+    }
 
 #define RETURN_IF_ERROR(code) \
     {                         \
