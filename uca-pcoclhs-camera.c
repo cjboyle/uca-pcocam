@@ -541,7 +541,7 @@ static void uca_pco_clhs_camera_set_property(GObject *object, guint property_id,
     break;
 
     case PROP_COOLING_POINT:
-        err = pco_set_cooling_temperature(priv->pco, (gint16)g_value_get_int(value));
+        err = pco_set_cooling_setpoint(priv->pco, (gint16)g_value_get_int(value));
         break;
 
     case PROP_DOUBLE_IMAGE_MODE:
@@ -912,7 +912,7 @@ static void uca_pco_clhs_camera_get_property(GObject *object, guint property_id,
     case PROP_COOLING_POINT:
     {
         gint16 temp;
-        err = pco_get_cooling_temperature(priv->pco, &temp);
+        err = pco_get_cooling_setpoint(priv->pco, &temp);
         g_value_set_int(value, temp);
     }
     break;
