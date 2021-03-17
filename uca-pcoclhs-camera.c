@@ -355,11 +355,6 @@ static gboolean uca_pco_clhs_camera_grab(UcaCamera *camera, gpointer data, GErro
                     "DEBUG ERROR: should not get to here, camera doesn't support memory readout.");
         return FALSE;
     }
-    else
-    {
-        err = pco_request_image(priv->pco);
-        CHECK_AND_RETURN_VAL_ON_PCO_ERROR(err, FALSE);
-    }
 
     gpointer frame = g_malloc0(size);
     err = pco_acquire_image_await(priv->pco, frame);
@@ -1351,8 +1346,6 @@ uca_pco_clhs_camera_init(UcaPcoClhsCamera *self)
     uca_camera_register_unit(camera, "sensor-temperature", UCA_UNIT_DEGREE_CELSIUS);
     uca_camera_register_unit(camera, "sensor-temperature", UCA_UNIT_DEGREE_CELSIUS);
     uca_camera_register_unit(camera, "cooling-point", UCA_UNIT_DEGREE_CELSIUS);
-    uca_camera_register_unit(camera, "cooling-point-min", UCA_UNIT_DEGREE_CELSIUS);
-    uca_camera_register_unit(camera, "cooling-point-max", UCA_UNIT_DEGREE_CELSIUS);
     uca_camera_register_unit(camera, "cooling-point-default", UCA_UNIT_DEGREE_CELSIUS);
     uca_camera_register_unit(camera, "delay-time", UCA_UNIT_SECOND);
     uca_camera_set_writable(camera, "frames-per-second", TRUE);
