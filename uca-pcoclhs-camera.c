@@ -355,6 +355,11 @@ static gboolean uca_pco_clhs_camera_grab(UcaCamera *camera, gpointer data, GErro
                     "DEBUG ERROR: should not get to here, camera doesn't support memory readout.");
         return FALSE;
     }
+    else
+    {
+        err = pco_request_image(priv->pco);
+        CHECK_AND_RETURN_VAL_ON_PCO_ERROR(err, FALSE);
+    }
 
     gpointer frame = g_malloc0(size);
     err = pco_acquire_image_await(priv->pco, frame);
@@ -656,7 +661,7 @@ static void uca_pco_clhs_camera_get_property(GObject *object, guint property_id,
     priv = UCA_PCO_CLHS_CAMERA_GET_PRIVATE(object);
 
     /* https://github.com/ufo-kit/libuca/issues/20 - Avoid property access while recording */
-    if (uca_camera_is_recording(UCA_CAMERA(object)))
+    if (uca_camera_is_recording(UCA_CAMERA(object)) && priv->description->type == CAMERATYPE_PCO4000)
     {
         g_warning("Property '%s' cannot be accessed during acquisition", pspec->name);
         return;
@@ -1173,7 +1178,7 @@ static void uca_pco_clhs_camera_class_init(UcaPcoClhsCameraClass *klass)
                              FALSE, G_PARAM_READWRITE);
 
     pco_properties[PROP_OFFSET_MODE] =
-        g_param_spec_boolean("double-offset-mode",
+        g_param_spec_boolean("offset-mode",
                              "Use pixel offset mode",
                              "Use pixel offset mode",
                              FALSE, G_PARAM_READWRITE);

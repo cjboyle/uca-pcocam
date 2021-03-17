@@ -28,7 +28,7 @@
 
 #undef CHECK_ERROR
 #define CHECK_ERROR(code)                                                        \
-    if ((code) != 0)                                                             \
+    if ((code) != 0 && strstr(__FUNCTION__, "_get_") == NULL)                                                             \
     {                                                                            \
         fprintf(stderr, "Error: 0x%x at <%s:%i>\n", (code), __FILE__, __LINE__); \
         fprintf(stderr, "  %s\n", _get_error_text((code)));                      \
