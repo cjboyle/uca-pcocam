@@ -702,7 +702,7 @@ extern "C"
      * @param timeout the number of milliseconds to wait before an error is produced
      * @return 0 on success, otherwise less than 0
      */
-    uint32_t pco_acquire_image_ex_async(pco_handle *pco, void *adr, int timeout);
+    uint32_t pco_acquire_image_async_ex(pco_handle *pco, void *adr, int timeout);
 
     /**
      * Blocking image acquisition call to the pco.camera SDK with grabber-configured timeout.
@@ -719,7 +719,7 @@ extern "C"
      * @param timeout the number of milliseconds to wait before an error is produced
      * @return 0 on success, otherwise less than 0
      */
-    uint32_t pco_acquire_image_ex_await(pco_handle *pco, void *adr, int timeout);
+    uint32_t pco_acquire_image_await_ex(pco_handle *pco, void *adr, int timeout);
 
     /**
      * Get the actual size of the image capture area, accounting for binning and ROI.

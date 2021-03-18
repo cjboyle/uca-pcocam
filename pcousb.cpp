@@ -838,7 +838,7 @@ unsigned int pco_force_acquire_ex(pco_handle *pco, void *adr, int timeout)
         RETURN_IF_ERROR(err);
     }
 
-    err = pco_acquire_image_ex_await(pco, adr, timeout);
+    err = pco_acquire_image_await_ex(pco, adr, timeout);
     RETURN_ANY_CODE(err);
 }
 
@@ -866,7 +866,7 @@ unsigned int pco_acquire_image_async(pco_handle *pco, void *adr)
     RETURN_ANY_CODE(err);
 }
 
-unsigned int pco_acquire_image_ex_async(pco_handle *pco, void *adr, int timeout)
+unsigned int pco_acquire_image_async_ex(pco_handle *pco, void *adr, int timeout)
 {
     DWORD err = pco->grabber->Acquire_Image_Async(adr, timeout);
     RETURN_ANY_CODE(err);
@@ -878,7 +878,7 @@ unsigned int pco_acquire_image_await(pco_handle *pco, void *adr)
     RETURN_ANY_CODE(err);
 }
 
-unsigned int pco_acquire_image_ex_await(pco_handle *pco, void *adr, int timeout)
+unsigned int pco_acquire_image_await_ex(pco_handle *pco, void *adr, int timeout)
 {
     DWORD err = pco->grabber->Acquire_Image_Async_wait(adr, timeout);
     RETURN_ANY_CODE(err);
