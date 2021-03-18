@@ -146,6 +146,8 @@ struct _UcaPcoClhsCameraPrivate
 
     UcaCameraTriggerSource trigger_source;
 
+    gint timeout_sec;
+
     //
     /* threading */
     //
@@ -154,6 +156,13 @@ struct _UcaPcoClhsCameraPrivate
     GAsyncQueue *grab_trigger_queue;
     gpointer grab_thread_buffer;
 };
+
+static gint get_max_timeout(UcaPcoClhsCameraPrivate *priv)
+{
+    return priv->trigger_source == UCA_CAMERA_TRIGGER_SOURCE_EXTERNAL
+            ? G_MAXINT32
+            : (priv->timeout_sec * 1000);
+}
 
 static void fill_pixelrates(UcaPcoClhsCameraPrivate *priv, guint32 rates[4], gint num_rates)
 {
@@ -189,7 +198,7 @@ static gpointer grab_func(gpointer rawptr)
     while (priv->grab_thread_running)
     {
         gpointer frame = g_malloc0(priv->image_size);
-        err = pco_acquire_image_await(priv->pco, frame);
+        err = pco_acquire_image_await_ex(priv->pco, frame, get_max_timeout(priv));
 
         if (frame == NULL || err != 0)
             continue;
@@ -243,6 +252,7 @@ static void uca_pco_clhs_camera_start_recording(UcaCamera *camera, GError **erro
     g_object_get(camera,
                  "trigger-source", &priv->trigger_source,
                  "transfer-asynchronously", &transfer_async,
+                 "frame-grabber-timeout", &priv->timeout_sec,
                  NULL);
 
     err = pco_get_resolution(priv->pco, &width, &height, &width_ex, &height_ex);
@@ -357,7 +367,7 @@ static gboolean uca_pco_clhs_camera_grab(UcaCamera *camera, gpointer data, GErro
     }
 
     gpointer frame = g_malloc0(size);
-    err = pco_acquire_image_await(priv->pco, frame);
+    err = pco_acquire_image_await_ex(priv->pco, frame, get_max_timeout(priv));
     CHECK_AND_RETURN_VAL_ON_PCO_ERROR(err, FALSE);
 
     if (frame == NULL)
@@ -619,8 +629,8 @@ static void uca_pco_clhs_camera_set_property(GObject *object, guint property_id,
         //     pco_edge_shutter shutter;
 
         //     shutter = g_value_get_boolean(value) ? PCO_EDGE_GLOBAL_SHUTTER : PCO_EDGE_ROLLING_SHUTTER;
-        //     err = pcoclhs_edge_set_shutter(priv->pco, shutter);
-        //     pcoclhs_destroy(priv->pco);
+        //     err = pco_edge_set_shutter(priv->pco, shutter);
+        //     pco_destroy(priv->pco);
         //     g_warning("Camera rebooting... Create a new camera instance to continue.");
     }
     break;
@@ -630,6 +640,7 @@ static void uca_pco_clhs_camera_set_property(GObject *object, guint property_id,
         gdouble rate = g_value_get_double(value);
         err = pco_set_fps(priv->pco, rate);
     }
+    break;
 
     case PROP_FRAME_GRABBER_TIMEOUT:
     {
@@ -975,9 +986,7 @@ static void uca_pco_clhs_camera_get_property(GObject *object, guint property_id,
 
     case PROP_FRAME_GRABBER_TIMEOUT:
     {
-        int timeout;
-        pco_grabber_get_timeout(priv->pco, &timeout);
-        g_value_set_uint(value, (guint)timeout);
+        g_value_set_uint(value, (guint)priv->timeout_sec);
     }
     break;
 
@@ -1221,7 +1230,7 @@ static void uca_pco_clhs_camera_class_init(UcaPcoClhsCameraClass *klass)
         g_param_spec_uint("frame-grabber-timeout",
                           "Frame grabber timeout in seconds",
                           "Frame grabber timeout in seconds",
-                          0, G_MAXUINT, 5,
+                          0, G_MAXINT32, 10,
                           G_PARAM_READWRITE);
 
     pco_properties[PROP_DELAY_TIME] =
@@ -1331,6 +1340,7 @@ uca_pco_clhs_camera_init(UcaPcoClhsCamera *self)
     priv->description = NULL;
     priv->construct_error = NULL;
     priv->version = g_strdup(DEFAULT_VERSION);
+    priv->timeout_sec = 10;
 
     if (!setup_pco_camera(priv))
         return;
@@ -1348,6 +1358,7 @@ uca_pco_clhs_camera_init(UcaPcoClhsCamera *self)
     uca_camera_register_unit(camera, "cooling-point", UCA_UNIT_DEGREE_CELSIUS);
     uca_camera_register_unit(camera, "cooling-point-default", UCA_UNIT_DEGREE_CELSIUS);
     uca_camera_register_unit(camera, "delay-time", UCA_UNIT_SECOND);
+    uca_camera_register_unit(camera, "frame-grabber-timeout", UCA_UNIT_SECOND);
     uca_camera_set_writable(camera, "frames-per-second", TRUE);
 }
 

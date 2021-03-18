@@ -157,6 +157,8 @@ struct _UcaPcoMe4CameraPrivate
 
     UcaCameraTriggerSource trigger_source;
 
+    gint timeout_sec;
+
     //
     /* threading */
     //
@@ -166,13 +168,21 @@ struct _UcaPcoMe4CameraPrivate
     gpointer grab_thread_buffer;
 };
 
+static gint get_max_timeout(UcaPcoMe4CameraPrivate *priv)
+{
+    return priv->trigger_source == UCA_CAMERA_TRIGGER_SOURCE_EXTERNAL
+            ? G_MAXINT32
+            : (priv->timeout_sec * 1000);
+}
+
 static void fill_pixelrates(UcaPcoMe4CameraPrivate *priv, guint32 rates[4], gint num_rates)
 {
     GValue val = {0};
     g_value_init(&val, G_TYPE_UINT);
     priv->pixelrates = g_value_array_new(num_rates);
 
-    for (gint i = 0; i < num_rates; i++)
+    gint i;
+    for (i = 0; i < num_rates; i++)
     {
         g_value_set_uint(&val, (guint)rates[i]);
         g_value_array_append(priv->pixelrates, &val);
@@ -199,7 +209,7 @@ static gpointer grab_func(gpointer rawptr)
     while (priv->grab_thread_running)
     {
         int index;
-        err = pco_next_image_index(priv->pco, &index);
+        err = pco_next_image_index_ex(priv->pco, &index, get_max_timeout(priv));
         if (index <= 0 || err != 0)
             return NULL;
 
@@ -258,6 +268,7 @@ static void uca_pco_me4_camera_start_recording(UcaCamera *camera, GError **error
     g_object_get(camera,
                  "trigger-source", &priv->trigger_source,
                  "transfer-asynchronously", &transfer_async,
+                 "frame-grabber-timeout", &priv->timeout_sec,
                  "record-mode", &record_mode,
                  NULL);
 
@@ -446,7 +457,7 @@ static gboolean uca_pco_me4_camera_grab(UcaCamera *camera, gpointer data, GError
         CHECK_AND_RETURN_VAL_ON_PCO_ERROR(err, FALSE);
     }
 
-    err = pco_last_image(priv->pco, &priv->last_image);
+    err = pco_next_image_index_ex(priv->pco, &priv->last_image, get_max_timeout(priv));
     CHECK_AND_RETURN_VAL_ON_PCO_ERROR(err, FALSE);
 
     if (priv->last_image <= 0)
@@ -496,7 +507,7 @@ static gboolean uca_pco_me4_camera_readout(UcaCamera *camera, gpointer data, gui
     err = pco_read_segment_images(priv->pco, priv->active_segment, index, index);
     CHECK_AND_RETURN_VAL_ON_PCO_ERROR(err, FALSE);
 
-    err = pco_last_image(priv->pco, &priv->last_image);
+    err = pco_next_image_index_ex(priv->pco, &priv->last_image, priv->timeout_sec * 1000);
     CHECK_AND_RETURN_VAL_ON_PCO_ERROR(err, FALSE);
 
     if (priv->last_image <= 0)
@@ -534,7 +545,7 @@ static void uca_pco_me4_camera_set_property(GObject *object, guint property_id, 
 
     if (uca_camera_is_recording(UCA_CAMERA(object)) && !uca_camera_is_writable_during_acquisition(UCA_CAMERA(object), pspec->name))
     {
-        g_warning("Property '%s' cant be changed during acquisition", pspec->name);
+        g_warning("Property '%s' cannot be changed during acquisition", pspec->name);
         return;
     }
 
@@ -660,7 +671,8 @@ static void uca_pco_me4_camera_set_property(GObject *object, guint property_id, 
         guint desired_pixel_rate = g_value_get_uint(value);
         guint32 pixel_rate = 0;
 
-        for (guint i = 0; i < priv->pixelrates->n_values; i++)
+        guint i;
+        for (i = 0; i < priv->pixelrates->n_values; i++)
         {
             if (g_value_get_uint(g_value_array_get_nth(priv->pixelrates, i)) == desired_pixel_rate)
             {
@@ -785,8 +797,8 @@ static void uca_pco_me4_camera_set_property(GObject *object, guint property_id, 
         //     pco_edge_shutter shutter;
 
         //     shutter = g_value_get_boolean(value) ? PCO_EDGE_GLOBAL_SHUTTER : PCO_EDGE_ROLLING_SHUTTER;
-        //     err = pcome4_edge_set_shutter(priv->pco, shutter);
-        //     pcome4_destroy(priv->pco);
+        //     err = pco_edge_set_shutter(priv->pco, shutter);
+        //     pco_destroy(priv->pco);
         //     g_warning("Camera rebooting... Create a new camera instance to continue.");
     }
     break;
@@ -796,6 +808,7 @@ static void uca_pco_me4_camera_set_property(GObject *object, guint property_id, 
         gdouble rate = g_value_get_double(value);
         err = pco_set_fps(priv->pco, rate);
     }
+    break;
 
     case PROP_SENSOR_ADCS:
     {
@@ -829,7 +842,7 @@ static void uca_pco_me4_camera_get_property(GObject *object, guint property_id, 
     priv = UCA_PCO_ME4_CAMERA_GET_PRIVATE(object);
 
     /* https://github.com/ufo-kit/libuca/issues/20 - Avoid property access while recording */
-    if (uca_camera_is_recording(UCA_CAMERA(object)))
+    if (uca_camera_is_recording(UCA_CAMERA(object)) && priv->description->type == CAMERATYPE_PCO4000)
     {
         g_warning("Property '%s' cannot be accessed during acquisition", pspec->name);
         return;
@@ -1190,9 +1203,7 @@ static void uca_pco_me4_camera_get_property(GObject *object, guint property_id, 
 
     case PROP_FRAME_GRABBER_TIMEOUT:
     {
-        int timeout;
-        pco_grabber_get_timeout(priv->pco, &timeout);
-        g_value_set_uint(value, (guint)timeout);
+        g_value_set_uint(value, (guint)priv->timeout_sec);
     }
     break;
 
@@ -1299,7 +1310,8 @@ static void uca_pco_me4_camera_class_init(UcaPcoMe4CameraClass *klass)
     camera_class->readout = uca_pco_me4_camera_readout;
     camera_class->stop_readout = uca_pco_me4_camera_stop_readout;
 
-    for (guint i = 0; base_overrideables[i] != 0; i++)
+    guint i;
+    for (i = 0; base_overrideables[i] != 0; i++)
         g_object_class_override_property(gobject_class, base_overrideables[i], uca_camera_props[base_overrideables[i]]);
 
     /**
@@ -1396,7 +1408,7 @@ static void uca_pco_me4_camera_class_init(UcaPcoMe4CameraClass *klass)
                              FALSE, G_PARAM_READWRITE);
 
     pco_properties[PROP_OFFSET_MODE] =
-        g_param_spec_boolean("double-image-mode",
+        g_param_spec_boolean("offset-mode",
                              "Use pixel offset mode",
                              "Use pixel offset mode",
                              FALSE, G_PARAM_READWRITE);
@@ -1451,7 +1463,7 @@ static void uca_pco_me4_camera_class_init(UcaPcoMe4CameraClass *klass)
         g_param_spec_uint("frame-grabber-timeout",
                           "Frame grabber timeout in seconds",
                           "Frame grabber timeout in seconds",
-                          0, G_MAXUINT, 5,
+                          0, G_MAXINT32, 10,
                           G_PARAM_READWRITE);
 
     pco_properties[PROP_DELAY_TIME] =
@@ -1461,7 +1473,8 @@ static void uca_pco_me4_camera_class_init(UcaPcoMe4CameraClass *klass)
                             0., 1., 0.,
                             G_PARAM_READWRITE);
 
-    for (guint id = N_BASE_PROPERTIES; id < N_PROPERTIES; id++)
+    guint id;
+    for (id = N_BASE_PROPERTIES; id < N_PROPERTIES; id++)
         g_object_class_install_property(gobject_class, id, pco_properties[id]);
 
     g_type_class_add_private(klass, sizeof(UcaPcoMe4CameraPrivate));
@@ -1572,6 +1585,7 @@ uca_pco_me4_camera_init(UcaPcoMe4Camera *self)
     priv->description = NULL;
     priv->construct_error = NULL;
     priv->version = g_strdup(DEFAULT_VERSION);
+    priv->timeout_sec = 10;
 
     if (!setup_pco_camera(priv))
         return;
@@ -1587,10 +1601,9 @@ uca_pco_me4_camera_init(UcaPcoMe4Camera *self)
     uca_camera_register_unit(camera, "sensor-temperature", UCA_UNIT_DEGREE_CELSIUS);
     uca_camera_register_unit(camera, "sensor-temperature", UCA_UNIT_DEGREE_CELSIUS);
     uca_camera_register_unit(camera, "cooling-point", UCA_UNIT_DEGREE_CELSIUS);
-    uca_camera_register_unit(camera, "cooling-point-min", UCA_UNIT_DEGREE_CELSIUS);
-    uca_camera_register_unit(camera, "cooling-point-max", UCA_UNIT_DEGREE_CELSIUS);
     uca_camera_register_unit(camera, "cooling-point-default", UCA_UNIT_DEGREE_CELSIUS);
     uca_camera_register_unit(camera, "delay-time", UCA_UNIT_SECOND);
+    uca_camera_register_unit(camera, "frame-grabber-timeout", UCA_UNIT_SECOND);
     uca_camera_set_writable(camera, "frames-per-second", TRUE);
 }
 
