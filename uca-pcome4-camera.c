@@ -112,14 +112,15 @@ typedef struct
 {
     int type;
     unsigned int bitdepth;
+    double pixel_w, pixel_h;
     gboolean has_camram;
 } pco_map_entry;
 
 static pco_map_entry pco_camera_map[] = {
-    {CAMERATYPE_PCO_EDGE, 16, FALSE},
-    {CAMERATYPE_PCO4000, 14, TRUE},
-    {CAMERATYPE_PCO_DIMAX_STD, 12, TRUE},
-    {0, 0, FALSE},
+    {CAMERATYPE_PCO_EDGE, 16, 0.0000065, 0.0000065, FALSE},
+    {CAMERATYPE_PCO4000, 14, 0.0000110, 0.0000110, TRUE},
+    {CAMERATYPE_PCO_DIMAX_STD, 12, 0.0000090, 0.0000090, TRUE},
+    {0, 0, 0.0, 0.0, FALSE},
 };
 
 static pco_map_entry *get_pco_map_entry(int camera_type, int camera_subtype)
@@ -875,21 +876,11 @@ static void uca_pco_me4_camera_get_property(GObject *object, guint property_id, 
     break;
 
     case PROP_SENSOR_PIXEL_WIDTH:
-        switch (priv->description->type)
-        {
-        case CAMERATYPE_PCO_EDGE_HS:
-            g_value_set_double(value, 0.0000065);
-            break;
-        }
+        g_value_set_double(value, priv->description->pixel_w);
         break;
 
     case PROP_SENSOR_PIXEL_HEIGHT:
-        switch (priv->description->type)
-        {
-        case CAMERATYPE_PCO_EDGE_HS:
-            g_value_set_double(value, 0.0000065);
-            break;
-        }
+        g_value_set_double(value, priv->description->pixel_h);
         break;
 
     case PROP_SENSOR_WIDTH_EXTENDED:
