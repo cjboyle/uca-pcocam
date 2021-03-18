@@ -7,9 +7,9 @@ PROJ_NAME = uca-pcoclhs
 
 
 CC = gcc
-CCFLAGS = -isystem -std=c99 -O2 -Wall -Wno-write-strings -fPIC -DSISODIR5=$(SISODIR5)
+CCFLAGS = -isystem -std=c99 -O2 -Wall -Wno-write-strings -Werror=implicit-fallthrough -fPIC -DSISODIR5=$(SISODIR5)
 CXX = g++
-CXXFLAGS = -isystem -std=c++0x -O2 -Wall -Wno-write-strings -fPIC
+CXXFLAGS = -isystem -std=c++0x -O2 -Wall -Wno-write-strings -Werror=implicit-fallthrough -fPIC
 LDFLAGS = -shared
 
 

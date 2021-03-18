@@ -4,9 +4,9 @@ PROJ_NAME = uca-pcousb
 
 
 CC = gcc
-CCFLAGS = -isystem -std=c99 -O2 -Wall -Wno-write-strings -fPIC
+CCFLAGS = -isystem -std=c99 -O2 -Wall -Wno-write-strings -Werror=implicit-fallthrough -fPIC
 CXX = g++
-CXXFLAGS = -isystem -std=c++0x -O2 -Wall -Wno-write-strings -fPIC
+CXXFLAGS = -isystem -std=c++0x -O2 -Wall -Wno-write-strings -Werror=implicit-fallthrough -fPIC
 LDFLAGS = -shared
 
 
@@ -19,7 +19,7 @@ INC_DIRS += /usr/include/uca
 LIB_NAMES += uca
 
 
-# PCO.Linux SDK
+# PCO.Linux SDK.
 # LIB_DIRS += /usr/local/lib
 # LIB_DIRS += /opt/PCO/pco_camera/pco_common/pco_lib
 PCO_LIB_DIR = ./pco/lib/usb
