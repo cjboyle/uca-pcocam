@@ -121,8 +121,9 @@ pco_handle *pco_init(int board, int port)
     DWORD err = _pco_init(pco, 0, 0);
     if (err != PCO_NOERROR)
     {
-        pco_destroy(pco);
         CHECK_ERROR(err);
+        pco_destroy(pco);
+        pco = NULL;
     }
     return pco;
 }
@@ -142,9 +143,9 @@ void pco_destroy(pco_handle *pco)
     pco->grabber = NULL;
 
     delete pco->com;
+    pco->com = NULL;
 
     free(pco);
-    pco = NULL;
 }
 
 unsigned int pco_open_camera(pco_handle *pco, int port)
@@ -281,7 +282,7 @@ bool pco_is_recording(pco_handle *pco)
 
 bool pco_is_active(pco_handle *pco)
 {
-    DWORD err = pco_get_camera_type(pco, &discard.ui16, &discard.ui16);
+    DWORD err = pco->com->PCO_GetCameraType(&discard.ui16, &discard.ui32);
     return err == PCO_NOERROR;
 }
 
