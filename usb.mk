@@ -4,9 +4,9 @@ PROJ_NAME = uca-pcousb
 
 
 CC = gcc
-CCFLAGS = -isystem -std=c99 -O2 -Wall -Wno-write-strings -Werror=implicit-fallthrough -fPIC
+CCFLAGS = -isystem -std=c99 -O2 -Wall -Wno-write-strings -fPIC
 CXX = g++
-CXXFLAGS = -isystem -std=c++0x -O2 -Wall -Wno-write-strings -Werror=implicit-fallthrough -fPIC
+CXXFLAGS = -isystem -std=c++0x -O2 -Wall -Wno-write-strings -fPIC
 LDFLAGS = -shared
 
 
