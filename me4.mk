@@ -1,5 +1,5 @@
 SISODIR5 ?= /opt/SiliconSoftware/Runtime5.7.0
-PCOSDKDIR = /opt/PCO/pco_camera
+PCOSDKDIR = /opt/PCO
 
 LIB_NAME = ucapcome4
 PROJ_NAME = uca-pcome4
@@ -32,11 +32,13 @@ LIB_NAMES += fglib5 clsersis
 # PCO.Linux SDK
 PCO_LIB_DIR = ./pco/lib/me4
 PCO_LIB_NAMES += pcolog pcofile reorderfunc pcocam_me4
-PCO_LIBS = -Wl,-Bstatic $(addprefix $(PCO_LIB_DIR)/lib,$(addsuffix .a,$(PCO_LIB_NAMES))) -Wl,-Bdynamic
+#PCO_LIBS = -Wl,-Bstatic $(addprefix $(PCO_LIB_DIR)/lib,$(addsuffix .a,$(PCO_LIB_NAMES))) -Wl,-Bdynamic
 
 ifndef PCO_LIBS
 LIB_DIRS += /usr/local/lib
-LIB_DIRS += $(PCOSDKDIR)/pco_me4/bindyn
+LIB_DIRS += $(PCOSDKDIR)/lib
+LIB_DIRS += $(PCOSDKDIR)/pco_camera/pco_me4/bindyn
+LIB_DIRS += $(PCOSDKDIR)/pco_me4_camera/pco_me4/bindyn
 LIB_NAMES += $(PCO_LIB_NAMES)
 endif
 

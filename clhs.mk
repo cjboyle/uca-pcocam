@@ -1,5 +1,5 @@
 SISODIR5 ?= /opt/SiliconSoftware/Runtime5.7.0
-PCOSDKDIR = /opt/PCO/pco_camera
+PCOSDKDIR = /opt/PCO
 
 LIB_NAME = ucapcoclhs
 PROJ_NAME = uca-pcoclhs
@@ -36,7 +36,9 @@ PCO_LIB_NAMES += pcolog pcofile pcocam_clhs pcoclhs
 
 ifndef PCO_LIBS
 LIB_DIRS += /usr/local/lib
-LIB_DIRS += $(PCOSDKDIR)/pco_clhs/bindyn
+LIB_DIRS += $(PCOSDKDIR)/lib
+LIB_DIRS += $(PCOSDKDIR)/pco_camera/pco_clhs/bindyn
+LIB_DIRS += $(PCOSDKDIR)/pco_clhs_camera/pco_clhs/bindyn
 LIB_NAMES += $(PCO_LIB_NAMES)
 endif
 
