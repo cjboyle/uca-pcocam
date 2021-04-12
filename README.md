@@ -1,6 +1,6 @@
-# UCA Plugin for PCO Edge CLHS & USB Cameras
+# UCA Plugin for PCO Cameras
 
-Software plugin for UFO-KIT's Universal Camera Access library to support PCO Edge 4.2/5.5 cameras using CameraLinkHS and USB interfaces.
+Software plugin for UFO-KIT's Universal Camera Access library to support PCO Edge 4.2/5.5, Pixelfly, PCO4000, and Dimax cameras.
 
 &nbsp;
 &nbsp;
