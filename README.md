@@ -10,6 +10,11 @@ Software plugin for UFO-KIT's Universal Camera Access library to support PCO Edg
 * UFO-KIT's libuca
    * acquire from https://github.com/ufo-kit/libuca 
    * build and install as instructed
+* pco.linux SDK
+   * Due to differences between some versions of common source files and libraries, we've installed the SDKs in separate locations:
+     - /opt/PCO/pco_camera_clhs/(pco_clhs/ & pco_common/)
+     - /opt/PCO/pco_camera_me4/(pco_me4/ & pco_common/)
+     - /opt/PCO/pco_camera_usb/(pco_usb/ & pco_common/)
 
 ### For CLHS cameras
 * Silicon Software microEnable kernel module for Linux (menable.ko)
@@ -25,7 +30,7 @@ Software plugin for UFO-KIT's Universal Camera Access library to support PCO Edg
    * Installed to ```$SISODIR5/dll/mE5-MA-AF2/``` (or equivalent model directory) and flashed to the frame-grabber using ```microDiagnostic```
 * PCO CLHS SDK for Linux
     ```bash
-    # in (TOP)/pco_camera/pco_clhs
+    # in (path to pco.clhs SDK)/pco_camera/pco_clhs
     sudo make
     sudo symlink_pco -b  # symlinks libraries to ./bindyn
     sudo symlink_pco -u  # symlinks libraries to /usr/local/lib
@@ -93,22 +98,71 @@ Use ```uca-info [plugin]``` and ```uca-grab -n 1 [plugin]``` to verify basic fun
 ---
 ## Available Settings
 
-| Property | R/W | CLHS | USB |
-|:--------:|:---:|:----:|:---:|
-| name | R | yes | yes |
+| Property | type, units | R/W | CLHS | ME4 | USB |
+|:--------:|:-----------:|:---:|:----:|:---:|:---:|
+| name | str | R | yes | yes | yes |
+| version | str | R | yes | yes | yes |
+| sensor-width | int, px | R | yes | yes | yes |
+| sensor-height | int, px | R | yes | yes | yes |
+| sensor-width-extended | int, px | R | yes | yes | yes |
+| sensor-height-extended | int, px | R | yes | yes | yes |
+| sensor-extended | bool | R | yes | yes | yes |
+| sensor-bitdepth | int, bits | R | yes | yes | yes |
+| sensor-pixel-width | float, m | R | yes | yes | yes |
+| sensor-pixel-height | float, m | R | yes | yes | yes |
+| sensor-pixelrate | float, Hz | RW | yes | yes | yes |
+| sensor-pixelrates | \[float\], Hz | R | yes | yes | yes |
+| sensor-horizontal-binning | int, step | RW | yes | yes | yes |
+| sensor-vertical-binning | int, step | RW | yes | yes | yes |
+| sensor-temperature | int, degC | R | yes | yes | yes |
+| sensor-adcs | int, count | RW | no | yes | yes |
+| roi-x | int, px | RW | yes | yes | yes |
+| roi-x | int, px | RW | yes | yes | yes |
+| roi-width | int, px | RW | yes | yes | yes |
+| roi-height | int, px | RW | yes | yes | yes |
+| roi-width-multiplier | int, step | RW | yes | yes | yes |
+| roi-height-multiplier | int, step | RW | yes | yes | yes |
+| exposure-time | float, s | RW | yes | yes | yes |
+| delay-time | float, s | RW | yes | yes | yes |
+| frame-grabber-timeout | int, ms | RW | yes | yes | yes |
+| frames-per-second | float, fps | RW | yes | yes | yes |
+| trigger-source | enum | RW | yes | yes | yes |
+| double-image-mode | bool | RW | yes* | yes* | yes* |
+| offset-mode | bool | RW | yes* | yes* | yes* |
+| acquire-mode | bool | RW | yes* | yes* | yes* |
+| fast-scan | bool | RW | yes* | yes* | yes* |
+| cooling-point | bool | RW | yes* | yes* | yes* |
+| cooling-point-default | bool | RW | yes* | yes* | yes* |
+| noise-filter | bool | RW | yes* | yes* | yes* |
+| timestamp-mode | enum | RW | yes | yes | yes |
+| is-recording | bool | R | yes | yes | yes |
+| buffered | bool | RW | yes | yes | yes |
+| num-buffers | int, count | RW | yes | yes | yes |
+| record-mode | enum | RW | no | yes* | no |
+| storage-mode | enum | RW | no | yes* | no |
+| transfer-asynchronously | bool | RW | yes | yes | yes |
+| edge-global-shutter | bool | RW | notimp | notimp | notimp |
 
-\* Some properties may not be supported by specific camera models
+\* May not be supported by specific camera models
+
+| Method | CLHS | ME4 | USB |
+|:------:|:----:|:---:|:---:|
+| start_recording() | yes | yes | yes |
+| stop_recording() | yes | yes | yes |
+| start_readout() | no | yes* | no |
+| stop_readout() | no | yes* | no |
+| grab() | yes | yes | yes |
+| grab_async() | yes | yes | yes |
+| trigger() | yes | yes | yes |
 
 ---
 ## Known Issues, TODOs, and Workarounds
 
-#### **Cannot select different frame-grabber and/or camera**
-
-This is a TODO item, ~~as it seems that ```libuca``` does not provide a method of adding constructor parameters (I'm still unfamiliar with GLib). A method will come in the future to select a grabber and/or camera via properties *after* creating the UcaCamera instance~~. As it stands, the default grabber is the port #0 provided by the driver, and the default camera is the first device that can be found, regardless of its serial port number. (2021 Note: constructor parameters will come in the future)
-
-#### **Cannot change between Rolling and Global Shutter modes**
-
-The process to change the camera shutter mode involves rebooting the camera, ~~releasing memory,~~ waiting up to a minute, ~~and reconnecting to a (probably) different software serial port~~. Due to the unknowns that this may produce, it is recommended that the shutter mode setting be changed with ```pco_switch_edge```, then to create a fresh UCA camera instance. (2021 Note: apparently, the underlying PCO libraries will maintain the serial connections while a camera is offline)
+- [ ] Allow selecting a specific grabber and/or camera by port number 
+- [ ] Allow changing a camera's shutter mode (rolling, global)
+   - Use ```pco_switch_edge``` (or equivalent), then create a new UcaCamera instance (setting will persist reboots)
+- [ ] Included static libraries for CLHS and ME4 cameras seem to have linker/LD_PRELOAD issues on RHEL systems
+   - Use shared object libraries instead.
 
 ---
 ## Troubleshooting
@@ -128,4 +182,10 @@ The process to change the camera shutter mode involves rebooting the camera, ~~r
 * If ```pco_clhs_mgr``` shows a grabber is connected, but does not output camera info (might exit immediately), check the physical connection and power to the camera.
 
 #### **Cannot connect to camera**
-* If ```pco_clhs_mgr``` outputs the camera info, and shows 2 or more open connections to the camera, either: a) there is already a process running (e.g. UCA) with a lock on the camera; or, b) a previous successful camera connection crashed unexpectedly, in which case the ```pco_clhs_mgr``` service will need to be restarted (due to unreleased memory).
+* If ```pco_clhs_mgr``` outputs the camera info, and shows 2 or more open connections to the camera, it is probable that a previously successful camera connection crashed unexpectedly (e.g. segmentation fault), in which case the ```pco_clhs_mgr``` service will need to be restarted (due to unreleased memory). If the service fails to be restarted, follow the appropriate troubleshooting steps.
+
+---
+## License
+Please see [LICENSE.txt](LICENSE.txt)
+
+Sources and binaries under ```pco``` directory are from PCO AG and are under respective copyright (GPL2).
