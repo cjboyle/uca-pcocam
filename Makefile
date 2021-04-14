@@ -19,7 +19,7 @@ all: $(ALL_TARGETS)
 $(ALL_TARGETS):
 	@echo
 	@echo "===== $@ ======"
-	@$(MAKE) $(MAKE_FLAGS) -f $@.mk all
+	@$(MAKE) $(MAKE_FLAGS) -f Makefile.$@ all
 
 
 .PHONY: enums
@@ -29,7 +29,7 @@ enums: $(ENUMS_TARGETS)
 $(ENUMS_TARGETS):
 	@echo
 	@echo "===== $@ ======"
-	@$(MAKE) $(MAKE_FLAGS) -f $(@:enums-%=%).mk enums
+	@$(MAKE) $(MAKE_FLAGS) -f Makefile.$(@:enums-%=%) enums
 
 
 .PHONY: install
@@ -39,7 +39,7 @@ install: $(INSTALL_TARGETS)
 $(INSTALL_TARGETS):
 	@echo
 	@echo "===== $@ ======"
-	@$(MAKE) $(MAKE_FLAGS) -f $(@:install-%=%).mk install
+	@$(MAKE) $(MAKE_FLAGS) -f Makefile.$(@:install-%=%) install
 
 
 .PHONY: clean
@@ -48,7 +48,7 @@ clean:
 
 .PHONY: $(CLEAN_TARGETS)
 $(CLEAN_TARGETS):
-	@$(MAKE) $(MAKE_FLAGS) -f $(@:clean-%=%).mk clean
+	@$(MAKE) $(MAKE_FLAGS) -f Makefile.$(@:clean-%=%) clean
 
 
 .PHONY: uninstall
@@ -56,7 +56,7 @@ uninstall: $(UNINSTALL_TARGETS)
 
 .PHONY: $(UNINSTALL_TARGETS)
 $(UNINSTALL_TARGETS):
-	@$(MAKE) $(MAKE_FLAGS) -f $(@:uninstall-%=%).mk uninstall
+	@$(MAKE) $(MAKE_FLAGS) -f Makefile.$(@:uninstall-%=%) uninstall
 
 
 .PHONY: check-cmds
@@ -66,5 +66,5 @@ check-cmds: $(CHECK_TARGETS)
 $(CHECK_TARGETS):
 	@echo
 	@echo "===== $@ ======"
-	@$(MAKE) $(MAKE_FLAGS) -f $(@:check-%=%).mk check-cmds
+	@$(MAKE) $(MAKE_FLAGS) -f Makefile.$(@:check-%=%) check-cmds
 	@echo
