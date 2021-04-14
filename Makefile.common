@@ -1,0 +1,108 @@
+# gcc flags
+CC = gcc
+CCFLAGS = -isystem -std=c99 -O2 -Wall -Wno-write-strings -fPIC
+CXX = g++
+CXXFLAGS = -isystem -std=c++0x -O2 -Wall -Wno-write-strings -fPIC
+LDFLAGS = -shared
+
+
+INC_SEARCH_PATHS := /usr/include /usr/local/include /opt/ufo/include
+LIB_SEARCH_PATHS := /usr/lib* /usr/local/lib* /opt/ufo/lib*
+
+UCA_PLUGIN_DIR := $(shell find $(LIB_SEARCH_PATHS) -name libucamock.so -exec dirname {} \; 2> /dev/null | head -1)
+
+
+# uca deps
+UCA_INC_DIR := $(shell find $(INC_SEARCH_PATHS) -name uca-camera.h -exec dirname {} \; 2> /dev/null | head -1)
+UCA_LIB_DIR := $(shell find $(LIB_SEARCH_PATHS) -name libuca.so -exec dirname {} \; 2> /dev/null | head -1)
+INC_DIRS += $(UCA_INC_DIR)
+LIB_DIRS += $(UCA_LIB_DIR)
+LIB_NAMES += uca
+
+# glib deps
+GLIB_INC_DIR := $(shell find $(INC_SEARCH_PATHS) -name glib.h -exec dirname {} \; 2> /dev/null | head -1)
+GLIB_LIB_DIR := $(shell find $(LIB_SEARCH_PATHS) -name libglib-2.0.so -exec dirname {} \; 2> /dev/null | head -1)
+INC_DIRS += $(GLIB_INC_DIR)
+LIB_DIRS += $(GLIB_LIB_DIR)
+LIB_NAMES += glib-2.0
+
+# base deps
+INC_DIRS += /usr/local/include /opt/ufo/include
+LIB_DIRS += /usr/local/lib /usr/local/lib64 /opt/ufo/lib /opt/ufo/lib64
+LIB_NAMES += pthread rt dl
+
+
+
+#### BUILD VARS
+
+SRCS = uca-$(TYPE_NAME)-camera.c uca-$(TYPE_NAME)-enums.c $(TYPE_NAME).cpp
+HDRS = uca-$(TYPE_NAME)-camera.h uca-$(TYPE_NAME)-enums.h $(TYPE_NAME).h pco.h
+
+OUTFILE = libuca$(TYPE_NAME).so
+BUILD_DIR = ./build
+INST_DIR = $(UCA_PLUGIN_DIR)
+
+OBJS := $(SRCS:%=$(BUILD_DIR)/%.o)
+DEPS := $(OBJS:.o=.d)
+
+INC_FLAGS = $(addprefix -I,$(INC_DIRS))
+LIB_FLAGS = $(addprefix -L,$(LIB_DIRS)) $(addprefix -l,$(LIB_NAMES)) $(PCO_LIBS)
+
+
+
+#### BUILD TARGETS
+
+.PHONY: all
+all: $(HDRS) $(SRCS) $(BUILD_DIR)/$(OUTFILE)
+
+.PHONY: enums
+enums:  $(HDRS) $(SRCS) .FORCE
+
+%-enums.c: %-enums.c.in %-enums.h
+	glib-mkenums --template=$< --output=$@ uca-$(TYPE_NAME)-camera.h
+
+%-enums.h: %-enums.h.in %-camera.h
+	glib-mkenums --template=$< --output=$@ uca-$(TYPE_NAME)-camera.h
+
+
+$(BUILD_DIR)/$(OUTFILE): $(OBJS)
+	@mkdir -p $(BUILD_DIR)
+	$(CXX) $(LDFLAGS) $(OBJS) -o $@ $(LIB_FLAGS)
+
+$(BUILD_DIR)/%.c.o: %.c $(HDRS)
+	@mkdir -p $(BUILD_DIR)
+	$(CC) $(CCFLAGS) $(INC_FLAGS) -c $< -o $@
+
+$(BUILD_DIR)/%.cpp.o: %.cpp $(HDRS)
+	@mkdir -p $(BUILD_DIR)
+	$(CXX) $(CXXFLAGS) $(INC_FLAGS) -c $< -o $@
+
+
+.PHONY: install
+install: $(INST_DIR)/$(OUTFILE)
+
+$(INST_DIR)/$(OUTFILE): $(BUILD_DIR)/$(OUTFILE)
+	install -m 755 $(BUILD_DIR)/$(OUTFILE) $(INST_DIR)
+
+
+.PHONY: clean
+clean:
+	@rm -rf $(BUILD_DIR)/*$(TYPE_NAME)*
+
+
+.PHONY: uninstall
+uninstall:
+	@rm -f $(INST_DIR)/$(OUTFILE)
+
+
+.PHONY: check-cmds
+check-cmds:
+	@echo "gcc compile: $(CC) $(CCFLAGS) $(INC_FLAGS) -c foo.c -o $(BUILD_DIR)/foo.c.o"
+	@echo
+	@echo "g++ compile: $(CXX) $(CXXFLAGS) $(INC_FLAGS) -c bar.cpp -o $(BUILD_DIR)/bar.cpp.o"
+	@echo
+	@echo "linker: $(CXX) $(LDFLAGS) $(BUILD_DIR)/foo.c.o $(BUILD_DIR)/bar.cpp.o -o $(BUILD_DIR)/foobar.so $(LIB_FLAGS)"
+
+.FORCE:
+
+-include $(DEPS)
