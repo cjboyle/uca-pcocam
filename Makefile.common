@@ -6,23 +6,18 @@ CXXFLAGS = -isystem -std=c++0x -O2 -Wall -Wno-write-strings -fPIC
 LDFLAGS = -shared
 
 
-INC_SEARCH_PATHS := /usr/include /usr/local/include /opt/ufo/include
-LIB_SEARCH_PATHS := /usr/lib* /usr/local/lib* /opt/ufo/lib*
-
-UCA_PLUGIN_DIR := $(shell find $(LIB_SEARCH_PATHS) -name libucamock.so -exec dirname {} \; 2> /dev/null | head -1)
-
 
 # uca deps
-UCA_INC_DIR := $(shell find $(INC_SEARCH_PATHS) -name uca-camera.h -exec dirname {} \; 2> /dev/null | head -1)
-UCA_LIB_DIR := $(shell find $(LIB_SEARCH_PATHS) -name libuca.so -exec dirname {} \; 2> /dev/null | head -1)
+UCA_INC_DIR := $(shell pkg-config --variable=includedir libuca)/uca
+UCA_LIB_DIR := $(shell pkg-config --variable=libdir libuca)
 INC_DIRS += $(UCA_INC_DIR)
 LIB_DIRS += $(UCA_LIB_DIR)
 LIB_NAMES += uca
 
 # glib deps
-GLIB_INC_DIR := $(shell find $(INC_SEARCH_PATHS) -name glib.h -exec dirname {} \; 2> /dev/null | head -1)
-GLIB_LIB_DIR := $(shell find $(LIB_SEARCH_PATHS) -name libglib-2.0.so -exec dirname {} \; 2> /dev/null | head -1)
-INC_DIRS += $(GLIB_INC_DIR)
+GLIB_INC_DIR := $(shell pkg-config --variable=includedir glib-2.0)/glib-2.0
+GLIB_LIB_DIR := $(shell pkg-config --variable=libdir glib-2.0)
+INC_DIRS += $(GLIB_INC_DIR) $(GLIB_LIB_DIR)/glib-2.0/include
 LIB_DIRS += $(GLIB_LIB_DIR)
 LIB_NAMES += glib-2.0
 
@@ -40,7 +35,7 @@ HDRS = uca-$(TYPE_NAME)-camera.h uca-$(TYPE_NAME)-enums.h $(TYPE_NAME).h pco.h
 
 OUTFILE = libuca$(TYPE_NAME).so
 BUILD_DIR = ./build
-INST_DIR = $(UCA_PLUGIN_DIR)
+INST_DIR = $(UCA_LIB_DIR)/uca
 
 OBJS := $(SRCS:%=$(BUILD_DIR)/%.o)
 DEPS := $(OBJS:.o=.d)
