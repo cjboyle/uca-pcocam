@@ -7,9 +7,9 @@ ifeq ($(strip $(PCODIR)),)
 endif
 
 PCO_LIB_DIR = ./pco/lib/usb
-PCO_LIB_NAMES += pcolog pcofile reorderfunc pcocam_usb
+PCO_LIB_NAMES += pcocam_usb
 
-PCO_STATIC_LIBS = -Wl,-Bstatic $(addprefix $(PCO_LIB_DIR)/lib,$(addsuffix .a,$(PCO_LIB_NAMES))) -Wl,-Bdynamic
+#PCO_STATIC_LIBS = -Wl,-Bstatic $(addprefix $(PCO_LIB_DIR)/lib,$(addsuffix .a,$(PCO_LIB_NAMES))) -Wl,-Bdynamic
 
 ifndef PCO_STATIC_LIBS
 LIB_DIRS += /usr/local/lib
