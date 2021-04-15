@@ -1199,7 +1199,7 @@ static void uca_pco_usb_camera_class_init(UcaPcoUsbCameraClass *klass)
                              FALSE, G_PARAM_READWRITE);
 
     pco_properties[PROP_OFFSET_MODE] =
-        g_param_spec_boolean("double-image-mode",
+        g_param_spec_boolean("offset-mode",
                              "Use pixel offset mode",
                              "Use pixel offset mode",
                              FALSE, G_PARAM_READWRITE);
