@@ -203,9 +203,10 @@ static gpointer grab_func(gpointer rawptr)
 {
     UcaCamera *camera = UCA_CAMERA(rawptr);
     g_return_val_if_fail(UCA_IS_PCO_ME4_CAMERA(camera), NULL);
-    guint err;
 
     UcaPcoMe4CameraPrivate *priv = UCA_PCO_ME4_CAMERA_GET_PRIVATE(camera);
+    guint err;
+
 
     while (priv->grab_thread_running)
     {

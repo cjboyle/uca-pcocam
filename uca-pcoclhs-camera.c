@@ -1147,7 +1147,7 @@ static void uca_pco_clhs_camera_class_init(UcaPcoClhsCameraClass *klass)
                             "Temperature of the sensor in degrees Celsius",
                             -G_MAXDOUBLE, G_MAXDOUBLE, 0.0,
                             G_PARAM_READABLE);
-    
+
     pco_properties[PROP_COOLING_POINT] = 
         g_param_spec_int("cooling-point",
                          "Cooling setpoint",
