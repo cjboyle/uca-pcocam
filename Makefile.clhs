@@ -13,10 +13,10 @@ PCO_LIB_NAMES += pcolog pcofile pcocam_clhs pcoclhs
 
 ifndef PCO_STATIC_LIBS
 LIB_DIRS += /usr/local/lib
-LIB_DIRS += $(PCOSDKDIR)/lib
-LIB_DIRS += $(PCOSDKDIR)/pco_camera/pco_clhs/bindyn
-LIB_DIRS += $(PCOSDKDIR)/pco_clhs_camera/pco_clhs/bindyn
-LIB_DIRS += $(PCOSDKDIR)/pco_camera_clhs/pco_clhs/bindyn
+LIB_DIRS += $(PCODIR)/lib
+LIB_DIRS += $(PCODIR)/pco_camera/pco_clhs/bindyn
+LIB_DIRS += $(PCODIR)/pco_clhs_camera/pco_clhs/bindyn
+LIB_DIRS += $(PCODIR)/pco_camera_clhs/pco_clhs/bindyn
 LIB_NAMES += $(PCO_LIB_NAMES)
 endif
 
