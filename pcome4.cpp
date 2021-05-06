@@ -48,6 +48,7 @@ struct _pco_handle
 
 static unsigned int _pco_init(pco_handle *pco, int board, int port)
 {
+    fprintf(stderr, "DEBUG: Start camera init\n");
     DWORD err;
 
     pco->board = board;
@@ -56,10 +57,12 @@ static unsigned int _pco_init(pco_handle *pco, int board, int port)
     CPco_com_cl_me4 *com;
     com = new CPco_com_cl_me4();
     pco->com = com;
+    fprintf(stderr, "DEBUG: pco->com set\n");
 
     uint16_t camtype, camsn;
     err = pco_get_camera_type(pco, &camtype, &camsn);
     RETURN_IF_ERROR(err);
+    fprintf(stderr, "DEBUG: camtype = %d\n", camtype);
 
     if (camtype == CAMERATYPE_PCO_EDGE)
     {
@@ -76,6 +79,7 @@ static unsigned int _pco_init(pco_handle *pco, int board, int port)
         CPco_grab_cl_me4_camera *grab = new CPco_grab_cl_me4_camera(com);
         pco->grabber = grab;
     }
+    fprintf(stderr, "DEBUG: pco->grab set\n");
 
     CPco_Log *logger;
     logger = new CPco_Log("pcome4.log");
@@ -84,48 +88,62 @@ static unsigned int _pco_init(pco_handle *pco, int board, int port)
 
     pco->grabber->SetLog(pco->logger);
     pco->com->SetLog(pco->logger);
+    fprintf(stderr, "DEBUG: pco->logger set\n");
 
     err = pco_open_camera(pco, port);
     RETURN_IF_ERROR(err);
+    fprintf(stderr, "DEBUG: camera open\n");
 
     err = pco->grabber->Open_Grabber(board);
     RETURN_IF_ERROR(err);
+    fprintf(stderr, "DEBUG: grabber open\n");
 
     err = pco->com->PCO_GetCameraDescriptor(&pco->description);
     RETURN_IF_ERROR(err);
+    fprintf(stderr, "DEBUG: pco->description set\n");
 
     err = pco_get_camera_type(pco, &pco->cameraType, &pco->cameraSubType);
     RETURN_IF_ERROR(err);
+    fprintf(stderr, "DEBUG: pco->cameraType set\n");
 
     err = pco->grabber->Set_Grabber_Timeout(10000);
     RETURN_IF_ERROR(err);
+    fprintf(stderr, "DEBUG: grabber timeout set\n");
 
     err = pco->com->PCO_SetCameraToCurrentTime();
     RETURN_IF_ERROR(err);
+    fprintf(stderr, "DEBUG: camera system time set\n");
 
     err = pco_set_recording_state(pco, 0);
     RETURN_IF_ERROR(err);
+    fprintf(stderr, "DEBUG: camera recording state off\n");
 
     err = pco->com->PCO_ResetSettingsToDefault();
     RETURN_IF_ERROR(err);
+    fprintf(stderr, "DEBUG: camera settings defaulted\n");
 
     err = pco_set_timestamp_mode(pco, TIMESTAMP_MODE_BINARYANDASCII);
     RETURN_IF_ERROR(err);
+    fprintf(stderr, "DEBUG: camera timestamping set\n");
 
     err = pco_set_timebase(pco, TIMEBASE_MS, TIMEBASE_MS);
     RETURN_IF_ERROR(err);
+    fprintf(stderr, "DEBUG: camera timebases set (millis)\n");
 
     err = pco_set_delay_exposure(pco, 0.0, 0.01);
     RETURN_IF_ERROR(err);
+    fprintf(stderr, "DEBUG: camera delay=0s expos=0.01s\n");
 
     if (pco->description.wNumADCsDESC > 1)
     {
         err = pco->com->PCO_SetADCOperation(2);
         RETURN_IF_ERROR(err);
+        fprintf(stderr, "DEBUG: camera ADC ops set (2)\n");
     }
 
     err = pco->com->PCO_SetBitAlignment(BIT_ALIGNMENT_LSB);
     RETURN_IF_ERROR(err);
+    fprintf(stderr, "DEBUG: camera bit-alignment set (LSB)\n");
 
     if (pco->cameraType == CAMERATYPE_PCO_DIMAX_STD)
     {
@@ -133,6 +151,7 @@ static unsigned int _pco_init(pco_handle *pco, int board, int port)
         pco->com->PCO_GetTransferParameter(&txParam, sizeof(txParam));
         txParam.DataFormat = PCO_CL_DATAFORMAT_2x12;
         pco->com->PCO_SetTransferParameter(&txParam, sizeof(txParam));
+        fprintf(stderr, "DEBUG: pco.dimax data format set (2x12)\n");
     }
 
     return PCO_NOERROR;
@@ -150,6 +169,8 @@ pco_handle *pco_init(int board, int port)
         pco_destroy(pco);
         pco = NULL;
     }
+    
+    fprintf(stderr, "DEBUG: pco_init() done\n");
     return pco;
 }
 
