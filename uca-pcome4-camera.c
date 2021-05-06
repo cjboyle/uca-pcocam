@@ -712,9 +712,9 @@ static void uca_pco_me4_camera_set_property(GObject *object, guint property_id, 
     {
         UcaPcoMe4CameraRecordMode mode = (UcaPcoMe4CameraRecordMode)g_value_get_enum(value);
         if (mode == UCA_PCO_ME4_CAMERA_RECORD_MODE_SEQUENCE)
-            err = pco_set_record_mode(priv->pco, RECORDER_SUBMODE_SEQUENCE);
+            err = pco_set_recorder_mode(priv->pco, RECORDER_SUBMODE_SEQUENCE);
         else if (mode == UCA_PCO_ME4_CAMERA_RECORD_MODE_RING_BUFFER)
-            err = pco_set_record_mode(priv->pco, RECORDER_SUBMODE_RINGBUFFER);
+            err = pco_set_recorder_mode(priv->pco, RECORDER_SUBMODE_RINGBUFFER);
         else
             g_warning("Unknown record mode");
     }
@@ -998,7 +998,7 @@ static void uca_pco_me4_camera_get_property(GObject *object, guint property_id, 
     case PROP_RECORD_MODE:
     {
         guint16 mode;
-        err = pco_get_record_mode(priv->pco, &mode);
+        err = pco_get_recorder_mode(priv->pco, &mode);
         if (mode = RECORDER_SUBMODE_SEQUENCE)
             g_value_set_enum(value, UCA_PCO_ME4_CAMERA_RECORD_MODE_SEQUENCE);
         else if (mode = RECORDER_SUBMODE_RINGBUFFER)

@@ -150,6 +150,38 @@ extern "C"
     unsigned int pco_set_adc_mode(pco_handle *pco, uint16_t mode);
 
     /**
+     * Get the camera recorder mode.
+     * @param pco handle
+     * @param mode output the recorder mode (sequence or ring buffer)
+     * @return 0 on success, otherwise less than 0
+     */
+    unsigned int pco_get_recorder_mode(pco_handle *pco, uint16_t *mode);
+    
+    /**
+     * Set the camera recorder mode.
+     * @param pco handle
+     * @param mode the recorder mode (sequence or ring buffer)
+     * @return 0 on success, otherwise less than 0
+     */
+    unsigned int pco_set_recorder_mode(pco_handle *pco, uint16_t mode);
+
+    /**
+     * Get the camera storage mode.
+     * @param pco handle
+     * @param mode output the storage mode (recorder or FIFO)
+     * @return 0 on success, otherwise less than 0
+     */
+    unsigned int pco_get_storage_mode(pco_handle *pco, uint16_t *mode);
+    
+    /**
+     * Set the camera storage mode.
+     * @param pco handle
+     * @param mode the storage mode (recorder or FIFO)
+     * @return 0 on success, otherwise less than 0
+     */
+    unsigned int pco_set_storage_mode(pco_handle *pco, uint16_t mode);
+
+    /**
      * Reorder image data based on camera and format.
      * @param pco handle
      * @param bufout the output buffer

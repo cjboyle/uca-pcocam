@@ -59,9 +59,9 @@ static unsigned int _pco_init(pco_handle *pco, int board, int port)
     pco->com = com;
     fprintf(stderr, "DEBUG: pco->com set\n");
 
-    uint16_t camtype, camsn;
-    err = pco_get_camera_type(pco, &camtype, &camsn);
-    RETURN_IF_ERROR(err);
+    uint16_t camtype = CAMERATYPE_PCO_DIMAX_STD, camsn = 0;
+    //err = pco_get_camera_type(pco, &camtype, &camsn);
+    //RETURN_IF_ERROR(err);
     fprintf(stderr, "DEBUG: camtype = %d\n", camtype);
 
     if (camtype == CAMERATYPE_PCO_EDGE)
@@ -169,7 +169,7 @@ pco_handle *pco_init(int board, int port)
         pco_destroy(pco);
         pco = NULL;
     }
-    
+
     fprintf(stderr, "DEBUG: pco_init() done\n");
     return pco;
 }
@@ -368,7 +368,9 @@ static unsigned int __pco_get_camera_type(pco_handle *pco, SC2_Camera_Type_Respo
 unsigned int pco_get_camera_type(pco_handle *pco, uint16_t *type, uint16_t *subtype)
 {
     SC2_Camera_Type_Response resp;
-    DWORD err = __pco_get_camera_type(pco, &resp);
+    // DWORD err = __pco_get_camera_type(pco, &resp);
+    DWORD err = pco->com->PCO_GetCameraType(&resp.wCamType, &discard.ui32, &discard.ui16);
+    resp.wCamSubType = 0;
     if (err == 0)
     {
         *type = resp.wCamType;
@@ -911,6 +913,30 @@ unsigned int pco_get_recording_state(pco_handle *pco, uint16_t *state)
 unsigned int pco_set_recording_state(pco_handle *pco, uint16_t state)
 {
     DWORD err = pco->com->PCO_SetRecordingState(state);
+    RETURN_ANY_CODE(err);
+}
+
+unsigned int pco_get_recorder_mode(pco_handle *pco, uint16_t *mode)
+{
+    DWORD err = pco->com->PCO_GetRecorderSubmode(mode);
+    RETURN_ANY_CODE(err);
+}
+
+unsigned int pco_set_recorder_mode(pco_handle *pco, uint16_t mode)
+{
+    DWORD err = pco->com->PCO_SetRecorderSubmode(mode);
+    RETURN_ANY_CODE(err);
+}
+
+unsigned int pco_get_storage_mode(pco_handle *pco, uint16_t *mode)
+{
+    DWORD err = pco->com->PCO_GetStorageMode(mode);
+    RETURN_ANY_CODE(err);
+}
+
+unsigned int pco_set_storage_mode(pco_handle *pco, uint16_t mode)
+{
+    DWORD err = pco->com->PCO_SetStorageMode(mode);
     RETURN_ANY_CODE(err);
 }
 
