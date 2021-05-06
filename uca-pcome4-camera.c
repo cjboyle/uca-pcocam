@@ -1590,7 +1590,6 @@ uca_pco_me4_camera_init(UcaPcoMe4Camera *self)
     uca_camera_register_unit(camera, "sensor-width-extended", UCA_UNIT_PIXEL);
     uca_camera_register_unit(camera, "sensor-height-extended", UCA_UNIT_PIXEL);
     uca_camera_register_unit(camera, "sensor-temperature", UCA_UNIT_DEGREE_CELSIUS);
-    uca_camera_register_unit(camera, "sensor-temperature", UCA_UNIT_DEGREE_CELSIUS);
     uca_camera_register_unit(camera, "cooling-point", UCA_UNIT_DEGREE_CELSIUS);
     uca_camera_register_unit(camera, "cooling-point-default", UCA_UNIT_DEGREE_CELSIUS);
     uca_camera_register_unit(camera, "delay-time", UCA_UNIT_SECOND);
