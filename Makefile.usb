@@ -7,7 +7,7 @@ ifeq ($(strip $(PCODIR)),)
 endif
 
 PCO_LIB_DIR = ./pco/lib/usb
-PCO_LIB_NAMES += pcocam_usb
+PCO_LIB_NAMES += pcocam_usb pcocom_usb
 
 #PCO_STATIC_LIBS = -Wl,-Bstatic $(addprefix $(PCO_LIB_DIR)/lib,$(addsuffix .a,$(PCO_LIB_NAMES))) -Wl,-Bdynamic
 
