@@ -59,9 +59,13 @@ static unsigned int _pco_init(pco_handle *pco, int board, int port)
     pco->com = com;
     fprintf(stderr, "DEBUG: pco->com set\n");
 
-    uint16_t camtype = CAMERATYPE_PCO_DIMAX_STD, camsn = 0;
-    //err = pco_get_camera_type(pco, &camtype, &camsn);
-    //RETURN_IF_ERROR(err);
+    err = pco_open_camera(pco, port);
+    RETURN_IF_ERROR(err);
+    fprintf(stderr, "DEBUG: camera open\n");
+
+    uint16_t camtype, camsn;
+    err = pco->com->PCO_GetCameraType(&camtype, &discard.ui32, &discard.ui16);
+    RETURN_IF_ERROR(err);
     fprintf(stderr, "DEBUG: camtype = %d\n", camtype);
 
     if (camtype == CAMERATYPE_PCO_EDGE)
@@ -90,10 +94,6 @@ static unsigned int _pco_init(pco_handle *pco, int board, int port)
     pco->com->SetLog(pco->logger);
     fprintf(stderr, "DEBUG: pco->logger set\n");
 
-    err = pco_open_camera(pco, port);
-    RETURN_IF_ERROR(err);
-    fprintf(stderr, "DEBUG: camera open\n");
-
     err = pco->grabber->Open_Grabber(board);
     RETURN_IF_ERROR(err);
     fprintf(stderr, "DEBUG: grabber open\n");
@@ -105,6 +105,7 @@ static unsigned int _pco_init(pco_handle *pco, int board, int port)
     err = pco_get_camera_type(pco, &pco->cameraType, &pco->cameraSubType);
     RETURN_IF_ERROR(err);
     fprintf(stderr, "DEBUG: pco->cameraType set\n");
+    fprintf(stderr, "\tcamtype = 0x%x, 0x%x\n", pco->cameraType, pco->cameraSubType);
 
     err = pco->grabber->Set_Grabber_Timeout(10000);
     RETURN_IF_ERROR(err);
@@ -171,6 +172,8 @@ pco_handle *pco_init(int board, int port)
     }
 
     fprintf(stderr, "DEBUG: pco_init() done\n");
+    fprintf(stderr, "DEBUG: camera available = %s\n", pco->com->IsOpen() == TRUE ? "yes" : "no");
+    fprintf(stderr, "DEBUG: grabber available = %s\n", pco->grabber->IsOpen() == TRUE ? "yes" : "no");
     return pco;
 }
 
