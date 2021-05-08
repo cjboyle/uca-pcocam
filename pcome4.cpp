@@ -443,7 +443,7 @@ uint32_t pco_set_cooling_setpoint(pco_handle *pco, int16_t temperature)
 {
     bool supported = pco->description.sMinCoolSetDESC != pco->description.sMaxCoolSetDESC;
     RETURN_IF_NOT_SUPPORTED(supported, "Camera does not support sensor cooling", -1);
-    
+
     DWORD err = pco->com->PCO_SetCoolingSetpointTemperature(temperature);
     RETURN_ANY_CODE(err);
 }
@@ -1201,3 +1201,6 @@ void pco_extract_image(pco_handle *pco, uint16_t *bufout, uint16_t *bufin, int w
 {
     pco->grabber->Extract_Image(bufout, bufin, width, height);
 }
+
+// external definition as it may be missing from libpcocam_me4
+bool CPco_grab_cl_me4::IsOpen() { return this->hgrabber != NULL; }
