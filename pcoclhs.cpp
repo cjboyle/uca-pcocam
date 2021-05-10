@@ -365,7 +365,7 @@ uint32_t pco_get_cooling_setpoint(pco_handle *pco, int16_t *temperature)
 uint32_t pco_set_cooling_setpoint(pco_handle *pco, int16_t temperature)
 {
     bool supported = pco->description.sMinCoolSetDESC != pco->description.sMaxCoolSetDESC;
-    RETURN_IF_NOT_SUPPORTED(supported, "Camera does not support sensor cooling", -1);
+    RETURN_IF_NOT_SUPPORTED(supported, "Camera does not support sensor cooling", 0);
 
     DWORD err = pco->com->PCO_SetCoolingSetpointTemperature(temperature);
     RETURN_ANY_CODE(err);
@@ -444,7 +444,7 @@ unsigned int pco_set_pixelrate(pco_handle *pco, uint32_t rate)
 unsigned int pco_set_fps(pco_handle *pco, double fps)
 {
     bool can_set_fps = (bool)pco->description.dwGeneralCaps1 & GENERALCAPS1_SETFRAMERATE_ENABLED;
-    RETURN_IF_NOT_SUPPORTED(can_set_fps, "Setting FPS directly is not supported", -1);
+    RETURN_IF_NOT_SUPPORTED(can_set_fps, "Setting FPS directly is not supported", 0);
 
     WORD status;
     uint32_t rate = (uint32_t)(fps * 1e3); // Hz (FPS) to milli-Hz (mFPS)
