@@ -18,7 +18,7 @@ extern "C"
     {                                                                                                         \
         fprintf(stderr, "Error: 0x%x at <%s:%i> in function %s\n", (code), __FILE__, __LINE__, __FUNCTION__); \
         char *txt = _get_error_text((code));                                                                  \
-        fprintf(stderr, "  %s\n", txt);                                                                       \
+        fprintf(stderr, "\t%s\n", txt);                                                                       \
         free(txt);                                                                                            \
     }
 
@@ -35,12 +35,12 @@ extern "C"
         return (code);        \
     }
 
-#define RETURN_IF_NOT_SUPPORTED(supported, msg, code)               \
-    if (!(supported))                                               \
-    {                                                               \
-        fprintf(stderr, "Error: in function '%s'\n", __FUNCTION__); \
-        fprintf(stderr, "   %s\n", (msg));                          \
-        return (code);                                              \
+#define RETURN_IF_NOT_SUPPORTED(supported, msg, code)                 \
+    if (!(supported))                                                 \
+    {                                                                 \
+        fprintf(stderr, "Warning: in function '%s'\n", __FUNCTION__); \
+        fprintf(stderr, "\t%s\n", (msg));                             \
+        return (code);                                                \
     }
 
 #define RETURN_NOT_SUPPORTED(msg, code) RETURN_IF_NOT_SUPPORTED(false, msg, code);
