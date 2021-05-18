@@ -238,8 +238,8 @@ static void setup_async_grab_thread(UcaCamera *camera, GError **error)
 static void uca_pco_clhs_camera_start_recording(UcaCamera *camera, GError **error)
 {
     UcaPcoClhsCameraPrivate *priv;
-    guint16 binned_width, width, width_ex, bh;
-    guint16 binned_height, height, height_ex, bv;
+    guint16 actual_width, max_binned_width, max_width_std, max_width_ext, bh;
+    guint16 actual_height, max_binned_height, max_height_std, max_height_ext, bv;
     guint16 roi[4];
     guint16 use_extended;
     gboolean transfer_async;
@@ -256,7 +256,7 @@ static void uca_pco_clhs_camera_start_recording(UcaCamera *camera, GError **erro
                  "frame-grabber-timeout", &priv->timeout_sec,
                  NULL);
 
-    err = pco_get_resolution(priv->pco, &width, &height, &width_ex, &height_ex);
+    err = pco_get_resolution(priv->pco, &max_width_std, &max_height_std, &max_width_ext, &max_height_ext);
     CHECK_AND_RETURN_VOID_ON_PCO_ERROR(err);
 
     err = pco_get_binning(priv->pco, &bh, &bv);
@@ -270,37 +270,37 @@ static void uca_pco_clhs_camera_start_recording(UcaCamera *camera, GError **erro
 
     if (use_extended)
     {
-        binned_width = width_ex;
-        binned_height = height_ex;
+        max_binned_width = max_width_ext / bh;
+        max_binned_height = max_height_ext / bv;
     }
     else
     {
-        binned_width = width;
-        binned_height = height;
+        max_binned_width = max_width_std / bh;
+        max_binned_height = max_height_std / bv;
     }
 
-    binned_width /= bh;
-    binned_height /= bv;
-
     // check if the ROI dimensions exceed the available binned dimensions
-    if ((roi[2] - roi[0] > binned_width) || (roi[3] - roi[1] > binned_height))
+    if ((roi[2] - roi[0] > max_binned_width) || (roi[3] - roi[1] > max_binned_height))
     {
         g_set_error(error, UCA_PCO_CLHS_CAMERA_ERROR, UCA_PCO_CLHS_CAMERA_ERROR_UNSUPPORTED,
                     "ROI of size %ix%i @ (%i, %i) is outside of (binned) sensor size %ix%i\n",
-                    roi[2] - roi[0], roi[3] - roi[1], roi[0], roi[1], binned_width, binned_height);
+                    roi[2] - roi[0], roi[3] - roi[1], roi[0], roi[1], max_binned_width, max_binned_height);
     }
 
-    if (priv->description->bitdepth <= 8)
-        priv->image_size = binned_width * binned_height * sizeof(gint8);
-    else if (priv->description->bitdepth <= 16)
-        priv->image_size = binned_width * binned_height * sizeof(gint16);
-    else if (priv->description->bitdepth <= 32)
-        priv->image_size = binned_width * binned_height * sizeof(gint32);
-    else
-        priv->image_size = binned_width * binned_height * sizeof(gint64);
+    actual_width = roi[2] - roi[0];
+    actual_height = roi[3] - roi[1];
 
-    err = pco_grabber_set_size(priv->pco, binned_width, binned_height);
-    CHECK_AND_RETURN_VOID_ON_PCO_ERROR(err);
+    if (priv->description->bitdepth <= 8)
+        priv->image_size = actual_width * actual_height * sizeof(gint8);
+    else if (priv->description->bitdepth <= 16)
+        priv->image_size = actual_width * actual_height * sizeof(gint16);
+    else if (priv->description->bitdepth <= 32)
+        priv->image_size = actual_width * actual_height * sizeof(gint32);
+    else
+        priv->image_size = actual_width * actual_height * sizeof(gint64);
+
+    // err = pco_grabber_set_size(priv->pco, actual_width, actual_height);
+    // CHECK_AND_RETURN_VOID_ON_PCO_ERROR(err);
 
     if (transfer_async)
         setup_async_grab_thread(camera, error);
