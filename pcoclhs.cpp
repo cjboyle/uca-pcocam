@@ -230,7 +230,8 @@ unsigned int pco_grabber_get_timeout(pco_handle *pco, int *milliseconds)
 
 unsigned int pco_prepare_recording(pco_handle *pco)
 {
-    DWORD err;
+    DWORD err = pco->com->PCO_ArmCamera();
+    RETURN_IF_ERROR(err);
 
     uint32_t cameraW, cameraH;
     err = pco->com->PCO_GetActualSize(&cameraW, &cameraH);
@@ -246,7 +247,7 @@ unsigned int pco_prepare_recording(pco_handle *pco)
         RETURN_IF_ERROR(err);
     }
 
-    err = pco_arm_camera(pco);
+    err = pco->grabber->PostArm();
     RETURN_ANY_CODE(err);
 }
 
