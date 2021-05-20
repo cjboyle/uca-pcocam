@@ -1177,9 +1177,17 @@ static void uca_pco_me4_camera_get_property(GObject *object, guint property_id, 
 
     case PROP_EDGE_GLOBAL_SHUTTER:
     {
-        pco_edge_shutter shutter;
-        err = pco_edge_get_shutter(priv->pco, &shutter);
-        g_value_set_boolean(value, shutter == PCO_EDGE_GLOBAL_SHUTTER);
+        if (priv->description->type == CAMERATYPE_PCO_EDGE)
+        {
+            pco_edge_shutter shutter;
+            pco_edge_get_shutter(priv->pco, &shutter);
+            g_value_set_boolean(value, shutter == PCO_EDGE_GLOBAL_SHUTTER);
+        }
+        else // if (priv->description->type == CAMERATYPE_PCO_DIMAX_STD
+             //  || priv->description->type == CAMERATYPE_PCO4000)
+        {
+            g_value_set_boolean(value, TRUE);
+        }
     }
     break;
 
