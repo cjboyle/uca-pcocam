@@ -455,6 +455,7 @@ static gboolean uca_pco_me4_camera_grab(UcaCamera *camera, gpointer data, GError
         CHECK_AND_RETURN_VAL_ON_PCO_ERROR(err, FALSE);
     }
 
+    priv->last_image++;
     err = pco_next_image_index_ex(priv->pco, &priv->last_image, get_max_timeout(priv));
     CHECK_AND_RETURN_VAL_ON_PCO_ERROR(err, FALSE);
 
@@ -505,6 +506,7 @@ static gboolean uca_pco_me4_camera_readout(UcaCamera *camera, gpointer data, gui
     err = pco_read_segment_images(priv->pco, priv->active_segment, index, index);
     CHECK_AND_RETURN_VAL_ON_PCO_ERROR(err, FALSE);
 
+    priv->last_image++;
     err = pco_next_image_index_ex(priv->pco, &priv->last_image, priv->timeout_sec * 1000);
     CHECK_AND_RETURN_VAL_ON_PCO_ERROR(err, FALSE);
 
