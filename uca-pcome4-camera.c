@@ -1439,6 +1439,13 @@ static void uca_pco_me4_camera_class_init(UcaPcoMe4CameraClass *klass)
                           UCA_TYPE_PCO_ME4_CAMERA_RECORD_MODE, UCA_PCO_ME4_CAMERA_RECORD_MODE_SEQUENCE,
                           G_PARAM_READWRITE);
 
+    pco_properties[PROP_STORAGE_MODE] =
+        g_param_spec_enum("storage-mode",
+                          "Storage mode",
+                          "Storage mode",
+                          UCA_TYPE_PCO_ME4_CAMERA_STORAGE_MODE, UCA_PCO_ME4_CAMERA_STORAGE_MODE_FIFO_BUFFER,
+                          G_PARAM_READWRITE);
+
     pco_properties[PROP_FAST_SCAN] =
         g_param_spec_boolean("fast-scan",
                              "Use fast scan mode",
