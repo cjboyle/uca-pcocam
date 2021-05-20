@@ -71,7 +71,7 @@ enum
     PROP_NOISE_FILTER,
     PROP_TIMESTAMP_MODE,
     PROP_VERSION,
-    PROP_EDGE_GLOBAL_SHUTTER,
+    PROP_GLOBAL_SHUTTER,
     PROP_FRAME_GRABBER_TIMEOUT,
     PROP_DELAY_TIME,
     N_PROPERTIES
@@ -806,7 +806,7 @@ static void uca_pco_me4_camera_set_property(GObject *object, guint property_id, 
     }
     break;
 
-    case PROP_EDGE_GLOBAL_SHUTTER:
+    case PROP_GLOBAL_SHUTTER:
     {
         //     pco_edge_shutter shutter;
 
@@ -1175,7 +1175,7 @@ static void uca_pco_me4_camera_get_property(GObject *object, guint property_id, 
         g_value_set_string(value, priv->version);
         break;
 
-    case PROP_EDGE_GLOBAL_SHUTTER:
+    case PROP_GLOBAL_SHUTTER:
     {
         if (priv->description->type == CAMERATYPE_PCO_EDGE)
         {
@@ -1465,7 +1465,7 @@ static void uca_pco_me4_camera_class_init(UcaPcoMe4CameraClass *klass)
                             DEFAULT_VERSION,
                             G_PARAM_READABLE);
 
-    pco_properties[PROP_EDGE_GLOBAL_SHUTTER] =
+    pco_properties[PROP_GLOBAL_SHUTTER] =
         g_param_spec_boolean("global-shutter",
                              "Global shutter enabled",
                              "Global shutter enabled",
