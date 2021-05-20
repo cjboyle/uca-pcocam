@@ -207,7 +207,11 @@ static gpointer grab_func(gpointer rawptr)
         err = pco_acquire_image_await_ex(priv->pco, frame, get_max_timeout(priv));
 
         if (frame == NULL || err != 0)
+        {
+            if (frame != NULL)
+                g_free(frame);
             continue;
+        }
 
         memcpy(priv->grab_thread_buffer, frame, priv->image_size);
         camera->grab_func(priv->grab_thread_buffer, camera->user_data);
@@ -374,7 +378,6 @@ static gboolean uca_pco_usb_camera_grab(UcaCamera *camera, gpointer data, GError
 
     gpointer frame = g_malloc0(size);
     err = pco_acquire_image_await_ex(priv->pco, frame, get_max_timeout(priv));
-    CHECK_AND_RETURN_VAL_ON_PCO_ERROR(err, FALSE);
 
     if (frame == NULL)
     {
@@ -384,8 +387,15 @@ static gboolean uca_pco_usb_camera_grab(UcaCamera *camera, gpointer data, GError
         return FALSE;
     }
 
+    if (err != PCO_NOERROR)
+    {
+        g_free(frame);
+        CHECK_AND_RETURN_VAL_ON_PCO_ERROR(err, FALSE);
+    }
+
     if (data == NULL)
     {
+        g_free(frame);
         g_set_error(error, UCA_PCO_USB_CAMERA_ERROR,
                     UCA_PCO_USB_CAMERA_ERROR_FG_GENERAL,
                     "UcaCamera provided NULL recipient buffer");

@@ -216,13 +216,14 @@ static gpointer grab_func(gpointer rawptr)
 
         gpointer frame;
         err = pco_get_image_ptr(priv->pco, &frame, index);
+
         if (frame == NULL || err != 0)
             continue;
 
         pco_extract_image(priv->pco, priv->grab_thread_buffer, frame, priv->image_width, priv->image_height);
 
         camera->grab_func(priv->grab_thread_buffer, camera->user_data);
-        // free(frame);
+        // don't free frame on error, as it wasn't malloc'ed here
     }
     return NULL;
 }
