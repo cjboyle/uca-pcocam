@@ -254,8 +254,8 @@ static void uca_pco_usb_camera_start_recording(UcaCamera *camera, GError **error
     gboolean transfer_async;
     guint err;
 
-    g_return_if_fail(UCA_IS_PCO_CLHS_CAMERA(camera));
-    priv = UCA_PCO_CLHS_CAMERA_GET_PRIVATE(camera);
+    g_return_if_fail(UCA_IS_PCO_USB_CAMERA(camera));
+    priv = UCA_PCO_USB_CAMERA_GET_PRIVATE(camera);
 
     signal(SIGUSR1, handle_sigusr1);
 

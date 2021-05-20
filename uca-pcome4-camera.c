@@ -262,8 +262,8 @@ static void uca_pco_me4_camera_start_recording(UcaCamera *camera, GError **error
     guint record_mode;
     guint err;
 
-    g_return_if_fail(UCA_IS_PCO_CLHS_CAMERA(camera));
-    priv = UCA_PCO_CLHS_CAMERA_GET_PRIVATE(camera);
+    g_return_if_fail(UCA_IS_PCO_ME4_CAMERA(camera));
+    priv = UCA_PCO_ME4_CAMERA_GET_PRIVATE(camera);
 
     signal(SIGUSR1, handle_sigusr1);
 
