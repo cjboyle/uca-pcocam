@@ -131,8 +131,12 @@ static unsigned int _pco_init(pco_handle *pco, int board, int port)
     {
         PCO_SC2_CL_TRANSFER_PARAM txParam;
         pco->com->PCO_GetTransferParameter(&txParam, sizeof(txParam));
+        
+        txParam.baudrate = 115200;
         txParam.DataFormat = PCO_CL_DATAFORMAT_2x12;
-        pco->com->PCO_SetTransferParameter(&txParam, sizeof(txParam));
+
+        err = pco->com->PCO_SetTransferParameter(&txParam, sizeof(txParam));
+        RETURN_IF_ERROR(err);
     }
 
     return PCO_NOERROR;
