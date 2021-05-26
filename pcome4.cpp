@@ -974,7 +974,7 @@ unsigned int pco_last_image_index(pco_handle *pco, int *image_nr)
 
 unsigned int pco_next_image_index(pco_handle *pco, int *image_nr)
 {
-    DWORD err = pco->grabber->Wait_For_Next_Image(image_nr, 10000);
+    DWORD err = pco_next_image_index_ex(pco, image_nr, 10000);
     RETURN_ANY_CODE(err);
 }
 

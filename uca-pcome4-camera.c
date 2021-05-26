@@ -442,8 +442,11 @@ static gboolean uca_pco_me4_camera_grab(UcaCamera *camera, gpointer data, GError
     g_object_get(G_OBJECT(camera), "is-readout", &is_readout, NULL);
     if (is_readout)
     {
-        if (priv->current_image == priv->num_recorded_images)
+        if (priv->current_image > priv->num_recorded_images)
+        {
+            g_set_error(error, UCA_PCO_ME4_CAMERA_ERROR, UCA_PCO_ME4_CAMERA_ERROR_FG_GENERAL, "End of memory readout");
             return FALSE;
+        }
 
         err = pco_read_segment_images(priv->pco, priv->active_segment, priv->current_image, priv->current_image);
         CHECK_AND_RETURN_VAL_ON_PCO_ERROR(err, FALSE);
@@ -507,12 +510,12 @@ static gboolean uca_pco_me4_camera_readout(UcaCamera *camera, gpointer data, gui
     CHECK_AND_RETURN_VAL_ON_PCO_ERROR(err, FALSE);
 
     priv->last_image++;
-    err = pco_next_image_index_ex(priv->pco, &priv->last_image, priv->timeout_sec * 1000);
+    err = pco_next_image_index_ex(priv->pco, &priv->last_image, get_max_timeout(priv));
     CHECK_AND_RETURN_VAL_ON_PCO_ERROR(err, FALSE);
 
     if (priv->last_image <= 0)
     {
-        g_set_error(error, UCA_PCO_ME4_CAMERA_ERROR, UCA_PCO_ME4_CAMERA_ERROR_FG_GENERAL, "No images in frame buffer");
+        g_set_error(error, UCA_PCO_ME4_CAMERA_ERROR, UCA_PCO_ME4_CAMERA_ERROR_FG_GENERAL, "No images in internal buffer");
         return FALSE;
     }
 
