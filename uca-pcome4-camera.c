@@ -260,6 +260,7 @@ static void uca_pco_me4_camera_start_recording(UcaCamera *camera, GError **error
     guint16 use_extended;
     gboolean transfer_async;
     guint record_mode;
+    guint num_buffers;
     guint err;
 
     g_return_if_fail(UCA_IS_PCO_ME4_CAMERA(camera));
@@ -272,6 +273,7 @@ static void uca_pco_me4_camera_start_recording(UcaCamera *camera, GError **error
                  "transfer-asynchronously", &transfer_async,
                  "frame-grabber-timeout", &priv->timeout_sec,
                  "record-mode", &record_mode,
+                 "num-buffers", &num_buffers,
                  NULL);
 
     err = pco_get_resolution(priv->pco, &max_width_std, &max_height_std, &max_width_ext, &max_height_ext);
@@ -323,12 +325,21 @@ static void uca_pco_me4_camera_start_recording(UcaCamera *camera, GError **error
     err = pco_grabber_free_memory(priv->pco);
     CHECK_AND_RETURN_VOID_ON_PCO_ERROR(err);
 
-    err = pco_grabber_allocate_memory(priv->pco, 4);
+    err = pco_grabber_set_size(priv->pco, actual_width, actual_height);
     CHECK_AND_RETURN_VOID_ON_PCO_ERROR(err);
+
 
     if (priv->description->type == CAMERATYPE_PCO4000 || priv->description->type == CAMERATYPE_PCO_DIMAX_STD)
     {
+        err = pco_grabber_allocate_memory(priv->pco, num_buffers);
+        CHECK_AND_RETURN_VOID_ON_PCO_ERROR(err);
+
         err = pco_clear_active_segment(priv->pco);
+        CHECK_AND_RETURN_VOID_ON_PCO_ERROR(err);
+    }
+    else  // on pco.edge, allocate 4 buffers
+    {
+        err = pco_grabber_allocate_memory(priv->pco, 4);
         CHECK_AND_RETURN_VOID_ON_PCO_ERROR(err);
     }
 
