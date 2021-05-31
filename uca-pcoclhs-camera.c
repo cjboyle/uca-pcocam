@@ -39,17 +39,6 @@ GQuark uca_pco_clhs_camera_error_quark()
     return g_quark_from_static_string("uca-pco-clhs-camera-error-quark");
 }
 
-static GMutex signal_mutex;
-static GCond signal_cond;
-
-static void
-handle_sigusr1(int signum)
-{
-    g_mutex_lock(&signal_mutex);
-    g_cond_signal(&signal_cond);
-    g_mutex_unlock(&signal_mutex);
-}
-
 enum
 {
     PROP_SENSOR_EXTENDED = N_BASE_PROPERTIES,
@@ -252,8 +241,6 @@ static void uca_pco_clhs_camera_start_recording(UcaCamera *camera, GError **erro
     g_return_if_fail(UCA_IS_PCO_CLHS_CAMERA(camera));
     priv = UCA_PCO_CLHS_CAMERA_GET_PRIVATE(camera);
 
-    signal(SIGUSR1, handle_sigusr1);
-
     g_object_get(camera,
                  "trigger-source", &priv->trigger_source,
                  "transfer-asynchronously", &transfer_async,
@@ -385,7 +372,7 @@ static gboolean uca_pco_clhs_camera_grab(UcaCamera *camera, gpointer data, GErro
     if (err != PCO_NOERROR)
     {
         g_free(frame);
-        CHECK_AND_RETURN_VAL_ON_PCO_ERROR(err, FALSE);
+        CHECK_AND_RETURN_VAL_ON_PCO_ERROR(err, ((err & PCO_ERROR_TIMEOUT) != 0));
     }
 
     if (data == NULL)

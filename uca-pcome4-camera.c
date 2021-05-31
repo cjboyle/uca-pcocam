@@ -39,17 +39,6 @@ GQuark uca_pco_me4_camera_error_quark()
     return g_quark_from_static_string("uca-pco-me4-camera-error-quark");
 }
 
-static GMutex signal_mutex;
-static GCond signal_cond;
-
-static void
-handle_sigusr1(int signum)
-{
-    g_mutex_lock(&signal_mutex);
-    g_cond_signal(&signal_cond);
-    g_mutex_unlock(&signal_mutex);
-}
-
 enum
 {
     PROP_SENSOR_EXTENDED = N_BASE_PROPERTIES,
@@ -265,8 +254,6 @@ static void uca_pco_me4_camera_start_recording(UcaCamera *camera, GError **error
 
     g_return_if_fail(UCA_IS_PCO_ME4_CAMERA(camera));
     priv = UCA_PCO_ME4_CAMERA_GET_PRIVATE(camera);
-
-    signal(SIGUSR1, handle_sigusr1);
 
     g_object_get(camera,
                  "trigger-source", &priv->trigger_source,
