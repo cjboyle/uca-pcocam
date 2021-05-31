@@ -821,6 +821,8 @@ unsigned int pco_get_acquire_mode(pco_handle *pco, uint16_t *mode)
 
 unsigned int pco_set_acquire_mode(pco_handle *pco, uint16_t mode)
 {
+    bool can_set_acqmode = (bool)!(pco->description.dwGeneralCaps1 & GENERALCAPS1_NO_ACQUIREMODE);
+    RETURN_IF_NOT_SUPPORTED(can_set_acqmode, "Setting acquire mode is not supported", 0);
     DWORD err = pco->com->PCO_SetAcquireMode(mode);
     RETURN_ANY_CODE(err);
 }
