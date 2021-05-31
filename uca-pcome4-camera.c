@@ -328,16 +328,15 @@ static void uca_pco_me4_camera_start_recording(UcaCamera *camera, GError **error
     err = pco_grabber_set_size(priv->pco, actual_width, actual_height);
     CHECK_AND_RETURN_VOID_ON_PCO_ERROR(err);
 
-
-    if (priv->description->type == CAMERATYPE_PCO4000 || priv->description->type == CAMERATYPE_PCO_DIMAX_STD)
+    if (priv->description->has_camram)
     {
-        err = pco_grabber_allocate_memory(priv->pco, num_buffers);
+        err = pco_grabber_allocate_memory(priv->pco, num_buffers + 1);
         CHECK_AND_RETURN_VOID_ON_PCO_ERROR(err);
 
         err = pco_clear_active_segment(priv->pco);
         CHECK_AND_RETURN_VOID_ON_PCO_ERROR(err);
     }
-    else  // on pco.edge, allocate 4 buffers
+    else // on pco.edge, allocate 4 buffers
     {
         err = pco_grabber_allocate_memory(priv->pco, 4);
         CHECK_AND_RETURN_VOID_ON_PCO_ERROR(err);
