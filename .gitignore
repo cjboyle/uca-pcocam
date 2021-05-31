@@ -7,6 +7,8 @@ uca-*-enums.[ch]
 # ignore temporary test items
 *.out
 test*
+*.tif*
+*.bmp
 
 # other
 .vscode/
@@ -14,3 +16,4 @@ test*
 *.out
 test*
 *.bak
+*.log*
