@@ -116,8 +116,8 @@ Use ```uca-info [plugin]``` and ```uca-grab -n 1 [plugin]``` to verify basic fun
 | sensor-vertical-binning | int, step | RW | yes | yes | yes |
 | sensor-temperature | int, degC | R | yes | yes | yes |
 | sensor-adcs | int, count | RW | no | yes | yes |
-| roi-x | int, px | RW | yes | yes | yes |
-| roi-x | int, px | RW | yes | yes | yes |
+| roi-x0 | int, px | RW | yes | yes | yes |
+| roi-y0 | int, px | RW | yes | yes | yes |
 | roi-width | int, px | RW | yes | yes | yes |
 | roi-height | int, px | RW | yes | yes | yes |
 | roi-width-multiplier | int, step | RW | yes | yes | yes |
@@ -131,8 +131,8 @@ Use ```uca-info [plugin]``` and ```uca-grab -n 1 [plugin]``` to verify basic fun
 | offset-mode | bool | RW | yes* | yes* | yes* |
 | acquire-mode | bool | RW | yes* | yes* | yes* |
 | fast-scan | bool | RW | yes* | yes* | yes* |
-| cooling-point | bool | RW | yes* | yes* | yes* |
-| cooling-point-default | bool | RW | yes* | yes* | yes* |
+| cooling-point | int, degC | RW | yes* | yes* | yes* |
+| cooling-point-default | int, degC | R | yes* | yes* | yes* |
 | noise-filter | bool | RW | yes* | yes* | yes* |
 | timestamp-mode | enum | RW | yes | yes | yes |
 | is-recording | bool | R | yes | yes | yes |
