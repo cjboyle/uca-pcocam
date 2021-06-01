@@ -594,7 +594,7 @@ extern "C"
     /**
      * Get the camera trigger mode. Mode availability depends on the camera model.
      * @param pco handle
-     * @param mode output the trigger mode [0=AUTO, 1=SOFTWARE, 2=SOFTWARE+EXTERNAL, 3=EXTERNAL]
+     * @param mode output the trigger mode [0=AUTO, 1=SOFTWARE, 2=EXTERN-EXPOSURE, 3=EXTERN-CONTROL]
      * @return 0 on success, otherwise less than 0
      */
     uint32_t pco_get_trigger_mode(pco_handle *pco, uint16_t *mode);
@@ -602,7 +602,7 @@ extern "C"
     /**
      * Set the camera trigger mode. Mode availability depends on the camera model.
      * @param pco handle
-     * @param mode the trigger mode [0=AUTO, 1=SOFTWARE, 2=SOFTWARE+EXTERNAL, 3=EXTERNAL]
+     * @param mode the trigger mode [0=AUTO, 1=SOFTWARE, 2=EXTERN-EXPOSURE, 3=EXTERN-CONTROL]
      * @return 0 on success, otherwise less than 0
      */
     uint32_t pco_set_trigger_mode(pco_handle *pco, uint16_t mode);
