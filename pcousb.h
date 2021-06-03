@@ -36,6 +36,14 @@ extern "C"
      */
     unsigned int pco_set_adc_mode(pco_handle *pco, uint16_t mode);
 
+    /**
+     * Get the number of triggered frames. This function may not be reliably fast for some applications.
+     * @param pco handle
+     * @param count output the number of triggered frames
+     * @return 0 on success, otherwise less than 0
+     */
+    unsigned int pco_get_trigger_count(pco_handle *pco, uint32_t *count);
+
 #ifdef __cplusplus
 }
 #endif /*__cplusplus*/

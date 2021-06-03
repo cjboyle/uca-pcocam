@@ -633,6 +633,11 @@ unsigned int pco_force_trigger(pco_handle *pco, uint16_t *success)
     RETURN_ANY_CODE(err);
 }
 
+unsigned int pco_get_trigger_count(pco_handle *pco, uint32_t *count){
+    DWORD err = pco->com->PCO_GetSensorSignalStatus(&discard.ui32, count);
+    RETURN_ANY_CODE(err);
+}
+
 unsigned int pco_set_timestamp_mode(pco_handle *pco, uint16_t mode)
 {
     DWORD err = pco->com->PCO_SetTimestampMode(mode);
