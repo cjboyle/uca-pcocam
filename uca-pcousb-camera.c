@@ -140,6 +140,7 @@ struct _UcaPcoUsbCameraPrivate
     gchar *version;
 
     UcaCameraTriggerSource trigger_source;
+    guint64 num_triggers, current_trigger;
 
     gint timeout_sec;
 
@@ -252,6 +253,9 @@ static void uca_pco_usb_camera_start_recording(UcaCamera *camera, GError **error
                  "frame-grabber-timeout", &priv->timeout_sec,
                  NULL);
 
+    priv->num_triggers = 0;
+    priv->current_trigger = 0;
+
     err = pco_get_resolution(priv->pco, &max_width_std, &max_height_std, &max_width_ext, &max_height_ext);
     CHECK_AND_RETURN_VOID_ON_PCO_ERROR(err);
 
@@ -344,6 +348,8 @@ static void uca_pco_usb_camera_trigger(UcaCamera *camera, GError **error)
         g_set_error(error, UCA_PCO_USB_CAMERA_ERROR, UCA_PCO_USB_CAMERA_ERROR_PCOSDK_GENERAL,
                     "Could not trigger frame acquisition");
     }
+
+    priv->num_triggers++;
 }
 
 static gboolean uca_pco_usb_camera_grab(UcaCamera *camera, gpointer data, GError **error)
@@ -354,8 +360,12 @@ static gboolean uca_pco_usb_camera_grab(UcaCamera *camera, gpointer data, GError
     guint err;
     gsize size = priv->image_size;
 
-    gboolean is_readout;
-    g_object_get(G_OBJECT(camera), "is-readout", &is_readout, NULL);
+    gboolean is_readout, is_buffered;
+    g_object_get(G_OBJECT(camera),
+                 "is-readout", &is_readout,
+                 "buffered", &is_buffered,
+                 NULL);
+
     if (is_readout)
     {
         g_set_error(error, UCA_PCO_USB_CAMERA_ERROR, UCA_PCO_USB_CAMERA_ERROR_UNSUPPORTED,
@@ -363,33 +373,52 @@ static gboolean uca_pco_usb_camera_grab(UcaCamera *camera, gpointer data, GError
         return FALSE;
     }
 
+    // libuca's ring buffer is implemented such that returning FALSE from this function will
+    // stop the acquire loop to fill the buffer. This can have unintended side effects when
+    // the trigger mode is not set to AUTO (e.g. when a acquire timeout occurs, any subsequent
+    // frames would be lost, potentially causing a kernel-level crash). The current workaround
+    // is to fail hard on manual grabs, and try to track the number of HW/SW trigger signals.
+    gboolean fail_quietly = is_buffered;
+
+    if (priv->trigger_source != UCA_CAMERA_TRIGGER_SOURCE_AUTO)
+    {
+        // for external triggers, try update from the count reported by the camera
+        if (priv->current_trigger >= priv->num_triggers)
+            pco_get_trigger_count(priv->pco, &priv->num_triggers);
+
+        if (priv->current_trigger >= priv->num_triggers)
+        {
+            if (!fail_quietly)
+                g_set_error(error, UCA_PCO_USB_CAMERA_ERROR,
+                            UCA_PCO_USB_CAMERA_ERROR_FG_GENERAL,
+                            "No prior frames triggered");
+            return FALSE;
+        }
+    }
+
     gpointer frame = g_malloc0(size);
-    err = pco_acquire_image_await_ex(priv->pco, frame, get_max_timeout(priv));
 
     if (frame == NULL)
     {
-        g_set_error(error, UCA_PCO_USB_CAMERA_ERROR,
-                    UCA_PCO_USB_CAMERA_ERROR_FG_GENERAL,
-                    "Frame data is NULL");
+        if (!fail_quietly)
+            g_set_error(error, UCA_PCO_USB_CAMERA_ERROR,
+                        UCA_PCO_USB_CAMERA_ERROR_FG_GENERAL,
+                        "Frame data is NULL");
         return FALSE;
     }
+
+    err = pco_acquire_image_await_ex(priv->pco, frame, get_max_timeout(priv));
 
     if (err != PCO_NOERROR)
     {
         g_free(frame);
-        CHECK_AND_RETURN_VAL_ON_PCO_ERROR(err, ((err & PCO_ERROR_TIMEOUT) != 0));
-    }
-
-    if (data == NULL)
-    {
-        g_free(frame);
-        g_set_error(error, UCA_PCO_USB_CAMERA_ERROR,
-                    UCA_PCO_USB_CAMERA_ERROR_FG_GENERAL,
-                    "UcaCamera provided NULL recipient buffer");
-        return FALSE;
+        if (fail_quietly && IS_TIMEOUT_ERROR(err))
+            return FALSE;
+        CHECK_AND_RETURN_VAL_ON_PCO_ERROR(err, FALSE);
     }
 
     memcpy(data, frame, size);
+    priv->current_trigger++;
 
     g_free(frame);
     frame = NULL;
