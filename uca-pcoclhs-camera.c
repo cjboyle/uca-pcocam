@@ -56,6 +56,7 @@ enum
     PROP_COOLING_POINT_DEFAULT,
     PROP_NOISE_FILTER,
     PROP_TIMESTAMP_MODE,
+    PROP_NUM_TRIGGERS,
     PROP_VERSION,
     PROP_GLOBAL_SHUTTER,
     PROP_FRAME_GRABBER_TIMEOUT,
@@ -990,6 +991,12 @@ static void uca_pco_clhs_camera_get_property(GObject *object, guint property_id,
     }
     break;
 
+    case PROP_NUM_TRIGGERS:
+    {
+        err = pco_get_trigger_count(priv->pco, &priv->num_triggers);
+        g_value_set_uint(value, priv->num_triggers);
+    }
+
     case PROP_VERSION:
         g_value_set_string(value, priv->version);
         break;
@@ -1245,6 +1252,13 @@ static void uca_pco_clhs_camera_class_init(UcaPcoClhsCameraClass *klass)
                           "Timestamp mode",
                           UCA_TYPE_PCO_CLHS_CAMERA_TIMESTAMP, UCA_PCO_CLHS_CAMERA_TIMESTAMP_NONE,
                           G_PARAM_READWRITE);
+    
+    pco_properties[PROP_NUM_TRIGGERS] =
+        g_param_spec_uint("num-triggers",
+                          "Number of triggers",
+                          "Number of external or software triggers",
+                          0, UINT32_MAX, 0,
+                          G_PARAM_READABLE);
 
     pco_properties[PROP_VERSION] =
         g_param_spec_string("version",
