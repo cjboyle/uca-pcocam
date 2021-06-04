@@ -45,7 +45,7 @@ extern "C"
 
 #define RETURN_NOT_SUPPORTED(msg, code) RETURN_IF_NOT_SUPPORTED(false, msg, code);
 
-#define IS_TIMEOUT_ERROR(code) (code != PCO_NOERROR && (code & PCO_ERROR_TIMEOUT) == code)
+#define IS_TIMEOUT_ERROR(code) (code != PCO_NOERROR && (code & PCO_ERROR_TIMEOUT) == PCO_ERROR_TIMEOUT)
 
 #define PCO_SCANMODE_SLOW 0
 #define PCO_SCANMODE_FAST 1
