@@ -12,20 +12,26 @@
 #define UCA_PCO_ME4_CAMERA_GET_PRIVATE(obj) (G_TYPE_INSTANCE_GET_PRIVATE((obj), UCA_TYPE_PCO_ME4_CAMERA, UcaPcoMe4CameraPrivate))
 
 #define CHECK_AND_RETURN_VOID_ON_PCO_ERROR(err)              \
-    if ((err) != 0)                                          \
+    if ((err) != PCO_NOERROR)                                \
     {                                                        \
+        char *text = pco_get_error_text((err));              \
         g_set_error(error, UCA_PCO_ME4_CAMERA_ERROR,         \
                     UCA_PCO_ME4_CAMERA_ERROR_PCOSDK_GENERAL, \
-                    "libpcome4 error %x", err);              \
+                    "pco.cl_me4 error %x\n\t%s", err, text);  \
+        free(text);                                          \
+        text = NULL;                                         \
         return;                                              \
     }
 
 #define CHECK_AND_RETURN_VAL_ON_PCO_ERROR(err, val)          \
-    if ((err) != 0)                                          \
+    if ((err) != PCO_NOERROR)                                \
     {                                                        \
+        char *text = pco_get_error_text((err));              \
         g_set_error(error, UCA_PCO_ME4_CAMERA_ERROR,         \
                     UCA_PCO_ME4_CAMERA_ERROR_PCOSDK_GENERAL, \
-                    "libpcome4 error %x", err);              \
+                    "pco.cl_me4 error %x\n\t%s", err, text);  \
+        free(text);                                          \
+        text = NULL;                                         \
         return val;                                          \
     }
 
@@ -475,12 +481,6 @@ static gboolean uca_pco_me4_camera_grab(UcaCamera *camera, gpointer data, GError
         return FALSE;
     }
 
-    if (data == NULL)
-    {
-        g_set_error(error, UCA_CAMERA_ERROR, UCA_PCO_ME4_CAMERA_ERROR_FG_GENERAL, "UcaCamera provided NULL recipient buffer");
-        return FALSE;
-    }
-
     pco_extract_image(priv->pco, data, frame, priv->image_width, priv->image_height);
 
     return TRUE;
@@ -523,12 +523,6 @@ static gboolean uca_pco_me4_camera_readout(UcaCamera *camera, gpointer data, gui
     if (frame == NULL)
     {
         g_set_error(error, UCA_PCO_ME4_CAMERA_ERROR, UCA_PCO_ME4_CAMERA_ERROR_FG_GENERAL, "Frame data is NULL");
-        return FALSE;
-    }
-
-    if (data == NULL)
-    {
-        g_set_error(error, UCA_CAMERA_ERROR, UCA_PCO_ME4_CAMERA_ERROR_FG_GENERAL, "UcaCamera provided NULL recipient buffer");
         return FALSE;
     }
 

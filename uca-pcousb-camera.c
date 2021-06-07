@@ -12,20 +12,26 @@
 #define UCA_PCO_USB_CAMERA_GET_PRIVATE(obj) (G_TYPE_INSTANCE_GET_PRIVATE((obj), UCA_TYPE_PCO_USB_CAMERA, UcaPcoUsbCameraPrivate))
 
 #define CHECK_AND_RETURN_VOID_ON_PCO_ERROR(err)              \
-    if ((err) != 0)                                          \
+    if ((err) != PCO_NOERROR)                                \
     {                                                        \
+        char *text = pco_get_error_text((err));              \
         g_set_error(error, UCA_PCO_USB_CAMERA_ERROR,         \
                     UCA_PCO_USB_CAMERA_ERROR_PCOSDK_GENERAL, \
-                    "libpcousb error %x", err);              \
+                    "pco.usb error %x\n\t%s", err, text);    \
+        free(text);                                          \
+        text = NULL;                                         \
         return;                                              \
     }
 
 #define CHECK_AND_RETURN_VAL_ON_PCO_ERROR(err, val)          \
-    if ((err) != 0)                                          \
+    if ((err) != PCO_NOERROR)                                \
     {                                                        \
+        char *text = pco_get_error_text((err));              \
         g_set_error(error, UCA_PCO_USB_CAMERA_ERROR,         \
                     UCA_PCO_USB_CAMERA_ERROR_PCOSDK_GENERAL, \
-                    "libpcousb error %x", err);              \
+                    "pco.usb error %x\n\t%s", err, text);    \
+        free(text);                                          \
+        text = NULL;                                         \
         return val;                                          \
     }
 

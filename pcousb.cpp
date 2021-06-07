@@ -25,7 +25,7 @@
  * UFO-KIT's libpco library partial implementation.
  */
 
-char *_get_error_text(DWORD code)
+char *pco_get_error_text(DWORD code)
 {
     char *s = (char *)malloc(255);
     PCO_GetErrorText(code, s, 255);
@@ -120,7 +120,7 @@ pco_handle *pco_init(int board, int port)
     DWORD err = _pco_init(pco, 0, 0);
     if (err != PCO_NOERROR)
     {
-        CHECK_ERROR(err);
+        PRINT_ERROR(err);
         pco_destroy(pco);
         pco = NULL;
     }
@@ -153,7 +153,7 @@ unsigned int pco_open_camera(pco_handle *pco, int port)
     if (pco->com->IsOpen())
     {
         err = pco->com->Close_Cam();
-        CHECK_ERROR(err);
+        PRINT_ERROR(err);
     }
     for (unsigned int i = 0; i <= MAXNUM_DEVICES; i++)
     {
@@ -272,7 +272,7 @@ bool pco_is_recording(pco_handle *pco)
 {
     WORD state;
     DWORD err = pco->com->PCO_GetRecordingState(&state);
-    CHECK_ERROR(err);
+    PRINT_ERROR(err);
     return state == 1;
 }
 
@@ -552,7 +552,6 @@ unsigned int pco_get_roi(pco_handle *pco, uint16_t *window)
 {
     uint16_t x1, y1, x2, y2;
     DWORD err = pco->com->PCO_GetROI(&x1, &y1, &x2, &y2);
-    CHECK_ERROR(err);
     if (err == 0)
     {
         window[0] = x1 - 1;
@@ -589,7 +588,6 @@ unsigned int pco_get_double_image_mode(pco_handle *pco, bool *on)
 {
     uint16_t tmp;
     DWORD err = pco->com->PCO_GetDoubleImageMode(&tmp);
-    CHECK_ERROR(err);
     if (err == 0)
         *on = tmp == 1;
     return err;
@@ -605,7 +603,6 @@ uint32_t pco_get_pixel_offset_mode(pco_handle *pco, bool *offset)
 {
     uint16_t tmp;
     DWORD err = pco->com->PCO_GetOffsetMode(&tmp);
-    CHECK_ERROR(err);
     if (err == 0)
         *offset = tmp == 1;
     return err;
@@ -615,7 +612,6 @@ unsigned int pco_get_bit_alignment(pco_handle *pco, bool *msb_aligned)
 {
     uint16_t alignment;
     DWORD err = pco->com->PCO_GetBitAlignment(&alignment);
-    CHECK_ERROR(err);
     if (err == 0)
         *msb_aligned = alignment == 0;
     return err;

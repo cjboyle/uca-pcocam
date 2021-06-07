@@ -11,27 +11,28 @@ extern "C"
 #include <stdio.h>
 #include <stdlib.h>
 
-    char *_get_error_text(unsigned int code);
+    /**
+     * Returns an allocated 255-byte string describing the given error code.
+     */
+    char *pco_get_error_text(unsigned int code);
 
-#define CHECK_ERROR(code)                                                                                     \
-    if ((code) != 0 && strstr(__FUNCTION__, "_get_") == NULL)                                                 \
+#define PRINT_ERROR(code)                                                                                     \
+    if ((code) != 0)                                                                                          \
     {                                                                                                         \
         fprintf(stderr, "Error: 0x%x at <%s:%i> in function %s\n", (code), __FILE__, __LINE__, __FUNCTION__); \
-        char *txt = _get_error_text((code));                                                                  \
+        char *txt = pco_get_error_text((code));                                                               \
         fprintf(stderr, "\t%s\n", txt);                                                                       \
         free(txt);                                                                                            \
     }
 
 #define RETURN_IF_ERROR(code) \
     {                         \
-        CHECK_ERROR(code);    \
         if ((code) != 0)      \
             return (code);    \
     }
 
 #define RETURN_ANY_CODE(code) \
     {                         \
-        CHECK_ERROR(code);    \
         return (code);        \
     }
 

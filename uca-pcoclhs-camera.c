@@ -12,20 +12,26 @@
 #define UCA_PCO_CLHS_CAMERA_GET_PRIVATE(obj) (G_TYPE_INSTANCE_GET_PRIVATE((obj), UCA_TYPE_PCO_CLHS_CAMERA, UcaPcoClhsCameraPrivate))
 
 #define CHECK_AND_RETURN_VOID_ON_PCO_ERROR(err)               \
-    if ((err) != 0)                                           \
+    if ((err) != PCO_NOERROR)                                 \
     {                                                         \
+        char *text = pco_get_error_text((err));               \
         g_set_error(error, UCA_PCO_CLHS_CAMERA_ERROR,         \
                     UCA_PCO_CLHS_CAMERA_ERROR_PCOSDK_GENERAL, \
-                    "libpcoclhs error %x", err);              \
+                    "pco.clhs error %x\n\t%s", err, text);  \
+        free(text);                                           \
+        text = NULL;                                          \
         return;                                               \
     }
 
 #define CHECK_AND_RETURN_VAL_ON_PCO_ERROR(err, val)           \
-    if ((err) != 0)                                           \
+    if ((err) != PCO_NOERROR)                                 \
     {                                                         \
+        char *text = pco_get_error_text((err));               \
         g_set_error(error, UCA_PCO_CLHS_CAMERA_ERROR,         \
                     UCA_PCO_CLHS_CAMERA_ERROR_PCOSDK_GENERAL, \
-                    "libpcoclhs error %x", err);              \
+                    "pco.clhs error %x\n\t%s", err, text);  \
+        free(text);                                           \
+        text = NULL;                                          \
         return val;                                           \
     }
 
@@ -1252,7 +1258,7 @@ static void uca_pco_clhs_camera_class_init(UcaPcoClhsCameraClass *klass)
                           "Timestamp mode",
                           UCA_TYPE_PCO_CLHS_CAMERA_TIMESTAMP, UCA_PCO_CLHS_CAMERA_TIMESTAMP_NONE,
                           G_PARAM_READWRITE);
-    
+
     pco_properties[PROP_NUM_TRIGGERS] =
         g_param_spec_uint("num-triggers",
                           "Number of triggers",
