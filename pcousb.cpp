@@ -413,9 +413,9 @@ unsigned int pco_get_actual_size(pco_handle *pco, uint32_t *width, uint32_t *hei
     RETURN_ANY_CODE(err);
 }
 
-unsigned int pco_get_available_pixelrates(pco_handle *pco, uint32_t rates[4], int *num_rates)
+unsigned int pco_get_available_pixelrates(pco_handle *pco, uint32_t rates[4], uint32_t *num_rates)
 {
-    int n = 0;
+    uint32_t n = 0;
     for (int i = 0; i < 4; i++)
     {
         if (pco->description.dwPixelRateDESC[i] > 0)

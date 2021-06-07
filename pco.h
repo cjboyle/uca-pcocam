@@ -325,7 +325,7 @@ extern "C"
      * @param num_rates output the actual number of pixel rates in the array
      * @return 0 on success, otherwise less than 0
      */
-    uint32_t pco_get_available_pixelrates(pco_handle *pco, uint32_t rates[4], int *num_rates);
+    uint32_t pco_get_available_pixelrates(pco_handle *pco, uint32_t rates[4], uint32_t *num_rates);
 
     /**
      * Get the current pixel rate of the camera, in Hz.

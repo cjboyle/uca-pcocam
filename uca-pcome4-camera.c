@@ -145,7 +145,7 @@ struct _UcaPcoMe4CameraPrivate
     guint image_width, image_height;
     gsize num_recorded_images, max_recorded_images;
     guint16 active_segment;
-    guint32 current_image, last_image;
+    gint32 current_image, last_image;
 
     GValueArray *pixelrates;
 
