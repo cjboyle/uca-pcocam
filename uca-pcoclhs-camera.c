@@ -696,7 +696,7 @@ static void uca_pco_clhs_camera_set_property(GObject *object, guint property_id,
     {
         gint timeout = g_value_get_uint(value);
         if (timeout < 0)
-            timeout = INT32_MAX;
+            timeout = G_MAXINT32;
         err = pco_grabber_set_timeout(priv->pco, timeout);
     }
     break;
@@ -1263,7 +1263,7 @@ static void uca_pco_clhs_camera_class_init(UcaPcoClhsCameraClass *klass)
         g_param_spec_uint("num-triggers",
                           "Number of triggers",
                           "Number of external or software triggers",
-                          0, UINT32_MAX, 0,
+                          0, G_MAXUINT32, 0,
                           G_PARAM_READABLE);
 
     pco_properties[PROP_VERSION] =

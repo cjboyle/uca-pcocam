@@ -707,7 +707,7 @@ static void uca_pco_usb_camera_set_property(GObject *object, guint property_id, 
     {
         gint timeout = g_value_get_uint(value);
         if (timeout < 0)
-            timeout = INT32_MAX;
+            timeout = G_MAXINT32;
         err = pco_grabber_set_timeout(priv->pco, timeout);
     }
     break;
