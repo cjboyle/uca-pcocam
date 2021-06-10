@@ -127,17 +127,19 @@ static unsigned int _pco_init(pco_handle *pco, int board, int port)
     err = pco->com->PCO_SetBitAlignment(BIT_ALIGNMENT_LSB);
     RETURN_IF_ERROR(err);
 
+    PCO_SC2_CL_TRANSFER_PARAM txParam;
+    pco->com->PCO_GetTransferParameter(&txParam, sizeof(txParam));
+
+    txParam.Transmit = 1;
+
     if (pco->cameraType == CAMERATYPE_PCO_DIMAX_STD)
     {
-        PCO_SC2_CL_TRANSFER_PARAM txParam;
-        pco->com->PCO_GetTransferParameter(&txParam, sizeof(txParam));
-        
         txParam.baudrate = 115200;
         txParam.DataFormat = PCO_CL_DATAFORMAT_2x12;
-
-        err = pco->com->PCO_SetTransferParameter(&txParam, sizeof(txParam));
-        RETURN_IF_ERROR(err);
     }
+
+    err = pco->com->PCO_SetTransferParameter(&txParam, sizeof(txParam));
+    RETURN_IF_ERROR(err);
 
     return PCO_NOERROR;
 }
