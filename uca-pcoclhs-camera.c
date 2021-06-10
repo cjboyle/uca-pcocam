@@ -374,12 +374,6 @@ static gboolean uca_pco_clhs_camera_grab(UcaCamera *camera, gpointer data, GErro
                     "DEBUG ERROR: should not get to here, camera doesn't support memory readout.");
         return FALSE;
     }
-
-    // libuca's ring buffer is implemented such that returning FALSE from this function will
-    // stop the acquire loop to fill the buffer. This can have unintended side effects when
-    // the trigger mode is not set to AUTO (e.g. when a acquire timeout occurs, any subsequent
-    // frames would be lost, potentially causing a kernel-level crash). The current workaround
-    // is to fail hard on manual grabs, and try to track the number of HW/SW trigger signals.
     gboolean fail_quietly = is_buffered;
 
     if (priv->trigger_source != UCA_CAMERA_TRIGGER_SOURCE_AUTO)
