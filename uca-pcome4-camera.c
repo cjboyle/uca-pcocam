@@ -323,7 +323,7 @@ static void uca_pco_me4_camera_start_recording(UcaCamera *camera, GError **error
 
     if (priv->description->has_camram)
     {
-        err = pco_grabber_allocate_memory(priv->pco, num_buffers + 1);
+        err = pco_grabber_allocate_memory(priv->pco, 20);
         CHECK_AND_RETURN_VOID_ON_PCO_ERROR(err);
 
         err = pco_clear_active_segment(priv->pco);
