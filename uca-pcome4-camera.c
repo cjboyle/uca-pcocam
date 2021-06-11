@@ -1487,6 +1487,13 @@ static void uca_pco_me4_camera_class_init(UcaPcoMe4CameraClass *klass)
                             "Capture delay time in seconds",
                             0., 1., 0.,
                             G_PARAM_READWRITE);
+    
+    pco_properties[PROP_RECORDED_FRAMES] =
+        g_param_spec_uint64("recorded-frames",
+                            "Recorded frames",
+                            "Number of recorded frames",
+                            0, G_MAXUINT64, 0,
+                            G_PARAM_READABLE);
 
     guint id;
     for (id = N_BASE_PROPERTIES; id < N_PROPERTIES; id++)

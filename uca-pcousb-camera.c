@@ -163,7 +163,7 @@ struct _UcaPcoUsbCameraPrivate
 static gint get_max_timeout(UcaPcoUsbCameraPrivate *priv)
 {
     return priv->trigger_source == UCA_CAMERA_TRIGGER_SOURCE_EXTERNAL
-               ? G_MAXINT32
+               ? 60 * 1000
                : (priv->timeout_sec * 1000);
 }
 
@@ -380,32 +380,13 @@ static gboolean uca_pco_usb_camera_grab(UcaCamera *camera, gpointer data, GError
         return FALSE;
     }
 
-    gboolean fail_quietly = is_buffered;
-
-    if (priv->trigger_source != UCA_CAMERA_TRIGGER_SOURCE_AUTO)
-    {
-        // for external triggers, try update from the count reported by the camera
-        if (priv->last_trigger_grabbed >= priv->num_triggers)
-            pco_get_trigger_count(priv->pco, &priv->num_triggers);
-
-        if (priv->last_trigger_grabbed >= priv->num_triggers)
-        {
-            if (!fail_quietly)
-                g_set_error(error, UCA_PCO_USB_CAMERA_ERROR,
-                            UCA_PCO_USB_CAMERA_ERROR_FG_GENERAL,
-                            "No prior frames triggered");
-            return FALSE;
-        }
-    }
-
     gpointer frame = g_malloc0(size);
 
     if (frame == NULL)
     {
-        if (!fail_quietly)
-            g_set_error(error, UCA_PCO_USB_CAMERA_ERROR,
-                        UCA_PCO_USB_CAMERA_ERROR_FG_GENERAL,
-                        "Frame data is NULL");
+        g_set_error(error, UCA_PCO_USB_CAMERA_ERROR,
+                    UCA_PCO_USB_CAMERA_ERROR_FG_GENERAL,
+                    "Frame data is NULL");
         return FALSE;
     }
 
@@ -414,8 +395,6 @@ static gboolean uca_pco_usb_camera_grab(UcaCamera *camera, gpointer data, GError
     if (err != PCO_NOERROR)
     {
         g_free(frame);
-        if (fail_quietly && IS_TIMEOUT_ERROR(err))
-            return FALSE;
         CHECK_AND_RETURN_VAL_ON_PCO_ERROR(err, FALSE);
     }
 
