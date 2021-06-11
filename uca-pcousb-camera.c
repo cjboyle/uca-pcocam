@@ -147,7 +147,7 @@ struct _UcaPcoUsbCameraPrivate
     gchar *version;
 
     UcaCameraTriggerSource trigger_source;
-    guint64 num_triggers, current_trigger;
+    guint32 num_triggers, current_trigger;
 
     gint timeout_sec;
 
@@ -1015,8 +1015,9 @@ static void uca_pco_usb_camera_get_property(GObject *object, guint property_id, 
     case PROP_NUM_TRIGGERS:
     {
         err = pco_get_trigger_count(priv->pco, &priv->num_triggers);
-        g_value_set_uint64(value, priv->num_triggers);
+        g_value_set_uint(value, priv->num_triggers);
     }
+    break;
 
     case PROP_VERSION:
         g_value_set_string(value, priv->version);
@@ -1281,10 +1282,10 @@ static void uca_pco_usb_camera_class_init(UcaPcoUsbCameraClass *klass)
                           G_PARAM_READWRITE);
 
     pco_properties[PROP_NUM_TRIGGERS] =
-        g_param_spec_uint64("num-triggers",
+        g_param_spec_uint("num-triggers",
                             "Number of triggers",
                             "Number of external or software triggers",
-                            0, G_MAXUINT64, 0,
+                            0, G_MAXUINT32, 0,
                             G_PARAM_READABLE);
 
     pco_properties[PROP_VERSION] =

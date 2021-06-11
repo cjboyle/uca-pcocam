@@ -997,6 +997,7 @@ static void uca_pco_clhs_camera_get_property(GObject *object, guint property_id,
         err = pco_get_trigger_count(priv->pco, &priv->num_triggers);
         g_value_set_uint(value, priv->num_triggers);
     }
+    break;
 
     case PROP_VERSION:
         g_value_set_string(value, priv->version);
