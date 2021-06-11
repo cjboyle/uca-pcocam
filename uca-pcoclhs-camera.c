@@ -142,7 +142,7 @@ struct _UcaPcoClhsCameraPrivate
     gchar *version;
 
     UcaCameraTriggerSource trigger_source;
-    guint32 num_triggers, current_trigger;
+    guint32 num_triggers, last_trigger_grabbed;
 
     gint timeout_sec;
 
@@ -256,7 +256,7 @@ static void uca_pco_clhs_camera_start_recording(UcaCamera *camera, GError **erro
                  NULL);
 
     priv->num_triggers = 0;
-    priv->current_trigger = 0;
+    priv->last_trigger_grabbed = 0;
 
     err = pco_get_resolution(priv->pco, &max_width_std, &max_height_std, &max_width_ext, &max_height_ext);
     CHECK_AND_RETURN_VOID_ON_PCO_ERROR(err);
@@ -380,10 +380,10 @@ static gboolean uca_pco_clhs_camera_grab(UcaCamera *camera, gpointer data, GErro
     if (priv->trigger_source != UCA_CAMERA_TRIGGER_SOURCE_AUTO)
     {
         // for external triggers, try update from the count reported by the camera
-        if (priv->current_trigger >= priv->num_triggers)
+        if (priv->last_trigger_grabbed >= priv->num_triggers)
             pco_get_trigger_count(priv->pco, &priv->num_triggers);
 
-        if (priv->current_trigger >= priv->num_triggers)
+        if (priv->last_trigger_grabbed >= priv->num_triggers)
         {
             if (!fail_quietly)
                 g_set_error(error, UCA_PCO_CLHS_CAMERA_ERROR,
@@ -415,7 +415,7 @@ static gboolean uca_pco_clhs_camera_grab(UcaCamera *camera, gpointer data, GErro
     }
 
     memcpy(data, frame, size);
-    priv->current_trigger++;
+    priv->last_trigger_grabbed++;
 
     g_free(frame);
     frame = NULL;
