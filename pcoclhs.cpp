@@ -43,6 +43,8 @@ struct _pco_handle
     SC2_Camera_Description_Response description;
 
     int board, port;
+
+    uint32_t latent_trigger_count; /* internal trigger count is not zeroed before recording */
 };
 
 static unsigned int _pco_init(pco_handle *pco, int board, int port)
@@ -246,6 +248,9 @@ unsigned int pco_prepare_recording(pco_handle *pco)
         err = pco->grabber->Set_Grabber_Size(cameraW, cameraH);
         RETURN_IF_ERROR(err);
     }
+
+    err = pco->com->PCO_GetSensorSignalStatus(&discard.ui32, &pco->latent_trigger_count);
+    RETURN_IF_ERROR(err);
 
     err = pco->grabber->PostArm();
     RETURN_ANY_CODE(err);
@@ -635,8 +640,25 @@ unsigned int pco_force_trigger(pco_handle *pco, uint16_t *success)
 }
 
 unsigned int pco_get_trigger_count(pco_handle *pco, uint32_t *count){
-    DWORD err = pco->com->PCO_GetSensorSignalStatus(&discard.ui32, count);
-    RETURN_ANY_CODE(err);
+    uint32_t cnt = 0;
+    DWORD err = pco->com->PCO_GetSensorSignalStatus(&discard.ui32, &cnt);
+    RETURN_IF_ERROR(err);
+
+    // The camera does not reset its imagecount field before/after recording sessions.
+    // This check ensures that the correct count is returned (even if it were zero).
+    if (cnt > 0 && cnt == pco->latent_trigger_count)
+    {
+        fprintf(stderr, "returning trigger_count=0 (latent_trigger_count=%d)\n", cnt);
+        *count = 0;
+    }
+    else
+    {
+        fprintf(stderr, "returning trigger_count=%d\n", cnt);
+        pco->latent_trigger_count = 0;
+        *count = cnt;
+    }
+
+    RETURN_ANY_CODE(err)
 }
 
 unsigned int pco_set_timestamp_mode(pco_handle *pco, uint16_t mode)
