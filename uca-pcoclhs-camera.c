@@ -9,6 +9,8 @@
 #include "uca-pcoclhs-camera.h"
 #include "uca-pcoclhs-enums.h"
 
+#include <uca-camera.h>
+
 #define UCA_PCO_CLHS_CAMERA_GET_PRIVATE(obj) (G_TYPE_INSTANCE_GET_PRIVATE((obj), UCA_TYPE_PCO_CLHS_CAMERA, UcaPcoClhsCameraPrivate))
 
 #define CHECK_AND_RETURN_VOID_ON_PCO_ERROR(err)               \
@@ -143,6 +145,7 @@ struct _UcaPcoClhsCameraPrivate
 
     UcaCameraTriggerSource trigger_source;
     guint32 num_triggers, last_trigger_grabbed;
+    gboolean cancelling_recording;
 
     gint timeout_sec;
 
@@ -257,6 +260,7 @@ static void uca_pco_clhs_camera_start_recording(UcaCamera *camera, GError **erro
 
     priv->num_triggers = 0;
     priv->last_trigger_grabbed = 0;
+    priv->cancelling_recording = FALSE;
 
     err = pco_get_resolution(priv->pco, &max_width_std, &max_height_std, &max_width_ext, &max_height_ext);
     CHECK_AND_RETURN_VOID_ON_PCO_ERROR(err);
@@ -320,6 +324,8 @@ static void uca_pco_clhs_camera_stop_recording(UcaCamera *camera, GError **error
 
     priv = UCA_PCO_CLHS_CAMERA_GET_PRIVATE(camera);
 
+    priv->cancelling_recording = TRUE;
+
     err = pco_stop_recording(priv->pco);
     CHECK_AND_RETURN_VOID_ON_PCO_ERROR(err);
 
@@ -358,15 +364,17 @@ static gboolean uca_pco_clhs_camera_grab(UcaCamera *camera, gpointer data, GErro
 {
     g_return_val_if_fail(UCA_IS_PCO_CLHS_CAMERA(camera), FALSE);
     UcaPcoClhsCameraPrivate *priv = UCA_PCO_CLHS_CAMERA_GET_PRIVATE(camera);
+    UcaCameraPrivate *parent = camera->priv;
+
+    gboolean cr = (gboolean)(((gboolean*)parent)[0]);
 
     guint err;
     gsize size = priv->image_size;
 
-    gboolean is_readout, is_buffered, is_recording;
+    gboolean is_readout, is_buffered;
     g_object_get(G_OBJECT(camera),
                  "is-readout", &is_readout,
                  "buffered", &is_buffered,
-                 "is-recording", &is_recording,
                  NULL);
 
     if (is_readout)
@@ -396,24 +404,23 @@ static gboolean uca_pco_clhs_camera_grab(UcaCamera *camera, gpointer data, GErro
 
     if (is_buffered && priv->trigger_source != UCA_CAMERA_TRIGGER_SOURCE_AUTO)
     {
-        while (is_recording && priv->last_trigger_grabbed >= priv->num_triggers)
+        while (!cr && priv->last_trigger_grabbed >= priv->num_triggers)
         {
             err = pco_get_trigger_count(priv->pco, &priv->num_triggers);
             CHECK_AND_RETURN_VAL_ON_PCO_ERROR(err, FALSE);
         }
-
-        if (!is_recording)
-            return FALSE;
     }
+
+    if (cr)
+        return FALSE;
 
     gpointer frame = g_malloc0(size);
 
     if (frame == NULL)
     {
-        // if (!fail_quietly)
-            g_set_error(error, UCA_PCO_CLHS_CAMERA_ERROR,
-                        UCA_PCO_CLHS_CAMERA_ERROR_FG_GENERAL,
-                        "Frame data is NULL");
+        g_set_error(error, UCA_PCO_CLHS_CAMERA_ERROR,
+                    UCA_PCO_CLHS_CAMERA_ERROR_FG_GENERAL,
+                    "Frame data is NULL");
         return FALSE;
     }
 
@@ -422,8 +429,6 @@ static gboolean uca_pco_clhs_camera_grab(UcaCamera *camera, gpointer data, GErro
     if (err != PCO_NOERROR)
     {
         g_free(frame);
-        // if (fail_quietly && IS_TIMEOUT_ERROR(err))
-            // return FALSE;
         CHECK_AND_RETURN_VAL_ON_PCO_ERROR(err, FALSE);
     }
 
