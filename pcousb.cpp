@@ -44,6 +44,8 @@ struct _pco_handle
     SC2_Camera_Description_Response description;
 
     int board, port;
+
+    uint32_t latent_trigger_count; /* internal trigger count is not zeroed before recording */
 };
 
 static unsigned int _pco_init(pco_handle *pco, int board, int port)
@@ -109,6 +111,9 @@ static unsigned int _pco_init(pco_handle *pco, int board, int port)
     }
 
     err = pco->com->PCO_SetBitAlignment(BIT_ALIGNMENT_LSB);
+    RETURN_IF_ERROR(err);
+
+    err = pco->com->PCO_GetSensorSignalStatus(&discard.ui32, &pco->latent_trigger_count);
     RETURN_IF_ERROR(err);
 
     return PCO_NOERROR;
@@ -246,6 +251,9 @@ unsigned int pco_prepare_recording(pco_handle *pco)
         RETURN_IF_ERROR(err);
     }
 
+    err = pco->com->PCO_GetSensorSignalStatus(&discard.ui32, &pco->latent_trigger_count);
+    RETURN_IF_ERROR(err);
+
     err = pco->grabber->PostArm();
     RETURN_ANY_CODE(err);
 }
@@ -362,7 +370,7 @@ uint32_t pco_set_cooling_setpoint(pco_handle *pco, int16_t temperature)
 {
     bool supported = pco->description.sMinCoolSetDESC != pco->description.sMaxCoolSetDESC;
     RETURN_IF_NOT_SUPPORTED(supported, "Camera does not support sensor cooling", 0);
-    
+
     DWORD err = pco->com->PCO_SetCoolingSetpointTemperature(temperature);
     RETURN_ANY_CODE(err);
 }
@@ -629,8 +637,24 @@ unsigned int pco_force_trigger(pco_handle *pco, uint16_t *success)
     RETURN_ANY_CODE(err);
 }
 
-unsigned int pco_get_trigger_count(pco_handle *pco, uint32_t *count){
-    DWORD err = pco->com->PCO_GetSensorSignalStatus(&discard.ui32, count);
+unsigned int pco_get_trigger_count(pco_handle *pco, uint32_t *count)
+{
+    uint32_t cnt = 0;
+    DWORD err = pco->com->PCO_GetSensorSignalStatus(&discard.ui32, &cnt);
+    RETURN_IF_ERROR(err);
+
+    // The camera does not reset its imagecount field before/after recording sessions.
+    // This check ensures that zero is returned until the internal field is updated.
+    if (cnt > 0 && cnt == pco->latent_trigger_count)
+    {
+        *count = 0;
+    }
+    else
+    {
+        pco->latent_trigger_count = 0;
+        *count = cnt;
+    }
+
     RETURN_ANY_CODE(err);
 }
 

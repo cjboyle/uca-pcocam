@@ -112,6 +112,9 @@ static unsigned int _pco_init(pco_handle *pco, int board, int port)
     err = pco->com->PCO_SetBitAlignment(BIT_ALIGNMENT_LSB);
     RETURN_IF_ERROR(err);
 
+    err = pco->com->PCO_GetSensorSignalStatus(&discard.ui32, &pco->latent_trigger_count);
+    RETURN_IF_ERROR(err);
+
     return PCO_NOERROR;
 }
 
@@ -639,26 +642,25 @@ unsigned int pco_force_trigger(pco_handle *pco, uint16_t *success)
     RETURN_ANY_CODE(err);
 }
 
-unsigned int pco_get_trigger_count(pco_handle *pco, uint32_t *count){
+unsigned int pco_get_trigger_count(pco_handle *pco, uint32_t *count)
+{
     uint32_t cnt = 0;
     DWORD err = pco->com->PCO_GetSensorSignalStatus(&discard.ui32, &cnt);
     RETURN_IF_ERROR(err);
 
     // The camera does not reset its imagecount field before/after recording sessions.
-    // This check ensures that the correct count is returned (even if it were zero).
+    // This check ensures that zero is returned until the internal field is updated.
     if (cnt > 0 && cnt == pco->latent_trigger_count)
     {
-        fprintf(stderr, "returning trigger_count=0 (latent_trigger_count=%d)\n", cnt);
         *count = 0;
     }
     else
     {
-        fprintf(stderr, "returning trigger_count=%d\n", cnt);
         pco->latent_trigger_count = 0;
         *count = cnt;
     }
 
-    RETURN_ANY_CODE(err)
+    RETURN_ANY_CODE(err);
 }
 
 unsigned int pco_set_timestamp_mode(pco_handle *pco, uint16_t mode)
@@ -871,32 +873,24 @@ unsigned int pco_force_acquire_ex(pco_handle *pco, void *adr, int timeout)
     }
 
     err = pco_acquire_image_await_ex(pco, adr, timeout);
-    if (IS_TIMEOUT_ERROR(err))
-        return err;
     RETURN_ANY_CODE(err);
 }
 
 unsigned int pco_force_acquire(pco_handle *pco, void *adr)
 {
     DWORD err = pco_force_acquire_ex(pco, adr, 10000);
-    if (IS_TIMEOUT_ERROR(err))
-        return err;
     RETURN_ANY_CODE(err);
 }
 
 unsigned int pco_acquire_image(pco_handle *pco, void *adr)
 {
     DWORD err = pco->grabber->Acquire_Image(adr);
-    if (IS_TIMEOUT_ERROR(err))
-        return err;
     RETURN_ANY_CODE(err);
 }
 
 unsigned int pco_acquire_image_ex(pco_handle *pco, void *adr, int timeout)
 {
     DWORD err = pco->grabber->Acquire_Image(adr, timeout);
-    if (IS_TIMEOUT_ERROR(err))
-        return err;
     RETURN_ANY_CODE(err);
 }
 
@@ -913,16 +907,12 @@ unsigned int pco_acquire_image_ex(pco_handle *pco, void *adr, int timeout)
 unsigned int pco_acquire_image_await(pco_handle *pco, void *adr)
 {
     DWORD err = pco->grabber->Wait_For_Next_Image(adr, 10000);
-    if (IS_TIMEOUT_ERROR(err))
-        return err;
     RETURN_ANY_CODE(err);
 }
 
 unsigned int pco_acquire_image_await_ex(pco_handle *pco, void *adr, int timeout)
 {
     DWORD err = pco->grabber->Wait_For_Next_Image(adr, timeout);
-    if (IS_TIMEOUT_ERROR(err))
-        return err;
     RETURN_ANY_CODE(err);
 }
 
