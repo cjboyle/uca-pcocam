@@ -362,10 +362,11 @@ static gboolean uca_pco_clhs_camera_grab(UcaCamera *camera, gpointer data, GErro
     guint err;
     gsize size = priv->image_size;
 
-    gboolean is_readout, is_buffered;
+    gboolean is_readout, is_buffered, is_recording;
     g_object_get(G_OBJECT(camera),
                  "is-readout", &is_readout,
                  "buffered", &is_buffered,
+                 "is-recording", &is_recording,
                  NULL);
 
     if (is_readout)
@@ -375,29 +376,41 @@ static gboolean uca_pco_clhs_camera_grab(UcaCamera *camera, gpointer data, GErro
         return FALSE;
     }
 
-    gboolean fail_quietly = is_buffered;
+    // gboolean fail_quietly = is_buffered;
 
-    if (priv->trigger_source != UCA_CAMERA_TRIGGER_SOURCE_AUTO)
+    // if (priv->trigger_source != UCA_CAMERA_TRIGGER_SOURCE_AUTO)
+    // {
+    //     // for external triggers, try update from the count reported by the camera
+    //     if (priv->last_trigger_grabbed >= priv->num_triggers)
+    //         pco_get_trigger_count(priv->pco, &priv->num_triggers);
+
+    //     if (priv->last_trigger_grabbed >= priv->num_triggers)
+    //     {
+    //         if (!fail_quietly)
+    //             g_set_error(error, UCA_PCO_CLHS_CAMERA_ERROR,
+    //                         UCA_PCO_CLHS_CAMERA_ERROR_FG_GENERAL,
+    //                         "No prior frames triggered");
+    //         return FALSE;
+    //     }
+    // }
+
+    if (is_buffered && priv->trigger_source != UCA_CAMERA_TRIGGER_SOURCE_AUTO)
     {
-        // for external triggers, try update from the count reported by the camera
-        if (priv->last_trigger_grabbed >= priv->num_triggers)
-            pco_get_trigger_count(priv->pco, &priv->num_triggers);
-
-        if (priv->last_trigger_grabbed >= priv->num_triggers)
+        while (is_recording && priv->last_trigger_grabbed >= priv->num_triggers)
         {
-            if (!fail_quietly)
-                g_set_error(error, UCA_PCO_CLHS_CAMERA_ERROR,
-                            UCA_PCO_CLHS_CAMERA_ERROR_FG_GENERAL,
-                            "No prior frames triggered");
-            return FALSE;
+            err = pco_get_trigger_count(priv->pco, &priv->num_triggers);
+            CHECK_AND_RETURN_VAL_ON_PCO_ERROR(err, FALSE);
         }
+
+        if (!is_recording)
+            return FALSE;
     }
 
     gpointer frame = g_malloc0(size);
 
     if (frame == NULL)
     {
-        if (!fail_quietly)
+        // if (!fail_quietly)
             g_set_error(error, UCA_PCO_CLHS_CAMERA_ERROR,
                         UCA_PCO_CLHS_CAMERA_ERROR_FG_GENERAL,
                         "Frame data is NULL");
@@ -409,8 +422,8 @@ static gboolean uca_pco_clhs_camera_grab(UcaCamera *camera, gpointer data, GErro
     if (err != PCO_NOERROR)
     {
         g_free(frame);
-        if (fail_quietly && IS_TIMEOUT_ERROR(err))
-            return FALSE;
+        // if (fail_quietly && IS_TIMEOUT_ERROR(err))
+            // return FALSE;
         CHECK_AND_RETURN_VAL_ON_PCO_ERROR(err, FALSE);
     }
 
