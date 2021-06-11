@@ -142,7 +142,7 @@ struct _UcaPcoClhsCameraPrivate
     gchar *version;
 
     UcaCameraTriggerSource trigger_source;
-    guint64 num_triggers, current_trigger;
+    guint32 num_triggers, current_trigger;
 
     gint timeout_sec;
 
@@ -374,6 +374,7 @@ static gboolean uca_pco_clhs_camera_grab(UcaCamera *camera, gpointer data, GErro
                     "DEBUG ERROR: should not get to here, camera doesn't support memory readout.");
         return FALSE;
     }
+
     gboolean fail_quietly = is_buffered;
 
     if (priv->trigger_source != UCA_CAMERA_TRIGGER_SOURCE_AUTO)
@@ -994,7 +995,7 @@ static void uca_pco_clhs_camera_get_property(GObject *object, guint property_id,
     case PROP_NUM_TRIGGERS:
     {
         err = pco_get_trigger_count(priv->pco, &priv->num_triggers);
-        g_value_set_uint64(value, priv->num_triggers);
+        g_value_set_uint(value, priv->num_triggers);
     }
 
     case PROP_VERSION:
@@ -1254,11 +1255,11 @@ static void uca_pco_clhs_camera_class_init(UcaPcoClhsCameraClass *klass)
                           G_PARAM_READWRITE);
 
     pco_properties[PROP_NUM_TRIGGERS] =
-        g_param_spec_uint64("num-triggers",
-                            "Number of triggers",
-                            "Number of external or software triggers",
-                            0, G_MAXUINT64, 0,
-                            G_PARAM_READABLE);
+        g_param_spec_uint("num-triggers",
+                          "Number of triggers",
+                          "Number of external or software triggers",
+                          0, G_MAXUINT32, 0,
+                          G_PARAM_READABLE);
 
     pco_properties[PROP_VERSION] =
         g_param_spec_string("version",
