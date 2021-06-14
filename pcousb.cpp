@@ -633,7 +633,21 @@ unsigned int pco_set_bit_alignment(pco_handle *pco, bool msb_aligned)
 
 unsigned int pco_force_trigger(pco_handle *pco, uint16_t *success)
 {
-    DWORD err = pco->com->PCO_ForceTrigger(success);
+    WORD mode;
+    DWORD err = pco_get_trigger_mode(pco, &mode);
+    RETURN_IF_ERROR(err);
+
+    if (mode == TRIGGER_MODE_EXTERNALTRIGGER || mode == TRIGGER_MODE_SOFTWARETRIGGER)
+    {
+        WORD busy;
+        do
+        {
+            err = pco->com->PCO_GetCameraBusyStatus(&busy);
+            RETURN_IF_ERROR(err);
+        } while (busy);
+    }
+
+    err = pco->com->PCO_ForceTrigger(success);
     RETURN_ANY_CODE(err);
 }
 
