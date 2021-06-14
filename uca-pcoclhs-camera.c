@@ -687,10 +687,10 @@ static void uca_pco_clhs_camera_set_property(GObject *object, guint property_id,
 
     case PROP_FRAME_GRABBER_TIMEOUT:
     {
-        gint timeout = g_value_get_uint(value);
-        if (timeout < 0)
-            timeout = G_MAXINT32;
-        err = pco_grabber_set_timeout(priv->pco, timeout);
+        priv->timeout_sec = g_value_get_uint(value);
+        if (priv->timeout_sec < 0)
+            priv->timeout_sec = G_MAXINT32;
+        err = pco_grabber_set_timeout(priv->pco, priv->timeout_sec);
     }
     break;
 
