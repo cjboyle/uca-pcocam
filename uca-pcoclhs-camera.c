@@ -19,7 +19,7 @@
         char *text = pco_get_error_text((err));               \
         g_set_error(error, UCA_PCO_CLHS_CAMERA_ERROR,         \
                     UCA_PCO_CLHS_CAMERA_ERROR_PCOSDK_GENERAL, \
-                    "pco.clhs error %x\n\t%s", err, text);  \
+                    "pco.clhs error %x\n\t%s", err, text);    \
         free(text);                                           \
         text = NULL;                                          \
         return;                                               \
@@ -31,7 +31,7 @@
         char *text = pco_get_error_text((err));               \
         g_set_error(error, UCA_PCO_CLHS_CAMERA_ERROR,         \
                     UCA_PCO_CLHS_CAMERA_ERROR_PCOSDK_GENERAL, \
-                    "pco.clhs error %x\n\t%s", err, text);  \
+                    "pco.clhs error %x\n\t%s", err, text);    \
         free(text);                                           \
         text = NULL;                                          \
         return val;                                           \
@@ -379,23 +379,25 @@ static gboolean uca_pco_clhs_camera_grab(UcaCamera *camera, gpointer data, GErro
         return FALSE;
     }
 
-    // gboolean fail_quietly = is_buffered;
+    // Validate manual trigger count before attempting to grab a frame.
+    // Otherwise, a trigger after a timed-out grab may seg fault.
+    if (priv->trigger_source != UCA_CAMERA_TRIGGER_SOURCE_AUTO)
+    {
+        GTimeVal timeout, now;
+        g_get_current_time(&timeout);
+        g_time_val_add(&timeout, get_max_timeout(priv) * 1000);
 
-    // if (priv->trigger_source != UCA_CAMERA_TRIGGER_SOURCE_AUTO)
-    // {
-    //     // for external triggers, try update from the count reported by the camera
-    //     if (priv->last_trigger_grabbed >= priv->num_triggers)
-    //         pco_get_trigger_count(priv->pco, &priv->num_triggers);
+        while (priv->last_trigger_grabbed >= priv->num_triggers)
+        {
+            g_get_current_time(&now);
+            if (now.tv_sec >= timeout.tv_sec)
+            {
+                CHECK_AND_RETURN_VAL_ON_PCO_ERROR(0xA0332005, FALSE);
+            }
 
-    //     if (priv->last_trigger_grabbed >= priv->num_triggers)
-    //     {
-    //         if (!fail_quietly)
-    //             g_set_error(error, UCA_PCO_CLHS_CAMERA_ERROR,
-    //                         UCA_PCO_CLHS_CAMERA_ERROR_FG_GENERAL,
-    //                         "No prior frames triggered");
-    //         return FALSE;
-    //     }
-    // }
+            pco_get_trigger_count(priv->pco, &priv->num_triggers);
+        }
+    }
 
     gpointer frame = g_malloc0(size);
 
