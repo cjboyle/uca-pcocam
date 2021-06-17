@@ -126,6 +126,16 @@ extern "C"
     unsigned int pco_get_image_ptr(pco_handle *pco, void **adr, int image_nr);
 
     /**
+     * Read an image from the internal CamRAM module.
+     * @param pco handle
+     * @param adr external buffer to write image data
+     * @param segment the memory segment to use
+     * @param image_nr the number of the image to transfer
+     * @return 0 on success, otherwise less than 0
+     */
+    unsigned int pco_readout_image(pco_handle *pco, void *adr, uint16_t segment, int image_nr);
+
+    /**
      * Get the number of ADCs in the camera sensor.
      * @param pco handle
      * @param nr_adcs output the number of ADCs

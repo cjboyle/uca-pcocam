@@ -1010,6 +1010,12 @@ unsigned int pco_get_image_ptr(pco_handle *pco, void **adr, int image_nr)
     RETURN_ANY_CODE(err);
 }
 
+unsigned int pco_readout_image(pco_handle *pco, void *adr, uint16_t segment, int image_nr)
+{
+    DWORD err = pco->grabber->Get_Image(segment, image_nr, adr);
+    RETURN_ANY_CODE(err);
+}
+
 unsigned int pco_force_acquire_ex(pco_handle *pco, void *adr, int timeout)
 {
     DWORD err;

@@ -16,8 +16,8 @@
     {                                                        \
         char *text = pco_get_error_text((err));              \
         g_set_error(error, UCA_PCO_ME4_CAMERA_ERROR,         \
-                    UCA_PCO_ME4_CAMERA_ERROR_GENERAL, \
-                    "pco.cl_me4 error %x\n\t%s", err, text);  \
+                    UCA_PCO_ME4_CAMERA_ERROR_GENERAL,        \
+                    "pco.cl_me4 error %x\n\t%s", err, text); \
         free(text);                                          \
         text = NULL;                                         \
         return;                                              \
@@ -28,8 +28,8 @@
     {                                                        \
         char *text = pco_get_error_text((err));              \
         g_set_error(error, UCA_PCO_ME4_CAMERA_ERROR,         \
-                    UCA_PCO_ME4_CAMERA_ERROR_GENERAL, \
-                    "pco.cl_me4 error %x\n\t%s", err, text);  \
+                    UCA_PCO_ME4_CAMERA_ERROR_GENERAL,        \
+                    "pco.cl_me4 error %x\n\t%s", err, text); \
         free(text);                                          \
         text = NULL;                                         \
         return val;                                          \
@@ -433,6 +433,7 @@ static void uca_pco_me4_camera_trigger(UcaCamera *camera, GError **error)
                     "Could not trigger frame acquisition");
     }
 }
+static gboolean uca_pco_me4_camera_readout(UcaCamera *, gpointer, guint, GError **);
 
 static gboolean uca_pco_me4_camera_grab(UcaCamera *camera, gpointer data, GError **error)
 {
@@ -444,47 +445,52 @@ static gboolean uca_pco_me4_camera_grab(UcaCamera *camera, gpointer data, GError
 
     gboolean is_readout;
     g_object_get(G_OBJECT(camera), "is-readout", &is_readout, NULL);
+
     if (is_readout)
     {
+        err = pco_get_nr_recorded_images(priv->pco, priv->active_segment, &priv->num_recorded_images, &priv->max_recorded_images);
+        CHECK_AND_RETURN_VAL_ON_PCO_ERROR(err, FALSE);
+
         if (priv->current_image > priv->num_recorded_images)
         {
             g_set_error(error, UCA_PCO_ME4_CAMERA_ERROR, UCA_PCO_ME4_CAMERA_ERROR_GENERAL, "End of memory readout");
             return FALSE;
         }
 
-        err = pco_read_segment_images(priv->pco, priv->active_segment, priv->current_image, priv->current_image);
-        CHECK_AND_RETURN_VAL_ON_PCO_ERROR(err, FALSE);
+        guint index = priv->current_image;
         priv->current_image++;
+
+        return uca_pco_me4_camera_readout(camera, data, index, error);
     }
     else
     {
-        err = pco_request_image(priv->pco);
+        guint index = priv->last_image + 1;
+
+        err = pco_next_image_index(priv->pco, &index);
         CHECK_AND_RETURN_VAL_ON_PCO_ERROR(err, FALSE);
+
+        if (index <= 0)
+        {
+            g_set_error(error, UCA_PCO_ME4_CAMERA_ERROR, UCA_PCO_ME4_CAMERA_ERROR_GENERAL, "No images in frame buffer");
+            return FALSE;
+        }
+
+        priv->last_image = index;
+
+        gpointer frame;
+        err = pco_get_image_ptr(priv->pco, &frame, priv->last_image);
+        CHECK_AND_RETURN_VAL_ON_PCO_ERROR(err, FALSE);
+
+        if (frame == NULL)
+        {
+            g_set_error(error, UCA_PCO_ME4_CAMERA_ERROR, UCA_PCO_ME4_CAMERA_ERROR_GENERAL, "Frame data is NULL");
+            return FALSE;
+        }
+
+        pco_extract_image(priv->pco, data, frame, priv->image_width, priv->image_height);
+
+        return TRUE;
     }
-
-    priv->last_image++;
-    err = pco_next_image_index_ex(priv->pco, &priv->last_image, get_max_timeout(priv));
-    CHECK_AND_RETURN_VAL_ON_PCO_ERROR(err, FALSE);
-
-    if (priv->last_image <= 0)
-    {
-        g_set_error(error, UCA_PCO_ME4_CAMERA_ERROR, UCA_PCO_ME4_CAMERA_ERROR_GENERAL, "No images in frame buffer");
-        return FALSE;
-    }
-
-    gpointer frame;
-    err = pco_get_image_ptr(priv->pco, &frame, priv->last_image);
-    CHECK_AND_RETURN_VAL_ON_PCO_ERROR(err, FALSE);
-
-    if (frame == NULL)
-    {
-        g_set_error(error, UCA_PCO_ME4_CAMERA_ERROR, UCA_PCO_ME4_CAMERA_ERROR_GENERAL, "Frame data is NULL");
-        return FALSE;
-    }
-
-    pco_extract_image(priv->pco, data, frame, priv->image_width, priv->image_height);
-
-    return TRUE;
 }
 
 static gboolean uca_pco_me4_camera_readout(UcaCamera *camera, gpointer data, guint index, GError **error)
@@ -504,27 +510,13 @@ static gboolean uca_pco_me4_camera_readout(UcaCamera *camera, gpointer data, gui
         return FALSE;
     }
 
-    err = pco_read_segment_images(priv->pco, priv->active_segment, index, index);
-    CHECK_AND_RETURN_VAL_ON_PCO_ERROR(err, FALSE);
-
-    priv->last_image++;
-    err = pco_next_image_index_ex(priv->pco, &priv->last_image, get_max_timeout(priv));
-    CHECK_AND_RETURN_VAL_ON_PCO_ERROR(err, FALSE);
-
-    if (priv->last_image <= 0)
-    {
-        g_set_error(error, UCA_PCO_ME4_CAMERA_ERROR, UCA_PCO_ME4_CAMERA_ERROR_GENERAL, "No images in internal buffer");
-        return FALSE;
-    }
-
     gpointer frame;
-    err = pco_get_image_ptr(priv->pco, &frame, priv->last_image);
-    CHECK_AND_RETURN_VAL_ON_PCO_ERROR(err, FALSE);
+    err = pco_readout_image(priv->pco, frame, priv->active_segment, index);
 
-    if (frame == NULL)
+    if (err != PCO_NOERROR)
     {
-        g_set_error(error, UCA_PCO_ME4_CAMERA_ERROR, UCA_PCO_ME4_CAMERA_ERROR_GENERAL, "Frame data is NULL");
-        return FALSE;
+        g_free(frame);
+        CHECK_AND_RETURN_VAL_ON_PCO_ERROR(err, FALSE);
     }
 
     pco_extract_image(priv->pco, data, frame, priv->image_width, priv->image_height);
@@ -1509,7 +1501,7 @@ static void uca_pco_me4_camera_class_init(UcaPcoMe4CameraClass *klass)
                             "Capture delay time in seconds",
                             0., 1., 0.,
                             G_PARAM_READWRITE);
-    
+
     pco_properties[PROP_RECORDED_FRAMES] =
         g_param_spec_uint64("recorded-frames",
                             "Recorded frames",
@@ -1649,6 +1641,7 @@ uca_pco_me4_camera_init(UcaPcoMe4Camera *self)
     uca_camera_register_unit(camera, "delay-time", UCA_UNIT_SECOND);
     uca_camera_register_unit(camera, "frame-grabber-timeout", UCA_UNIT_SECOND);
     uca_camera_register_unit(camera, "frame-grabber-ext-timeout", UCA_UNIT_SECOND);
+    uca_camera_register_unit(camera, "sensor-adcs", UCA_UNIT_COUNT);
     uca_camera_set_writable(camera, "frames-per-second", TRUE);
 }
 
