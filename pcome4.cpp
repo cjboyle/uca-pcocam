@@ -1065,14 +1065,12 @@ unsigned int pco_acquire_image_ex(pco_handle *pco, void *adr, int timeout)
 
 unsigned int pco_acquire_image_await(pco_handle *pco, void *adr)
 {
-    DWORD err = pco->grabber->Wait_For_Next_Image(adr, 10000);
-    RETURN_ANY_CODE(err);
+    RETURN_NOT_SUPPORTED("Wait_For_Next_Image(void*, int) not implemented", 1);
 }
 
 unsigned int pco_acquire_image_await_ex(pco_handle *pco, void *adr, int timeout)
 {
-    DWORD err = pco->grabber->Wait_For_Next_Image(adr, timeout);
-    RETURN_ANY_CODE(err);
+    RETURN_NOT_SUPPORTED("Wait_For_Next_Image(void*, int) not implemented", 1);
 }
 
 unsigned int pco_grabber_get_actual_size(pco_handle *pco, uint32_t *width, uint32_t *height)

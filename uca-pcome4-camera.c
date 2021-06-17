@@ -470,8 +470,8 @@ static gboolean uca_pco_me4_camera_grab(UcaCamera *camera, gpointer data, GError
 
         guint index = priv->last_image + 1;
 
-        // err = pco_next_image_index_ex(priv->pco, &index, get_max_timeout(priv));
-        // CHECK_AND_RETURN_VAL_ON_PCO_ERROR(err, FALSE);
+        err = pco_next_image_index_ex(priv->pco, &index, get_max_timeout(priv));
+        CHECK_AND_RETURN_VAL_ON_PCO_ERROR(err, FALSE);
 
         if (index <= 0)
         {
@@ -479,11 +479,10 @@ static gboolean uca_pco_me4_camera_grab(UcaCamera *camera, gpointer data, GError
             return FALSE;
         }
 
-        priv->last_image = index;
+        priv->last_image++;
 
         gpointer frame = g_malloc0(size);
-        // err = pco_get_image_ptr(priv->pco, &frame, priv->last_image);
-        err = pco_acquire_image_await_ex(priv->pco, frame, get_max_timeout(priv));
+        err = pco_get_image_ptr(priv->pco, &frame, priv->last_image);
         CHECK_AND_RETURN_VAL_ON_PCO_ERROR(err, FALSE);
 
         if (frame == NULL)
