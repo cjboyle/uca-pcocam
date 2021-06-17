@@ -918,9 +918,26 @@ unsigned int pco_get_recorder_mode(pco_handle *pco, uint16_t *mode)
     RETURN_ANY_CODE(err);
 }
 
+// Official implementation uses wrong wCode.
+static DWORD _PCO_SetRecorderSubmode(pco_handle *pco, WORD wRecSubmode)
+{
+    SC2_Set_Recorder_Submode com;
+    SC2_Recorder_Submode_Response resp;
+    DWORD err=PCO_NOERROR;
+
+    com.wCode=SET_RECORDER_SUBMODE;
+    com.wMode=wRecSubmode;
+    com.wSize=sizeof(com);
+
+    err=pco->com->Control_Command(&com,sizeof(com),&resp,sizeof(resp));
+
+    return err;
+}
+
 unsigned int pco_set_recorder_mode(pco_handle *pco, uint16_t mode)
 {
-    DWORD err = pco->com->PCO_SetRecorderSubmode(mode);
+    // DWORD err = pco->com->PCO_SetRecorderSubmode(mode);
+    DWORD err = _PCO_SetRecorderSubmode(pco, mode);
     RETURN_ANY_CODE(err);
 }
 
