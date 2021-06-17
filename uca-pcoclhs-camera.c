@@ -197,8 +197,15 @@ static gpointer grab_func(gpointer rawptr)
 
     while (priv->grab_thread_running)
     {
+        if (priv->trigger_source != UCA_CAMERA_TRIGGER_SOURCE_AUTO &&
+            priv->last_trigger_grabbed >= priv->num_triggers)
+        {
+            pco_get_trigger_count(priv->pco, &priv->num_triggers);
+            continue;
+        }
+
         gpointer frame = g_malloc0(priv->image_size);
-        err = pco_acquire_image_await_ex(priv->pco, frame, get_max_timeout(priv));
+        err = pco_acquire_image_await_ex(priv->pco, frame, 5000);
 
         if (frame == NULL || err != 0)
         {
