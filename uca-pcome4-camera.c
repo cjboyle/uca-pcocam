@@ -433,6 +433,7 @@ static void uca_pco_me4_camera_trigger(UcaCamera *camera, GError **error)
                     "Could not trigger frame acquisition");
     }
 }
+
 static gboolean uca_pco_me4_camera_readout(UcaCamera *, gpointer, guint, GError **);
 
 static gboolean uca_pco_me4_camera_grab(UcaCamera *camera, gpointer data, GError **error)
@@ -464,8 +465,8 @@ static gboolean uca_pco_me4_camera_grab(UcaCamera *camera, gpointer data, GError
     }
     else
     {
-        err = pco_request_image(priv->pco);
-        CHECK_AND_RETURN_VAL_ON_PCO_ERROR(err, FALSE);
+        // err = pco_request_image(priv->pco);
+        // CHECK_AND_RETURN_VAL_ON_PCO_ERROR(err, FALSE);
 
         guint index = priv->last_image + 1;
 
