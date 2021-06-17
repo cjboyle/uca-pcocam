@@ -481,7 +481,7 @@ static gboolean uca_pco_me4_camera_grab(UcaCamera *camera, gpointer data, GError
 
         priv->last_image++;
 
-        gpointer frame = g_malloc0(size);
+        gpointer frame;
         err = pco_get_image_ptr(priv->pco, &frame, priv->last_image);
         CHECK_AND_RETURN_VAL_ON_PCO_ERROR(err, FALSE);
 
@@ -492,9 +492,6 @@ static gboolean uca_pco_me4_camera_grab(UcaCamera *camera, gpointer data, GError
         }
 
         pco_extract_image(priv->pco, data, frame, priv->image_width, priv->image_height);
-
-        g_free(frame);
-        frame = NULL;
 
         return TRUE;
     }
