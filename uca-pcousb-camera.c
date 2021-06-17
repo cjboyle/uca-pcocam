@@ -383,6 +383,29 @@ static gboolean uca_pco_usb_camera_grab(UcaCamera *camera, gpointer data, GError
         return FALSE;
     }
 
+    // Validate manual trigger count before attempting to grab a frame.
+    // Otherwise, a trigger after a timed-out grab may seg fault.
+    if (priv->trigger_source != UCA_CAMERA_TRIGGER_SOURCE_AUTO)
+    {
+        GTimeVal timeout, now;
+        g_get_current_time(&timeout);
+        g_time_val_add(&timeout, get_max_timeout(priv) * 1000);
+
+        while (priv->last_trigger_grabbed >= priv->num_triggers)
+        {
+            g_get_current_time(&now);
+            if (now.tv_sec >= timeout.tv_sec)
+            {
+                g_set_error(error, UCA_PCO_USB_CAMERA_ERROR,
+                            UCA_PCO_USB_CAMERA_ERROR_TIMEOUT,
+                            "No frames triggered");
+                return FALSE;
+            }
+
+            pco_get_trigger_count(priv->pco, &priv->num_triggers);
+        }
+    }
+
     gpointer frame = g_malloc0(size);
 
     if (frame == NULL)
