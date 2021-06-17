@@ -470,8 +470,8 @@ static gboolean uca_pco_me4_camera_grab(UcaCamera *camera, gpointer data, GError
 
         guint index = priv->last_image + 1;
 
-        err = pco_next_image_index_ex(priv->pco, &index, get_max_timeout(priv));
-        CHECK_AND_RETURN_VAL_ON_PCO_ERROR(err, FALSE);
+        // err = pco_next_image_index_ex(priv->pco, &index, get_max_timeout(priv));
+        // CHECK_AND_RETURN_VAL_ON_PCO_ERROR(err, FALSE);
 
         if (index <= 0)
         {
@@ -481,8 +481,9 @@ static gboolean uca_pco_me4_camera_grab(UcaCamera *camera, gpointer data, GError
 
         priv->last_image = index;
 
-        gpointer frame;
-        err = pco_get_image_ptr(priv->pco, &frame, priv->last_image);
+        gpointer frame = g_malloc0(size);
+        // err = pco_get_image_ptr(priv->pco, &frame, priv->last_image);
+        err = pco_acquire_image_await_ex(priv->pco, frame, get_max_timeout(priv));
         CHECK_AND_RETURN_VAL_ON_PCO_ERROR(err, FALSE);
 
         if (frame == NULL)
@@ -492,6 +493,9 @@ static gboolean uca_pco_me4_camera_grab(UcaCamera *camera, gpointer data, GError
         }
 
         pco_extract_image(priv->pco, data, frame, priv->image_width, priv->image_height);
+
+        g_free(frame);
+        frame = NULL;
 
         return TRUE;
     }
@@ -514,7 +518,7 @@ static gboolean uca_pco_me4_camera_readout(UcaCamera *camera, gpointer data, gui
         return FALSE;
     }
 
-    gpointer frame;
+    gpointer frame = g_malloc0(priv->image_size);
     err = pco_readout_image(priv->pco, frame, priv->active_segment, index);
 
     if (err != PCO_NOERROR)
@@ -524,6 +528,9 @@ static gboolean uca_pco_me4_camera_readout(UcaCamera *camera, gpointer data, gui
     }
 
     pco_extract_image(priv->pco, data, frame, priv->image_width, priv->image_height);
+
+    g_free(frame);
+    frame = NULL;
 
     return TRUE;
 }
