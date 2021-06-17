@@ -994,7 +994,8 @@ unsigned int pco_next_image_index(pco_handle *pco, int *image_nr)
 
 unsigned int pco_next_image_index_ex(pco_handle *pco, int *image_nr, int timeout)
 {
-    DWORD err = pco->grabber->Wait_For_Next_Image(image_nr, timeout);
+    // For some reason this function uses timeout in seconds rather than millis...
+    DWORD err = pco->grabber->Wait_For_Next_Image(image_nr, CNV_MILLI_TO_UNIT(timeout));
     RETURN_ANY_CODE(err);
 }
 
