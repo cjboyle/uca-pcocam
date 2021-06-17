@@ -16,7 +16,7 @@
     {                                                        \
         char *text = pco_get_error_text((err));              \
         g_set_error(error, UCA_PCO_USB_CAMERA_ERROR,         \
-                    UCA_PCO_USB_CAMERA_ERROR_PCOSDK_GENERAL, \
+                    UCA_PCO_USB_CAMERA_ERROR_GENERAL, \
                     "pco.usb error %x\n\t%s", err, text);    \
         free(text);                                          \
         text = NULL;                                         \
@@ -28,7 +28,7 @@
     {                                                        \
         char *text = pco_get_error_text((err));              \
         g_set_error(error, UCA_PCO_USB_CAMERA_ERROR,         \
-                    UCA_PCO_USB_CAMERA_ERROR_PCOSDK_GENERAL, \
+                    UCA_PCO_USB_CAMERA_ERROR_GENERAL, \
                     "pco.usb error %x\n\t%s", err, text);    \
         free(text);                                          \
         text = NULL;                                         \
@@ -353,7 +353,7 @@ static void uca_pco_usb_camera_trigger(UcaCamera *camera, GError **error)
 
     if (!success)
     {
-        g_set_error(error, UCA_PCO_USB_CAMERA_ERROR, UCA_PCO_USB_CAMERA_ERROR_PCOSDK_GENERAL,
+        g_set_error(error, UCA_PCO_USB_CAMERA_ERROR, UCA_PCO_USB_CAMERA_ERROR_GENERAL,
                     "Could not trigger frame acquisition");
     }
     else
@@ -388,7 +388,7 @@ static gboolean uca_pco_usb_camera_grab(UcaCamera *camera, gpointer data, GError
     if (frame == NULL)
     {
         g_set_error(error, UCA_PCO_USB_CAMERA_ERROR,
-                    UCA_PCO_USB_CAMERA_ERROR_FG_GENERAL,
+                    UCA_PCO_USB_CAMERA_ERROR_GENERAL,
                     "Frame data is NULL");
         return FALSE;
     }
@@ -1340,7 +1340,7 @@ static gboolean setup_pco_camera(UcaPcoUsbCameraPrivate *priv)
     if (priv->pco == NULL)
     {
         g_set_error(error,
-                    UCA_PCO_USB_CAMERA_ERROR, UCA_PCO_USB_CAMERA_ERROR_PCOSDK_INIT,
+                    UCA_PCO_USB_CAMERA_ERROR, UCA_PCO_USB_CAMERA_ERROR_INIT,
                     "Initializing pco wrapper failed");
         return FALSE;
     }

@@ -16,7 +16,7 @@
     {                                                        \
         char *text = pco_get_error_text((err));              \
         g_set_error(error, UCA_PCO_ME4_CAMERA_ERROR,         \
-                    UCA_PCO_ME4_CAMERA_ERROR_PCOSDK_GENERAL, \
+                    UCA_PCO_ME4_CAMERA_ERROR_GENERAL, \
                     "pco.cl_me4 error %x\n\t%s", err, text);  \
         free(text);                                          \
         text = NULL;                                         \
@@ -28,7 +28,7 @@
     {                                                        \
         char *text = pco_get_error_text((err));              \
         g_set_error(error, UCA_PCO_ME4_CAMERA_ERROR,         \
-                    UCA_PCO_ME4_CAMERA_ERROR_PCOSDK_GENERAL, \
+                    UCA_PCO_ME4_CAMERA_ERROR_GENERAL, \
                     "pco.cl_me4 error %x\n\t%s", err, text);  \
         free(text);                                          \
         text = NULL;                                         \
@@ -429,7 +429,7 @@ static void uca_pco_me4_camera_trigger(UcaCamera *camera, GError **error)
 
     if (!success)
     {
-        g_set_error(error, UCA_PCO_ME4_CAMERA_ERROR, UCA_PCO_ME4_CAMERA_ERROR_PCOSDK_GENERAL,
+        g_set_error(error, UCA_PCO_ME4_CAMERA_ERROR, UCA_PCO_ME4_CAMERA_ERROR_GENERAL,
                     "Could not trigger frame acquisition");
     }
 }
@@ -448,7 +448,7 @@ static gboolean uca_pco_me4_camera_grab(UcaCamera *camera, gpointer data, GError
     {
         if (priv->current_image > priv->num_recorded_images)
         {
-            g_set_error(error, UCA_PCO_ME4_CAMERA_ERROR, UCA_PCO_ME4_CAMERA_ERROR_FG_GENERAL, "End of memory readout");
+            g_set_error(error, UCA_PCO_ME4_CAMERA_ERROR, UCA_PCO_ME4_CAMERA_ERROR_GENERAL, "End of memory readout");
             return FALSE;
         }
 
@@ -468,7 +468,7 @@ static gboolean uca_pco_me4_camera_grab(UcaCamera *camera, gpointer data, GError
 
     if (priv->last_image <= 0)
     {
-        g_set_error(error, UCA_PCO_ME4_CAMERA_ERROR, UCA_PCO_ME4_CAMERA_ERROR_FG_GENERAL, "No images in frame buffer");
+        g_set_error(error, UCA_PCO_ME4_CAMERA_ERROR, UCA_PCO_ME4_CAMERA_ERROR_GENERAL, "No images in frame buffer");
         return FALSE;
     }
 
@@ -478,7 +478,7 @@ static gboolean uca_pco_me4_camera_grab(UcaCamera *camera, gpointer data, GError
 
     if (frame == NULL)
     {
-        g_set_error(error, UCA_PCO_ME4_CAMERA_ERROR, UCA_PCO_ME4_CAMERA_ERROR_FG_GENERAL, "Frame data is NULL");
+        g_set_error(error, UCA_PCO_ME4_CAMERA_ERROR, UCA_PCO_ME4_CAMERA_ERROR_GENERAL, "Frame data is NULL");
         return FALSE;
     }
 
@@ -499,7 +499,7 @@ static gboolean uca_pco_me4_camera_readout(UcaCamera *camera, gpointer data, gui
     if (priv->description->type == CAMERATYPE_PCO_EDGE || !priv->description->has_camram)
     {
         g_set_error(error, UCA_PCO_ME4_CAMERA_ERROR,
-                    UCA_PCO_ME4_CAMERA_ERROR_PCOSDK_GENERAL,
+                    UCA_PCO_ME4_CAMERA_ERROR_UNSUPPORTED,
                     "pco.edge does not have a readout mode");
         return FALSE;
     }
@@ -513,7 +513,7 @@ static gboolean uca_pco_me4_camera_readout(UcaCamera *camera, gpointer data, gui
 
     if (priv->last_image <= 0)
     {
-        g_set_error(error, UCA_PCO_ME4_CAMERA_ERROR, UCA_PCO_ME4_CAMERA_ERROR_FG_GENERAL, "No images in internal buffer");
+        g_set_error(error, UCA_PCO_ME4_CAMERA_ERROR, UCA_PCO_ME4_CAMERA_ERROR_GENERAL, "No images in internal buffer");
         return FALSE;
     }
 
@@ -523,7 +523,7 @@ static gboolean uca_pco_me4_camera_readout(UcaCamera *camera, gpointer data, gui
 
     if (frame == NULL)
     {
-        g_set_error(error, UCA_PCO_ME4_CAMERA_ERROR, UCA_PCO_ME4_CAMERA_ERROR_FG_GENERAL, "Frame data is NULL");
+        g_set_error(error, UCA_PCO_ME4_CAMERA_ERROR, UCA_PCO_ME4_CAMERA_ERROR_GENERAL, "Frame data is NULL");
         return FALSE;
     }
 
@@ -1539,7 +1539,7 @@ static gboolean setup_pco_camera(UcaPcoMe4CameraPrivate *priv)
     if (priv->pco == NULL)
     {
         g_set_error(error,
-                    UCA_PCO_ME4_CAMERA_ERROR, UCA_PCO_ME4_CAMERA_ERROR_PCOSDK_INIT,
+                    UCA_PCO_ME4_CAMERA_ERROR, UCA_PCO_ME4_CAMERA_ERROR_INIT,
                     "Initializing pco wrapper failed");
         return FALSE;
     }

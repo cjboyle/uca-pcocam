@@ -18,7 +18,7 @@
     {                                                         \
         char *text = pco_get_error_text((err));               \
         g_set_error(error, UCA_PCO_CLHS_CAMERA_ERROR,         \
-                    UCA_PCO_CLHS_CAMERA_ERROR_PCOSDK_GENERAL, \
+                    UCA_PCO_CLHS_CAMERA_ERROR_GENERAL, \
                     "pco.clhs error %x\n\t%s", err, text);    \
         free(text);                                           \
         text = NULL;                                          \
@@ -30,7 +30,7 @@
     {                                                         \
         char *text = pco_get_error_text((err));               \
         g_set_error(error, UCA_PCO_CLHS_CAMERA_ERROR,         \
-                    UCA_PCO_CLHS_CAMERA_ERROR_PCOSDK_GENERAL, \
+                    UCA_PCO_CLHS_CAMERA_ERROR_GENERAL, \
                     "pco.clhs error %x\n\t%s", err, text);    \
         free(text);                                           \
         text = NULL;                                          \
@@ -286,7 +286,7 @@ static void uca_pco_clhs_camera_start_recording(UcaCamera *camera, GError **erro
     // check if the ROI dimensions exceed the available binned dimensions
     if ((roi[2] - roi[0] > max_binned_width) || (roi[3] - roi[1] > max_binned_height))
     {
-        g_set_error(error, UCA_PCO_CLHS_CAMERA_ERROR, UCA_PCO_CLHS_CAMERA_ERROR_UNSUPPORTED,
+        g_set_error(error, UCA_PCO_CLHS_CAMERA_ERROR, UCA_PCO_CLHS_CAMERA_ERROR_GENERAL,
                     "ROI of size %ix%i @ (%i, %i) is outside of (binned) sensor size %ix%i\n",
                     roi[2] - roi[0], roi[3] - roi[1], roi[0], roi[1], max_binned_width, max_binned_height);
     }
@@ -349,7 +349,7 @@ static void uca_pco_clhs_camera_trigger(UcaCamera *camera, GError **error)
 
     if (!success)
     {
-        g_set_error(error, UCA_PCO_CLHS_CAMERA_ERROR, UCA_PCO_CLHS_CAMERA_ERROR_PCOSDK_GENERAL,
+        g_set_error(error, UCA_PCO_CLHS_CAMERA_ERROR, UCA_PCO_CLHS_CAMERA_ERROR_GENERAL,
                     "Could not trigger frame acquisition");
     }
     else
@@ -392,7 +392,10 @@ static gboolean uca_pco_clhs_camera_grab(UcaCamera *camera, gpointer data, GErro
             g_get_current_time(&now);
             if (now.tv_sec >= timeout.tv_sec)
             {
-                CHECK_AND_RETURN_VAL_ON_PCO_ERROR(0xA0332005, FALSE);
+                g_set_error(error, UCA_PCO_CLHS_CAMERA_ERROR,
+                            UCA_PCO_CLHS_CAMERA_ERROR_TIMEOUT,
+                            "No frames triggered");
+                return FALSE;
             }
 
             pco_get_trigger_count(priv->pco, &priv->num_triggers);
@@ -404,7 +407,7 @@ static gboolean uca_pco_clhs_camera_grab(UcaCamera *camera, gpointer data, GErro
     if (frame == NULL)
     {
         g_set_error(error, UCA_PCO_CLHS_CAMERA_ERROR,
-                    UCA_PCO_CLHS_CAMERA_ERROR_FG_GENERAL,
+                    UCA_PCO_CLHS_CAMERA_ERROR_GENERAL,
                     "Frame data is NULL");
         return FALSE;
     }
@@ -1335,7 +1338,7 @@ static gboolean setup_pco_camera(UcaPcoClhsCameraPrivate *priv)
     if (priv->pco == NULL)
     {
         g_set_error(error,
-                    UCA_PCO_CLHS_CAMERA_ERROR, UCA_PCO_CLHS_CAMERA_ERROR_PCOSDK_INIT,
+                    UCA_PCO_CLHS_CAMERA_ERROR, UCA_PCO_CLHS_CAMERA_ERROR_INIT,
                     "Initializing pco wrapper failed");
         return FALSE;
     }
