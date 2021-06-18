@@ -12,9 +12,9 @@ ifeq ($(strip $(PCODIR)),)
 endif
 
 PCO_LIB_DIR = ./pco/lib/me4
-PCO_LIB_NAMES += pcolog pcofile reorderfunc pcocom_me4
+PCO_LIB_NAMES += pcolog pcofile reorderfunc pcocam_me4
 
-SRCS += pcome4_grabber.cpp
+# SRCS += pcome4_grabber.cpp
 
 #PCO_STATIC_LIBS = -Wl,-Bstatic $(addprefix $(PCO_LIB_DIR)/lib,$(addsuffix .a,$(PCO_LIB_NAMES))) -Wl,-Bdynamic
 
