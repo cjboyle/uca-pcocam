@@ -470,74 +470,74 @@ protected:
 ///
 /// \brief The class for a pco.edge 4.2 Rolling Shutter
 ///
-class CPco_grab_cl_me4_edge42 : public CPco_grab_cl_me4
-{
+// class CPco_grab_cl_me4_edge42 : public CPco_grab_cl_me4
+// {
 
-public:
-  CPco_grab_cl_me4_edge42(CPco_com_cl_me4* camera);
-  ///
-  /// \brief Opens the grabber and retrieves the neccessary variables from the camera object.
-  /// \anchor Open_Grabber
-  /// \param board Set to zero if there is only one camera connected.
-  /// Open_Cam() on the appropriate class object \b must be called first or this will fail!
-  /// \return Error or 0 in case of success
-  ///
-  DWORD Open_Grabber(int board);
-  ///
-  /// \brief Sets the grabber size.
-  /// \anchor Set_Grabber_Size
-  /// It is extremely important to set this before any images are transferred! If any of the settings are changed that influence the image size
-  /// Set_Grabber_Size \b must be called again before any images are transferred! If this is not done, memory or segmentation faults will occur!
-  /// \param width Actual width of the picture
-  /// \param height Actual height of the picture
-  /// \return Error or 0 in case of success
-  ///
-  DWORD Set_Grabber_Size(DWORD width,DWORD height);
-  ///
-  /// \brief Sets the data format for the grabber
-  /// \anchor Set_DataFormat
-  /// \param format The new data format.
-  /// \return always 0
-  ///
-  DWORD Set_DataFormat(DWORD format);
-  ///
-  /// \brief Reorders the image lines and copies the reordered image to the output buffer.
-  /// \anchor Extract_Image
-  /// \param bufout Output buffer. Must be large enough to hold the image!
-  /// \param bufin Input buffer.
-  /// \param width Image width.
-  /// \param height Image height.
-  /// \param line_width Unused.
-  ///
-  void Extract_Image(void *bufout, void *bufin, int width, int height,int line_width ATTRIBUTE_UNUSED);
-  ///
-  /// \overload Extract_Image(void*,void*,int,int,int)
-  ///
-  void Extract_Image(void *bufout,void *bufin,int width,int height);
-  ///
-  /// \brief Get a single image line
-  /// \anchor Get_Image_Line
-  /// \param bufout Output buffer. Must be large enough to hold a single image line!
-  /// \param bufin Input buffer.
-  /// \param linenumber Line number to get.
-  /// \param width Image width.
-  /// \param height Image height.
-  ///
-  void Get_Image_Line(void *bufout,void *bufin,int linenumber,int width,int height);
-  ///
-  /// \brief Get current camera parameter and set camera and grabber parameter if necessary
-  /// \anchor PostArm
-  /// camera parameters changed: none
-  /// grabber parameters changed: DataFormat, width, height, size of allocated framebuffers
-  /// \param userset when 0 camera and grabber parameters are changed
-  /// \param userset when 1 only camera parameters are changed
-  DWORD PostArm(int userset=0); 
+// public:
+//   CPco_grab_cl_me4_edge42(CPco_com_cl_me4* camera);
+//   ///
+//   /// \brief Opens the grabber and retrieves the neccessary variables from the camera object.
+//   /// \anchor Open_Grabber
+//   /// \param board Set to zero if there is only one camera connected.
+//   /// Open_Cam() on the appropriate class object \b must be called first or this will fail!
+//   /// \return Error or 0 in case of success
+//   ///
+//   DWORD Open_Grabber(int board);
+//   ///
+//   /// \brief Sets the grabber size.
+//   /// \anchor Set_Grabber_Size
+//   /// It is extremely important to set this before any images are transferred! If any of the settings are changed that influence the image size
+//   /// Set_Grabber_Size \b must be called again before any images are transferred! If this is not done, memory or segmentation faults will occur!
+//   /// \param width Actual width of the picture
+//   /// \param height Actual height of the picture
+//   /// \return Error or 0 in case of success
+//   ///
+//   DWORD Set_Grabber_Size(DWORD width,DWORD height);
+//   ///
+//   /// \brief Sets the data format for the grabber
+//   /// \anchor Set_DataFormat
+//   /// \param format The new data format.
+//   /// \return always 0
+//   ///
+//   DWORD Set_DataFormat(DWORD format);
+//   ///
+//   /// \brief Reorders the image lines and copies the reordered image to the output buffer.
+//   /// \anchor Extract_Image
+//   /// \param bufout Output buffer. Must be large enough to hold the image!
+//   /// \param bufin Input buffer.
+//   /// \param width Image width.
+//   /// \param height Image height.
+//   /// \param line_width Unused.
+//   ///
+//   void Extract_Image(void *bufout, void *bufin, int width, int height,int line_width ATTRIBUTE_UNUSED);
+//   ///
+//   /// \overload Extract_Image(void*,void*,int,int,int)
+//   ///
+//   void Extract_Image(void *bufout,void *bufin,int width,int height);
+//   ///
+//   /// \brief Get a single image line
+//   /// \anchor Get_Image_Line
+//   /// \param bufout Output buffer. Must be large enough to hold a single image line!
+//   /// \param bufin Input buffer.
+//   /// \param linenumber Line number to get.
+//   /// \param width Image width.
+//   /// \param height Image height.
+//   ///
+//   void Get_Image_Line(void *bufout,void *bufin,int linenumber,int width,int height);
+//   ///
+//   /// \brief Get current camera parameter and set camera and grabber parameter if necessary
+//   /// \anchor PostArm
+//   /// camera parameters changed: none
+//   /// grabber parameters changed: DataFormat, width, height, size of allocated framebuffers
+//   /// \param userset when 0 camera and grabber parameters are changed
+//   /// \param userset when 1 only camera parameters are changed
+//   DWORD PostArm(int userset=0); 
 
-  ~CPco_grab_cl_me4_edge42(){Close_Grabber();}
+//   ~CPco_grab_cl_me4_edge42(){Close_Grabber();}
 
-protected:
+// protected:
 
-};
+// };
 
 
 ///

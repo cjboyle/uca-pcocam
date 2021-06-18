@@ -44,90 +44,13 @@ CPco_grab_cl_me4::CPco_grab_cl_me4(CPco_com_cl_me4 *camera)
 }
 
 CPco_grab_cl_me4_edge::CPco_grab_cl_me4_edge(CPco_com_cl_me4 *camera)
+    : CPco_grab_cl_me4(camera)
 {
-    clog = NULL;
-    hgrabber = NULL;
-
-    fg = NULL;
-    pco_hap_loaded = 0;
-    act_width = act_height = 100;
-    port = 0;
-    me_boardnr = -1;
-    DataFormat = 0;
-    act_dmalength = 100 * 100;
-    // act_sccmos_version = 0;
-
-    buf_manager = 0;
-    pMem0 = NULL;
-    pMemInt = NULL;
-    padr = NULL;
-    size_alloc = 0;
-    nr_of_buffer = 0;
-
-    aquire_status = 0;
-    aquire_flag = 0;
-    last_picnr = 0;
-
-    if (camera != NULL)
-        cam = camera;
-}
-
-CPco_grab_cl_me4_edge42::CPco_grab_cl_me4_edge42(CPco_com_cl_me4 *camera)
-{
-    clog = NULL;
-    hgrabber = NULL;
-
-    fg = NULL;
-    pco_hap_loaded = 0;
-    act_width = act_height = 100;
-    port = 0;
-    me_boardnr = -1;
-    DataFormat = 0;
-    act_dmalength = 100 * 100;
-    // act_sccmos_version = 0;
-
-    buf_manager = 0;
-    pMem0 = NULL;
-    pMemInt = NULL;
-    padr = NULL;
-    size_alloc = 0;
-    nr_of_buffer = 0;
-
-    aquire_status = 0;
-    aquire_flag = 0;
-    last_picnr = 0;
-
-    if (camera != NULL)
-        cam = camera;
 }
 
 CPco_grab_cl_me4_camera::CPco_grab_cl_me4_camera(CPco_com_cl_me4 *camera)
+    : CPco_grab_cl_me4(camera)
 {
-    clog = NULL;
-    hgrabber = NULL;
-
-    fg = NULL;
-    pco_hap_loaded = 0;
-    act_width = act_height = 100;
-    port = 0;
-    me_boardnr = -1;
-    DataFormat = 0;
-    act_dmalength = 100 * 100;
-    // act_sccmos_version = 0;
-
-    buf_manager = 0;
-    pMem0 = NULL;
-    pMemInt = NULL;
-    padr = NULL;
-    size_alloc = 0;
-    nr_of_buffer = 0;
-
-    aquire_status = 0;
-    aquire_flag = 0;
-    last_picnr = 0;
-
-    if (camera != NULL)
-        cam = camera;
 }
 
 void CPco_grab_cl_me4::writelog(DWORD lev, PCO_HANDLE hdriver, const char *str, ...)
@@ -1284,11 +1207,6 @@ void CPco_grab_cl_me4_edge::Get_Image_Line(void *bufout, void *bufin, int linenu
 }
 
 DWORD CPco_grab_cl_me4_edge::PostArm(int userset)
-{
-    return PCO_NOERROR;
-}
-
-DWORD CPco_grab_cl_me4_edge42::PostArm(int userset)
 {
     return PCO_NOERROR;
 }

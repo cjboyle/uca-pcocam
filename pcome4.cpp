@@ -69,11 +69,11 @@ static unsigned int _pco_init(pco_handle *pco, int board, int port)
         CPco_grab_cl_me4_edge *grab = new CPco_grab_cl_me4_edge(com);
         pco->grabber = grab;
     }
-    else if (camtype == CAMERATYPE_PCO_EDGE_42)
-    {
-        CPco_grab_cl_me4_edge42 *grab = new CPco_grab_cl_me4_edge42(com);
-        pco->grabber = grab;
-    }
+    // else if (camtype == CAMERATYPE_PCO_EDGE_42)
+    // {
+    //     CPco_grab_cl_me4_edge42 *grab = new CPco_grab_cl_me4_edge42(com);
+    //     pco->grabber = grab;
+    // }
     else
     {
         CPco_grab_cl_me4_camera *grab = new CPco_grab_cl_me4_camera(com);
