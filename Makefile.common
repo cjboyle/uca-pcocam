@@ -30,8 +30,8 @@ LIB_NAMES += pthread rt dl
 
 #### BUILD VARS
 
-SRCS = uca-$(TYPE_NAME)-camera.c uca-$(TYPE_NAME)-enums.c $(TYPE_NAME).cpp
-HDRS = uca-$(TYPE_NAME)-camera.h uca-$(TYPE_NAME)-enums.h $(TYPE_NAME).h pco.h
+SRCS += uca-$(TYPE_NAME)-camera.c uca-$(TYPE_NAME)-enums.c $(TYPE_NAME).cpp
+HDRS += uca-$(TYPE_NAME)-camera.h uca-$(TYPE_NAME)-enums.h $(TYPE_NAME).h pco.h
 
 OUTFILE = libuca$(TYPE_NAME).so
 BUILD_DIR = ./build
