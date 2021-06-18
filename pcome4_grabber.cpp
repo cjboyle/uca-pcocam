@@ -14,7 +14,94 @@ static int strcpy_s(char *buf, int dwlen, const char *src)
     return 0;
 }
 
-CPco_grab_cl_me4::CPco_grab_cl_me4(CPco_com_cl_me4* camera)
+CPco_grab_cl_me4::CPco_grab_cl_me4(CPco_com_cl_me4 *camera)
+{
+    clog = NULL;
+    hgrabber = NULL;
+
+    fg = NULL;
+    pco_hap_loaded = 0;
+    act_width = act_height = 100;
+    port = 0;
+    me_boardnr = -1;
+    DataFormat = 0;
+    act_dmalength = 100 * 100;
+    // act_sccmos_version = 0;
+
+    buf_manager = 0;
+    pMem0 = NULL;
+    pMemInt = NULL;
+    padr = NULL;
+    size_alloc = 0;
+    nr_of_buffer = 0;
+
+    aquire_status = 0;
+    aquire_flag = 0;
+    last_picnr = 0;
+
+    if (camera != NULL)
+        cam = camera;
+}
+
+CPco_grab_cl_me4_edge::CPco_grab_cl_me4_edge(CPco_com_cl_me4 *camera)
+{
+    clog = NULL;
+    hgrabber = NULL;
+
+    fg = NULL;
+    pco_hap_loaded = 0;
+    act_width = act_height = 100;
+    port = 0;
+    me_boardnr = -1;
+    DataFormat = 0;
+    act_dmalength = 100 * 100;
+    // act_sccmos_version = 0;
+
+    buf_manager = 0;
+    pMem0 = NULL;
+    pMemInt = NULL;
+    padr = NULL;
+    size_alloc = 0;
+    nr_of_buffer = 0;
+
+    aquire_status = 0;
+    aquire_flag = 0;
+    last_picnr = 0;
+
+    if (camera != NULL)
+        cam = camera;
+}
+
+CPco_grab_cl_me4_edge42::CPco_grab_cl_me4_edge42(CPco_com_cl_me4 *camera)
+{
+    clog = NULL;
+    hgrabber = NULL;
+
+    fg = NULL;
+    pco_hap_loaded = 0;
+    act_width = act_height = 100;
+    port = 0;
+    me_boardnr = -1;
+    DataFormat = 0;
+    act_dmalength = 100 * 100;
+    // act_sccmos_version = 0;
+
+    buf_manager = 0;
+    pMem0 = NULL;
+    pMemInt = NULL;
+    padr = NULL;
+    size_alloc = 0;
+    nr_of_buffer = 0;
+
+    aquire_status = 0;
+    aquire_flag = 0;
+    last_picnr = 0;
+
+    if (camera != NULL)
+        cam = camera;
+}
+
+CPco_grab_cl_me4_camera::CPco_grab_cl_me4_camera(CPco_com_cl_me4 *camera)
 {
     clog = NULL;
     hgrabber = NULL;
@@ -106,7 +193,21 @@ DWORD CPco_grab_cl_me4::Close_Grabber()
     return PCO_NOERROR;
 }
 
+void CPco_grab_cl_me4::SetLog(CPco_Log *elog) { clog = elog; }
+
 DWORD CPco_grab_cl_me4::Set_DataFormat(DWORD dataformat)
+{
+    DataFormat = dataformat;
+    return PCO_NOERROR;
+}
+
+DWORD CPco_grab_cl_me4_edge::Set_DataFormat(DWORD dataformat)
+{
+    DataFormat = dataformat;
+    return PCO_NOERROR;
+}
+
+DWORD CPco_grab_cl_me4_camera::Set_DataFormat(DWORD dataformat)
 {
     DataFormat = dataformat;
     return PCO_NOERROR;
@@ -122,6 +223,20 @@ DWORD CPco_grab_cl_me4::Set_Grabber_Timeout(int timeout)
         writelog(ERROR_M, hgrabber, "Set_Grabber_Timeout: set FG_TIMEOUT failed");
         err = PCO_ERROR_DRIVER_DATAERROR | PCO_ERROR_DRIVER_CAMERALINK;
     }
+    return err;
+}
+
+DWORD CPco_grab_cl_me4::Get_Grabber_Timeout(int *timeout)
+{
+    int err = PCO_NOERROR;
+    int val;
+    if (Fg_getParameter(fg, FG_TIMEOUT, &val, port) < 0)
+    {
+        Fg_Error(fg);
+        writelog(ERROR_M, hgrabber, "Set_Grabber_Timeout: set FG_TIMEOUT failed");
+        err = PCO_ERROR_DRIVER_DATAERROR | PCO_ERROR_DRIVER_CAMERALINK;
+    }
+    *timeout = val;
     return err;
 }
 
@@ -629,7 +744,7 @@ DWORD CPco_grab_cl_me4_edge::Set_Grabber_Size(DWORD width, DWORD height)
         if ((act_height != height) || (act_width != width))
         {
             err = set_sccmos_size(width, height, width, height, 0, 0);
-            
+
             if (err != PCO_NOERROR)
             {
                 writelog(ERROR_M, hgrabber, "set_actual_size: set_sccmos_size error 0x%x", err);
@@ -1166,6 +1281,21 @@ void CPco_grab_cl_me4_edge::Get_Image_Line(void *bufout, void *bufin, int linenu
     }
     else
         get_image_line(bufout, bufin, linenumber, width, height, DataFormat);
+}
+
+DWORD CPco_grab_cl_me4_edge::PostArm(int userset)
+{
+    return PCO_NOERROR;
+}
+
+DWORD CPco_grab_cl_me4_edge42::PostArm(int userset)
+{
+    return PCO_NOERROR;
+}
+
+DWORD CPco_grab_cl_me4_camera::PostArm(int userset)
+{
+    return PCO_NOERROR;
 }
 
 //-----------------------------------------------------------------//
