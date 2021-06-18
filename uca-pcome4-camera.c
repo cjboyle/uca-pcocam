@@ -465,7 +465,7 @@ static gboolean uca_pco_me4_camera_grab(UcaCamera *camera, gpointer data, GError
     }
     else
     {
-        // err = pco_request_image(priv->pco);
+        err = pco_request_image(priv->pco);
         // CHECK_AND_RETURN_VAL_ON_PCO_ERROR(err, FALSE);
 
         guint index = priv->last_image + 1;
