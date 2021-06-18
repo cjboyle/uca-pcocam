@@ -462,6 +462,8 @@ public:
 
   ~CPco_grab_cl_me4_edge(){Close_Grabber();}
 protected:
+
+  virtual int set_sccmos_size(int width, int height, int xlen, int ylen, int xoff, int yoff);
 };
 
 
