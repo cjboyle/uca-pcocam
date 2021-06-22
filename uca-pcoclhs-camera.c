@@ -70,6 +70,7 @@ enum
     PROP_FRAME_GRABBER_TIMEOUT,
     PROP_FRAME_GRABBER_EXT_TIMEOUT,
     PROP_DELAY_TIME,
+    PROP_HEALTH_STATUS,
     N_PROPERTIES
 };
 
@@ -143,6 +144,7 @@ struct _UcaPcoClhsCameraPrivate
     GValueArray *pixelrates;
 
     gchar *version;
+    gchar *health;
 
     UcaCameraTriggerSource trigger_source;
     guint32 num_triggers, last_trigger_grabbed;
@@ -1059,6 +1061,15 @@ static void uca_pco_clhs_camera_get_property(GObject *object, guint property_id,
     }
     break;
 
+    case PROP_HEALTH_STATUS:
+    {
+        guint errors, warnings;
+        pco_get_health_state(priv->pco, &warnings, &errors, &discard.ui32);
+        sprintf(priv->health, "errors=%#010x, warnings=%#010x", errors, warnings);
+        g_value_set_string(value, priv->health);
+    }
+    break;
+
     default:
         G_OBJECT_WARN_INVALID_PROPERTY_ID(object, property_id, pspec);
         return;
@@ -1106,6 +1117,12 @@ static void uca_pco_clhs_camera_finalize(GObject *object)
     {
         g_free(priv->version);
         priv->version = NULL;
+    }
+
+    if (priv->health)
+    {
+        g_free(priv->health);
+        priv->health = NULL;
     }
 
     g_clear_error(&priv->construct_error);
@@ -1322,6 +1339,12 @@ static void uca_pco_clhs_camera_class_init(UcaPcoClhsCameraClass *klass)
                             "Capture delay time in seconds",
                             0., 1., 0.,
                             G_PARAM_READWRITE);
+    
+    pco_properties[PROP_HEALTH_STATUS] =
+        g_param_spec_string("health-status",
+                            "Camera error and warning codes",
+                            "Camera error and warning codes",
+                            "none", G_PARAM_READABLE);
 
     guint id;
     for (id = N_BASE_PROPERTIES; id < N_PROPERTIES; id++)
@@ -1425,6 +1448,7 @@ uca_pco_clhs_camera_init(UcaPcoClhsCamera *self)
     priv->version = g_strdup(DEFAULT_VERSION);
     priv->timeout_sec = 10;
     priv->ext_timeout_sec = 120;
+    priv->health = (char*)g_malloc(50);
 
     if (!setup_pco_camera(priv))
         return;
