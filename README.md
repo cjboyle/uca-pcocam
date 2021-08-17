@@ -114,7 +114,7 @@ Use ```uca-info [plugin]``` and ```uca-grab -n 1 [plugin]``` to verify basic fun
 | sensor-pixelrates | \[float\], Hz | R | yes | yes | yes |
 | sensor-horizontal-binning | int, step | RW | yes | yes | yes |
 | sensor-vertical-binning | int, step | RW | yes | yes | yes |
-| sensor-temperature | int, degC | R | yes | yes | yes |
+| sensor-temperature | int, &deg;C | R | yes | yes | yes |
 | sensor-adcs | int, count | RW | no | yes | yes |
 | roi-x0 | int, px | RW | yes | yes | yes |
 | roi-y0 | int, px | RW | yes | yes | yes |
@@ -131,19 +131,23 @@ Use ```uca-info [plugin]``` and ```uca-grab -n 1 [plugin]``` to verify basic fun
 | offset-mode | bool | RW | yes* | yes* | yes* |
 | acquire-mode | bool | RW | yes* | yes* | yes* |
 | fast-scan | bool | RW | yes* | yes* | yes* |
-| cooling-point | int, degC | RW | yes* | yes* | yes* |
-| cooling-point-default | int, degC | R | yes* | yes* | yes* |
+| cooling-point | int, &deg;C | RW | yes* | yes* | yes* |
+| cooling-point-default | int, &deg;C | R | yes* | yes* | yes* |
 | noise-filter | bool | RW | yes* | yes* | yes* |
 | timestamp-mode | enum | RW | yes | yes | yes |
 | is-recording | bool | R | yes | yes | yes |
 | buffered | bool | RW | yes | yes | yes |
 | num-buffers | int, count | RW | yes | yes | yes |
+| num-triggers | int, count | R | yes | no | yes |
+| recorded-frames | int, count | R | no** | yes | no** |
 | record-mode | enum | RW | no | yes* | no |
 | storage-mode | enum | RW | no | yes* | no |
 | transfer-asynchronously | bool | RW | yes | yes | yes |
 | edge-global-shutter | bool | RW | notimp | notimp | notimp |
 
-\* May not be supported by specific camera models
+\*&nbsp; May not be supported by specific camera models
+
+\*\* Property is provided by libuca but is not used/implemented
 
 | Method | CLHS | ME4 | USB |
 |:------:|:----:|:---:|:---:|
