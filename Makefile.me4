@@ -14,7 +14,7 @@ endif
 PCO_LIB_DIR = ./pco/lib/me4
 PCO_LIB_NAMES += pcolog pcofile reorderfunc pcocam_me4
 
-# SRCS += pcome4_grabber.cpp
+PRELOAD_NAME = pcome4_overrides
 
 #PCO_STATIC_LIBS = -Wl,-Bstatic $(addprefix $(PCO_LIB_DIR)/lib,$(addsuffix .a,$(PCO_LIB_NAMES))) -Wl,-Bdynamic
 
@@ -32,5 +32,18 @@ LIB_DIRS += $(SISODIR5)/lib
 LIB_DIRS += $(SISODIR5)/lib64
 LIB_NAMES += fglib5 clsersis
 
-
 include ./Makefile.common
+
+
+.PHONY: $(PRELOAD_NAME)
+$(PRELOAD_NAME): $(BUILD_DIR)/$(PRELOAD_NAME).so
+
+
+$(BUILD_DIR)/$(PRELOAD_NAME).so: $(BUILD_DIR)/$(PRELOAD_NAME).cpp.o
+	@mkdir -p $(BUILD_DIR)
+	$(CXX) $(LDFLAGS) $< -o $@
+
+
+$(BUILD_DIR)/$(PRELOAD_NAME).cpp.o: $(PRELOAD_NAME).cpp
+	@mkdir -p $(BUILD_DIR)
+	$(CXX) $(CXXFLAGS) $(INC_FLAGS) -c $< -o $@
