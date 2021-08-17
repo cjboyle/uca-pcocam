@@ -1068,7 +1068,10 @@ static void uca_pco_clhs_camera_get_property(GObject *object, guint property_id,
     {
         guint errors, warnings;
         pco_get_health_state(priv->pco, &warnings, &errors, &discard.ui32);
-        sprintf(priv->health, "errors=0x%08x, warnings=0x%08x", errors, warnings);
+        if (errors || warnings)
+            sprintf(priv->health, "errors=0x%08x, warnings=0x%08x", errors, warnings);
+        else
+            sprintf(priv->health, "healthy");
         g_value_set_string(value, priv->health);
     }
     break;
