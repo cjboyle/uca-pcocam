@@ -32,6 +32,15 @@ char *pco_get_error_text(DWORD code)
     return (char *)s;
 }
 
+char *pco_get_log_filename()
+{
+    time_t timestamp = time(NULL);
+    struct tm *datetime = localtime(&timestamp);
+    char s[35];
+    strftime(s, 35, "pcome4.%Y-%m-%d.%H%M%S.log", datetime);
+    return (char *)s;
+}
+
 /*************************/
 
 struct _pco_handle
@@ -81,8 +90,8 @@ static unsigned int _pco_init(pco_handle *pco, int board, int port)
     }
 
     CPco_Log *logger;
-    logger = new CPco_Log("pcome4.log");
-    logger->set_logbits(0x000FF0FF);
+    logger = new CPco_Log(pco_get_log_filename());
+    logger->set_logbits(LOG_LEVEL_BITS);
     pco->logger = logger;
 
     pco->grabber->SetLog(pco->logger);
@@ -734,6 +743,7 @@ unsigned int pco_force_trigger(pco_handle *pco, uint16_t *success)
     }
 
     err = pco->com->PCO_ForceTrigger(success);
+    pco->logger->writelog(PROCESS_M, 0xFFFF, "User App: call PCO_ForceTrigger returned 0x%x", err);
     RETURN_ANY_CODE(err);
 }
 

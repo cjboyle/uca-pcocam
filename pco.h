@@ -11,6 +11,12 @@ extern "C"
 #include <stdio.h>
 #include <stdlib.h>
 
+#ifdef DEBUG
+#define LOG_LEVEL_BITS 0x000FF0FF
+#else
+#define LOG_LEVEL_BITS 0x0000F03F
+#endif
+
     /**
      * Returns an allocated 255-byte string describing the given error code.
      */
