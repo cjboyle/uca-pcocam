@@ -14,24 +14,22 @@
 #define CHECK_AND_RETURN_VOID_ON_PCO_ERROR(err)              \
     if ((err) != PCO_NOERROR)                                \
     {                                                        \
-        char *text = pco_get_error_text((err));              \
+        char text[255];                                      \
+        pco_get_error_text((err), text, 255);                \
         g_set_error(error, UCA_PCO_ME4_CAMERA_ERROR,         \
                     UCA_PCO_ME4_CAMERA_ERROR_GENERAL,        \
                     "pco.cl_me4 error %x\n\t%s", err, text); \
-        free(text);                                          \
-        text = NULL;                                         \
         return;                                              \
     }
 
 #define CHECK_AND_RETURN_VAL_ON_PCO_ERROR(err, val)          \
     if ((err) != PCO_NOERROR)                                \
     {                                                        \
-        char *text = pco_get_error_text((err));              \
+        char text[255];                                      \
+        pco_get_error_text((err), text, 255);                \
         g_set_error(error, UCA_PCO_ME4_CAMERA_ERROR,         \
                     UCA_PCO_ME4_CAMERA_ERROR_GENERAL,        \
                     "pco.cl_me4 error %x\n\t%s", err, text); \
-        free(text);                                          \
-        text = NULL;                                         \
         return val;                                          \
     }
 

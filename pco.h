@@ -20,15 +20,15 @@ extern "C"
     /**
      * Returns an allocated 255-byte string describing the given error code.
      */
-    char *pco_get_error_text(unsigned int code);
+    void pco_get_error_text(unsigned int code, char *bufout, size_t buflen);
 
 #define PRINT_ERROR(code)                                                                                     \
     if ((code) != 0)                                                                                          \
     {                                                                                                         \
         fprintf(stderr, "Error: 0x%x at <%s:%i> in function %s\n", (code), __FILE__, __LINE__, __FUNCTION__); \
-        char *txt = pco_get_error_text((code));                                                               \
+        char txt[255];                                                                                        \
+        pco_get_error_text((code), txt, 255);                                                                 \
         fprintf(stderr, "\t%s\n", txt);                                                                       \
-        free(txt);                                                                                            \
     }
 
 #define RETURN_IF_ERROR(code) \

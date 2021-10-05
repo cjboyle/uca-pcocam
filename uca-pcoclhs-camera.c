@@ -9,32 +9,28 @@
 #include "uca-pcoclhs-camera.h"
 #include "uca-pcoclhs-enums.h"
 
-#include <uca-camera.h>
-
 #define UCA_PCO_CLHS_CAMERA_GET_PRIVATE(obj) (G_TYPE_INSTANCE_GET_PRIVATE((obj), UCA_TYPE_PCO_CLHS_CAMERA, UcaPcoClhsCameraPrivate))
 
-#define CHECK_AND_RETURN_VOID_ON_PCO_ERROR(err)               \
-    if ((err) != PCO_NOERROR)                                 \
-    {                                                         \
-        char *text = pco_get_error_text((err));               \
-        g_set_error(error, UCA_PCO_CLHS_CAMERA_ERROR,         \
-                    UCA_PCO_CLHS_CAMERA_ERROR_GENERAL, \
-                    "pco.clhs error %x\n\t%s", err, text);    \
-        free(text);                                           \
-        text = NULL;                                          \
-        return;                                               \
+#define CHECK_AND_RETURN_VOID_ON_PCO_ERROR(err)            \
+    if ((err) != PCO_NOERROR)                              \
+    {                                                      \
+        char text[255];                                    \
+        pco_get_error_text((err), text, 255);              \
+        g_set_error(error, UCA_PCO_CLHS_CAMERA_ERROR,      \
+                    UCA_PCO_CLHS_CAMERA_ERROR_GENERAL,     \
+                    "pco.clhs error %x\n\t%s", err, text); \
+        return;                                            \
     }
 
-#define CHECK_AND_RETURN_VAL_ON_PCO_ERROR(err, val)           \
-    if ((err) != PCO_NOERROR)                                 \
-    {                                                         \
-        char *text = pco_get_error_text((err));               \
-        g_set_error(error, UCA_PCO_CLHS_CAMERA_ERROR,         \
-                    UCA_PCO_CLHS_CAMERA_ERROR_GENERAL, \
-                    "pco.clhs error %x\n\t%s", err, text);    \
-        free(text);                                           \
-        text = NULL;                                          \
-        return val;                                           \
+#define CHECK_AND_RETURN_VAL_ON_PCO_ERROR(err, val)        \
+    if ((err) != PCO_NOERROR)                              \
+    {                                                      \
+        char text[255];                                    \
+        pco_get_error_text((err), text, 255);              \
+        g_set_error(error, UCA_PCO_CLHS_CAMERA_ERROR,      \
+                    UCA_PCO_CLHS_CAMERA_ERROR_GENERAL,     \
+                    "pco.clhs error %x\n\t%s", err, text); \
+        return val;                                        \
     }
 
 static void uca_pco_clhs_camera_initable_iface_init(GInitableIface *iface);
@@ -1345,7 +1341,7 @@ static void uca_pco_clhs_camera_class_init(UcaPcoClhsCameraClass *klass)
                             "Capture delay time in seconds",
                             0., 1., 0.,
                             G_PARAM_READWRITE);
-    
+
     pco_properties[PROP_HEALTH_STATUS] =
         g_param_spec_string("health-status",
                             "Camera error and warning codes",
@@ -1454,7 +1450,7 @@ uca_pco_clhs_camera_init(UcaPcoClhsCamera *self)
     priv->version = g_strdup(DEFAULT_VERSION);
     priv->timeout_sec = 10;
     priv->ext_timeout_sec = 120;
-    priv->health = (char*)g_malloc(50);
+    priv->health = (char *)g_malloc(50);
 
     if (!setup_pco_camera(priv))
         return;
