@@ -25,11 +25,16 @@
  * UFO-KIT's libpco library partial implementation.
  */
 
-char *pco_get_error_text(DWORD code)
+void pco_get_error_text(DWORD code, char *bufout, size_t buflen)
 {
-    char *s = (char *)malloc(255);
-    PCO_GetErrorText(code, s, 255);
-    return (char *)s;
+    PCO_GetErrorText(code, bufout, buflen);
+}
+
+void pco_get_log_filename(char *bufout, size_t buflen)
+{
+    time_t timestamp = time(NULL);
+    struct tm *datetime = localtime(&timestamp);
+    strftime(bufout, buflen, "pcousb.%Y-%m-%d.%H%M%S.log", datetime);
 }
 
 /*************************/
@@ -64,8 +69,10 @@ static unsigned int _pco_init(pco_handle *pco, int board, int port)
     pco->grabber = grab;
 
     CPco_Log *logger;
-    logger = new CPco_Log("pcousb.log");
-    logger->set_logbits(0x000FF0FF);
+    char logname[35];
+    pco_get_log_filename(logname, 35);
+    logger = new CPco_Log(logname);
+    logger->set_logbits(LOG_LEVEL_BITS);
     pco->logger = logger;
 
     pco->grabber->SetLog(pco->logger);
@@ -648,6 +655,7 @@ unsigned int pco_force_trigger(pco_handle *pco, uint16_t *success)
     }
 
     err = pco->com->PCO_ForceTrigger(success);
+    pco->logger->writelog(PROCESS_M, 0xFFFF, "User App: call PCO_ForceTrigger returned 0x%x", err);
     RETURN_ANY_CODE(err);
 }
 
