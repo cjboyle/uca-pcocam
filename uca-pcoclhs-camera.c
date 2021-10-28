@@ -159,7 +159,7 @@ struct _UcaPcoClhsCameraPrivate
     gpointer grab_thread_buffer;
 };
 
-static gint get_max_timeout(UcaPcoClhsCameraPrivate *priv)
+static gint get_max_timeout_millis(UcaPcoClhsCameraPrivate *priv)
 {
     return priv->trigger_source == UCA_CAMERA_TRIGGER_SOURCE_EXTERNAL
                ? (priv->ext_timeout_sec * 1000)
@@ -315,6 +315,9 @@ static void uca_pco_clhs_camera_start_recording(UcaCamera *camera, GError **erro
     // err = pco_grabber_set_size(priv->pco, actual_width, actual_height);
     // CHECK_AND_RETURN_VOID_ON_PCO_ERROR(err);
 
+    err = pco_grabber_set_timeout(priv->pco, get_max_timeout_millis(priv));
+    CHECK_AND_RETURN_VOID_ON_PCO_ERROR(err);
+
     if (transfer_async)
         setup_async_grab_thread(camera, error);
 
@@ -394,7 +397,7 @@ static gboolean uca_pco_clhs_camera_grab(UcaCamera *camera, gpointer data, GErro
     {
         GTimeVal timeout, now;
         g_get_current_time(&timeout);
-        g_time_val_add(&timeout, get_max_timeout(priv) * 1000);
+        g_time_val_add(&timeout, get_max_timeout_millis(priv) * 1000); // millis to micros
 
         while (priv->last_trigger_grabbed >= priv->num_triggers)
         {
@@ -424,7 +427,7 @@ static gboolean uca_pco_clhs_camera_grab(UcaCamera *camera, gpointer data, GErro
         return FALSE;
     }
 
-    err = pco_acquire_image_await_ex(priv->pco, frame, get_max_timeout(priv));
+    err = pco_acquire_image_await_ex(priv->pco, frame, get_max_timeout_millis(priv));
 
     if (err != PCO_NOERROR)
     {
@@ -710,7 +713,6 @@ static void uca_pco_clhs_camera_set_property(GObject *object, guint property_id,
         priv->timeout_sec = g_value_get_uint(value);
         if (priv->timeout_sec < 0)
             priv->timeout_sec = G_MAXINT32;
-        err = pco_grabber_set_timeout(priv->pco, priv->timeout_sec);
     }
     break;
 
@@ -718,7 +720,7 @@ static void uca_pco_clhs_camera_set_property(GObject *object, guint property_id,
     {
         priv->ext_timeout_sec = g_value_get_uint(value);
         if (priv->ext_timeout_sec < 0)
-            priv->timeout_sec = G_MAXINT32;
+            priv->ext_timeout_sec = G_MAXINT32;
     }
     break;
 
