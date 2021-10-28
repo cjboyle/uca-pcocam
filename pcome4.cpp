@@ -1032,15 +1032,17 @@ unsigned int pco_request_image(pco_handle *pco)
 
 unsigned int pco_get_image_ptr(pco_handle *pco, void **adr, int image_nr)
 {
-    DWORD err = pco->grabber->Get_Framebuffer_adr(image_nr, adr);
+    DWORD err = pco->grabber->Check_DMA_Length(image_nr);
+    RETURN_IF_ERROR(err);
+
+    err = pco->grabber->Get_Framebuffer_adr(image_nr, adr);
     RETURN_ANY_CODE(err);
 }
 
 unsigned int pco_readout_image(pco_handle *pco, void *adr, uint16_t segment, int image_nr)
 {
-    // DWORD err = pco->grabber->Get_Image(segment, image_nr, adr);
-    // RETURN_ANY_CODE(err);
-    return 0;
+    DWORD err = pco->grabber->Get_Image(segment, image_nr, adr);
+    RETURN_ANY_CODE(err);
 }
 
 unsigned int pco_force_acquire_ex(pco_handle *pco, void *adr, int timeout)
@@ -1226,6 +1228,12 @@ unsigned int pco_update_camera_datetime(pco_handle *pco)
 void pco_extract_image(pco_handle *pco, uint16_t *bufout, uint16_t *bufin, int width, int height)
 {
     pco->grabber->Extract_Image(bufout, bufin, width, height);
+}
+
+unsigned int pco_unblock_buffer(pco_handle *pco, int image_nr)
+{
+    DWORD err = pco->grabber->Unblock_buffer(image_nr);
+    RETURN_ANY_CODE(err);
 }
 
 // external definition as it may be missing from libpcocam_me4

@@ -201,6 +201,14 @@ extern "C"
      */
     void pco_extract_image(pco_handle *pco, uint16_t *bufout, uint16_t *bufin, int width, int height);
 
+    /**
+     * Unblock the given image buffer number.
+     * @param pco handle
+     * @param image_nr the number of the image buffer to unblock
+     * @return 0 on success, otherwise less than 0
+     */
+    unsigned int pco_unblock_buffer(pco_handle *pco, int image_nr);
+
 #ifdef __cplusplus
 }
 #endif /*__cplusplus*/
