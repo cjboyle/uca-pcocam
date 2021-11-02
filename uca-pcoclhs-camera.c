@@ -1334,7 +1334,7 @@ static void uca_pco_clhs_camera_class_init(UcaPcoClhsCameraClass *klass)
         g_param_spec_uint("frame-grabber-ext-timeout",
                           "Frame grabber extended timeout",
                           "Frame grabber extended timeout in seconds",
-                          0, G_MAXINT32, 120,
+                          0, G_MAXINT32, G_MAXINT32,
                           G_PARAM_READWRITE);
 
     pco_properties[PROP_DELAY_TIME] =
@@ -1451,7 +1451,7 @@ uca_pco_clhs_camera_init(UcaPcoClhsCamera *self)
     priv->construct_error = NULL;
     priv->version = g_strdup(DEFAULT_VERSION);
     priv->timeout_sec = 10;
-    priv->ext_timeout_sec = 120;
+    priv->ext_timeout_sec = G_MAXINT32;
     priv->health = (char *)g_malloc(50);
 
     if (!setup_pco_camera(priv))
