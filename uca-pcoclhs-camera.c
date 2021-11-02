@@ -157,9 +157,10 @@ struct _UcaPcoClhsCameraPrivate
 
 static gint get_max_timeout_millis(UcaPcoClhsCameraPrivate *priv)
 {
-    return priv->trigger_source == UCA_CAMERA_TRIGGER_SOURCE_EXTERNAL
-               ? (priv->ext_timeout_sec * 1000)
-               : (priv->timeout_sec * 1000);
+    gint timeout = priv->trigger_source == UCA_CAMERA_TRIGGER_SOURCE_EXTERNAL
+                 ? (priv->ext_timeout_sec * 1000)
+                 : (priv->timeout_sec * 1000);
+    return timeout <= 0 ? G_MAXINT32 : timeout;
 }
 
 static void fill_pixelrates(UcaPcoClhsCameraPrivate *priv, guint32 rates[4], gint num_rates)
