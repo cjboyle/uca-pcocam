@@ -215,6 +215,7 @@ static gpointer grab_func(gpointer rawptr)
             continue;
 
         pco_extract_image(priv->pco, priv->grab_thread_buffer, frame, priv->image_width, priv->image_height);
+        pco_unblock_buffer(priv->pco, index);
 
         camera->grab_func(priv->grab_thread_buffer, camera->user_data);
         // don't free frame on error, as it wasn't malloc'ed here
@@ -492,6 +493,9 @@ static gboolean uca_pco_me4_camera_grab(UcaCamera *camera, gpointer data, GError
 
         pco_extract_image(priv->pco, data, frame, priv->image_width, priv->image_height);
 
+        err = pco_unblock_buffer(priv->pco, index);
+        // CHECK_AND_RETURN_VAL_ON_PCO_ERROR(priv->pco, FALSE);
+
         priv->last_image = index;
         return TRUE;
     }
@@ -524,6 +528,9 @@ static gboolean uca_pco_me4_camera_readout(UcaCamera *camera, gpointer data, gui
     }
 
     pco_extract_image(priv->pco, data, frame, priv->image_width, priv->image_height);
+
+    err = pco_unblock_buffer(priv->pco, index);
+    // CHECK_AND_RETURN_VAL_ON_PCO_ERROR(priv->pco, FALSE);
 
     g_free(frame);
     frame = NULL;
