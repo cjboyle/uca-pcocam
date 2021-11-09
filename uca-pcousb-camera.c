@@ -161,9 +161,10 @@ struct _UcaPcoUsbCameraPrivate
 
 static gint get_max_timeout_millis(UcaPcoUsbCameraPrivate *priv)
 {
-    return priv->trigger_source == UCA_CAMERA_TRIGGER_SOURCE_EXTERNAL
-               ? (priv->ext_timeout_sec * 1000)
-               : (priv->timeout_sec * 1000);
+    gint timeout = priv->trigger_source == UCA_CAMERA_TRIGGER_SOURCE_EXTERNAL
+                       ? (priv->ext_timeout_sec * 1000)
+                       : (priv->timeout_sec * 1000);
+    return timeout <= 0 ? (G_MAXUINT16 * 1000) : timeout;
 }
 
 static void fill_pixelrates(UcaPcoUsbCameraPrivate *priv, guint32 rates[4], gint num_rates)
@@ -311,9 +312,6 @@ static void uca_pco_usb_camera_start_recording(UcaCamera *camera, GError **error
         priv->image_size = actual_width * actual_height * sizeof(gint32);
     else
         priv->image_size = actual_width * actual_height * sizeof(gint64);
-
-    // err = pco_grabber_set_size(priv->pco, actual_width, actual_height);
-    // CHECK_AND_RETURN_VOID_ON_PCO_ERROR(err);
 
     err = pco_grabber_set_timeout(priv->pco, get_max_timeout_millis(priv));
     CHECK_AND_RETURN_VOID_ON_PCO_ERROR(err);
@@ -714,17 +712,13 @@ static void uca_pco_usb_camera_set_property(GObject *object, guint property_id, 
 
     case PROP_FRAME_GRABBER_TIMEOUT:
     {
-        priv->timeout_sec = g_value_get_uint(value);
-        if (priv->timeout_sec < 0)
-            priv->timeout_sec = G_MAXINT32;
+        priv->timeout_sec = CLAMP(g_value_get_uint(value), 0, G_MAXUINT16);
     }
     break;
 
     case PROP_FRAME_GRABBER_EXT_TIMEOUT:
     {
-        priv->ext_timeout_sec = g_value_get_uint(value);
-        if (priv->ext_timeout_sec < 0)
-            priv->ext_timeout_sec = G_MAXINT32;
+        priv->ext_timeout_sec = CLAMP(g_value_get_uint(value), 0, G_MAXUINT16);
     }
     break;
 
@@ -1331,14 +1325,14 @@ static void uca_pco_usb_camera_class_init(UcaPcoUsbCameraClass *klass)
         g_param_spec_uint("frame-grabber-timeout",
                           "Frame grabber timeout",
                           "Frame grabber timeout in seconds",
-                          0, G_MAXINT32, 10,
+                          0, G_MAXUINT16, 10,
                           G_PARAM_READWRITE);
 
     pco_properties[PROP_FRAME_GRABBER_EXT_TIMEOUT] =
         g_param_spec_uint("frame-grabber-ext-timeout",
-                          "Frame grabber extended timeout",
-                          "Frame grabber extended timeout in seconds",
-                          0, G_MAXINT32, 120,
+                          "Frame grabber timeout using external trigger",
+                          "Frame grabber timeout in seconds using external trigger",
+                          0, G_MAXUINT16, 600,
                           G_PARAM_READWRITE);
 
     pco_properties[PROP_DELAY_TIME] =
@@ -1458,7 +1452,7 @@ uca_pco_usb_camera_init(UcaPcoUsbCamera *self)
     priv->construct_error = NULL;
     priv->version = g_strdup(DEFAULT_VERSION);
     priv->timeout_sec = 10;
-    priv->ext_timeout_sec = 120;
+    priv->ext_timeout_sec = 600;
 
     if (!setup_pco_camera(priv))
         return;
