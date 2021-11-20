@@ -697,23 +697,6 @@ extern "C"
     uint32_t pco_acquire_image_ex(pco_handle *pco, void *adr, int timeout);
 
     /**
-     * Non-blocking image acquisition call to the pco.camera SDK with grabber-configured timeout.
-     * @param pco handle
-     * @param adr external buffer to write image data
-     * @return 0 on success, otherwise less than 0
-     */
-    uint32_t pco_acquire_image_async(pco_handle *pco, void *adr);
-
-    /**
-     * Non-blocking image acquisition call to the pco.camera SDK.
-     * @param pco handle
-     * @param adr external buffer to write image data
-     * @param timeout the number of milliseconds to wait before an error is produced
-     * @return 0 on success, otherwise less than 0
-     */
-    uint32_t pco_acquire_image_async_ex(pco_handle *pco, void *adr, int timeout);
-
-    /**
      * Blocking image acquisition call to the pco.camera SDK with grabber-configured timeout.
      * @param pco handle
      * @param adr external buffer to write image data
