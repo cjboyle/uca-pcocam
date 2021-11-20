@@ -319,10 +319,11 @@ unsigned int pco_start_recording_ex(pco_handle *pco, int nr_images, bool block)
 
 unsigned int pco_stop_recording(pco_handle *pco)
 {
+    pco->com->PCO_CancelImage();
+    pco->com->PCO_CancelImageTransfer();
+    // ignore errors
     DWORD err = pco_set_recording_state(pco, 0);
     RETURN_IF_ERROR(err);
-    // err = pco->com->PCO_CancelImage();
-    // ignore error
     err = pco->grabber->Stop_Acquire();
     RETURN_ANY_CODE(err);
 }

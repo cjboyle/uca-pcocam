@@ -1250,6 +1250,7 @@ static void uca_pco_me4_camera_finalize(GObject *object)
     }
 
     // close camera connections
+    pco_clear_active_segment(priv->pco);
     pco_grabber_free_memory(priv->pco);
 
     if (priv->pco)

@@ -244,6 +244,7 @@ unsigned int pco_grabber_set_timeout(pco_handle *pco, int milliseconds)
         pco->com->Set_Timeouts(new_ts, 3 * sizeof(DWORD));
     }
     return pco->grabber->Set_Grabber_Timeout(milliseconds);
+    pco->com->Cance
 }
 
 unsigned int pco_grabber_get_timeout(pco_handle *pco, int *milliseconds)
@@ -291,10 +292,11 @@ unsigned int pco_start_recording(pco_handle *pco)
 
 unsigned int pco_stop_recording(pco_handle *pco)
 {
+    pco->com->PCO_CancelImage();
+    pco->com->PCO_CancelImageTransfer();
+    // ignore errors
     DWORD err = pco_set_recording_state(pco, 0);
     RETURN_IF_ERROR(err);
-    // err = pco->com->PCO_CancelImage();
-    // ignore error
     err = pco->grabber->Stop_Acquire();
     RETURN_ANY_CODE(err);
 }
