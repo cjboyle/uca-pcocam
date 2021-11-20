@@ -749,35 +749,65 @@ unsigned int pco_get_exposure_range(pco_handle *pco, uint32_t *min_ns, uint32_t 
     return 0;
 }
 
+static double _convert_timebased_value(uint32_t value, uint16_t timebase)
+{
+    switch (timebase)
+    {
+    case TIMEBASE_NS:
+        return CNV_NANO_TO_UNIT(value);
+        break;
+    case TIMEBASE_US:
+        return CNV_MICRO_TO_UNIT(value);
+        break;
+    case TIMEBASE_MS:
+        return CNV_MILLI_TO_UNIT(value);
+        break;
+    default:
+        return -1;
+        break;
+    }
+}
+
 unsigned int pco_get_delay_exposure(pco_handle *pco, double *delay, double *exposure)
 {
     uint32_t curr_delay, curr_expos;
     uint16_t tb_delay, tb_expos;
     DWORD err = pco->com->PCO_GetDelayExposureTime(&curr_delay, &curr_expos, &tb_delay, &tb_expos);
-    if (err == 0)
+    RETURN_IF_ERROR(err)
+
+    double new_delay = _convert_timebased_value(curr_delay, tb_delay);
+    if (new_delay < 0)
+        return PCO_ERROR_FIRMWARE_COC_TIMEBASE_INVALID;
+    *delay = new_delay;
+
+    double new_expos = _convert_timebased_value(curr_expos, tb_expos);
+    if (new_expos <= 0)
+        return PCO_ERROR_FIRMWARE_COC_TIMEBASE_INVALID;
+    *exposure = new_expos;
+
+    return PCO_NOERROR;
+}
+
+static void _create_timebased_value(double input, uint32_t *output, uint16_t *timebase)
+{
+    // initialize output to 0 in case input is less than or near zero
+    *output = 0;
+
+    if (input > 1e-9)
     {
-        if (tb_delay == TIMEBASE_NS)
-            *delay = CNV_NANO_TO_UNIT(curr_delay);
-        else if (tb_delay == TIMEBASE_US)
-            *delay = CNV_MICRO_TO_UNIT(curr_delay);
-        else if (tb_delay == TIMEBASE_MS)
-            *delay = CNV_MILLI_TO_UNIT(curr_delay);
-        else
-            err = PCO_ERROR_FIRMWARE_COC_TIMEBASE_INVALID;
+        *timebase = TIMEBASE_NS;
+        *output = (uint32_t)CNV_UNIT_TO_NANO(input);
     }
-    RETURN_IF_ERROR(err);
-    if (err == 0)
+    if (input > 1e-6)
     {
-        if (tb_expos == TIMEBASE_NS)
-            *exposure = CNV_NANO_TO_UNIT(curr_expos);
-        else if (tb_expos == TIMEBASE_US)
-            *exposure = CNV_MICRO_TO_UNIT(curr_expos);
-        else if (tb_expos == TIMEBASE_MS)
-            *exposure = CNV_MILLI_TO_UNIT(curr_expos);
-        else
-            err = PCO_ERROR_FIRMWARE_COC_TIMEBASE_INVALID;
+        *timebase = TIMEBASE_US;
+        *output = (uint32_t)CNV_UNIT_TO_MICRO(input);
     }
-    RETURN_ANY_CODE(err);
+    if (input > 1e-3)
+    {
+        *timebase = TIMEBASE_MS;
+        *output = (uint32_t)CNV_UNIT_TO_MILLI(input);
+    }
 }
 
 unsigned int pco_set_delay_exposure(pco_handle *pco, double delay, double exposure)
@@ -786,44 +816,10 @@ unsigned int pco_set_delay_exposure(pco_handle *pco, double delay, double exposu
     uint16_t tb_delay, tb_expos;
     DWORD err = pco->com->PCO_GetDelayExposureTime(&curr_delay, &curr_expos, &tb_delay, &tb_expos);
     RETURN_IF_ERROR(err);
-    if (delay >= 0)
-    {
-        if (delay > 1e-9)
-        {
-            tb_delay = TIMEBASE_NS;
-            curr_delay = (uint32_t)CNV_UNIT_TO_NANO(delay);
-        }
-        if (delay > 1e-6)
-        {
-            tb_delay = TIMEBASE_US;
-            curr_delay = (uint32_t)CNV_UNIT_TO_MICRO(delay);
-        }
-        if (delay > 1e-3)
-        {
-            tb_delay = TIMEBASE_MS;
-            curr_delay = (uint32_t)CNV_UNIT_TO_MILLI(delay);
-        }
-        else
-            curr_delay = 0;
-    }
-    if (exposure >= 0)
-    {
-        if (exposure > 1e-9)
-        {
-            tb_expos = TIMEBASE_NS;
-            curr_expos = (uint32_t)CNV_UNIT_TO_NANO(exposure);
-        }
-        if (exposure > 1e-6)
-        {
-            tb_expos = TIMEBASE_US;
-            curr_expos = (uint32_t)CNV_UNIT_TO_MICRO(exposure);
-        }
-        if (exposure > 1e-3)
-        {
-            tb_expos = TIMEBASE_MS;
-            curr_expos = (uint32_t)CNV_UNIT_TO_MILLI(exposure);
-        }
-    }
+    
+    _create_timebased_value(delay, &curr_delay, &tb_delay);
+    _create_timebased_value(exposure, &curr_expos, &tb_expos);
+
     err = pco->com->PCO_SetDelayExposureTime(curr_delay, curr_expos, tb_delay, tb_expos);
     RETURN_ANY_CODE(err);
 }
@@ -915,16 +911,6 @@ unsigned int pco_acquire_image_ex(pco_handle *pco, void *adr, int timeout)
     DWORD err = pco->grabber->Acquire_Image(adr, timeout);
     RETURN_ANY_CODE(err);
 }
-
-// unsigned int pco_acquire_image_async(pco_handle *pco, void *adr)
-// {
-//     RETURN_NOT_SUPPORTED("Async image transfer not supported", 0);
-// }
-
-// unsigned int pco_acquire_image_async_ex(pco_handle *pco, void *adr, int timeout)
-// {
-//     RETURN_NOT_SUPPORTED("Async image transfer not supported", 0);
-// }
 
 unsigned int pco_acquire_image_await(pco_handle *pco, void *adr)
 {
