@@ -358,10 +358,6 @@ static void uca_pco_clhs_camera_trigger(UcaCamera *camera, GError **error)
         g_set_error(error, UCA_PCO_CLHS_CAMERA_ERROR, UCA_PCO_CLHS_CAMERA_ERROR_GENERAL,
                     "Could not trigger frame acquisition");
     }
-    else
-    {
-        priv->num_triggers++;
-    }
 }
 
 static gboolean uca_pco_clhs_camera_grab(UcaCamera *camera, gpointer data, GError **error)
