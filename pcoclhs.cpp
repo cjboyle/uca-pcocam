@@ -244,7 +244,6 @@ unsigned int pco_grabber_set_timeout(pco_handle *pco, int milliseconds)
         pco->com->Set_Timeouts(new_ts, 3 * sizeof(DWORD));
     }
     return pco->grabber->Set_Grabber_Timeout(milliseconds);
-    pco->com->Cance
 }
 
 unsigned int pco_grabber_get_timeout(pco_handle *pco, int *milliseconds)
