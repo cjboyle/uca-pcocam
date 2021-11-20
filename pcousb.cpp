@@ -231,6 +231,17 @@ unsigned int pco_grabber_free_memory(pco_handle *pco)
 
 unsigned int pco_grabber_set_timeout(pco_handle *pco, int milliseconds)
 {
+    {
+        // also update camera image and transfer timeouts
+        PCO_SC2_TIMEOUTS ts;
+        pco->com->gettimeouts(&ts);
+        DWORD new_ts[3] = {
+            ts.command,
+            milliseconds > PCO_SC2_IMAGE_TIMEOUT_L ? milliseconds : PCO_SC2_IMAGE_TIMEOUT_L,
+            milliseconds > PCO_SC2_IMAGE_TIMEOUT_L ? milliseconds : PCO_SC2_IMAGE_TIMEOUT_L,
+        };
+        pco->com->Set_Timeouts(new_ts, 3 * sizeof(DWORD));
+    }
     return pco->grabber->Set_Grabber_Timeout(milliseconds);
 }
 
