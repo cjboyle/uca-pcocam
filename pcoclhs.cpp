@@ -673,6 +673,10 @@ unsigned int pco_force_trigger(pco_handle *pco, uint16_t *success)
 
     err = pco->com->PCO_ForceTrigger(success);
     pco->logger->writelog(PROCESS_M, 0xFFFF, "User App: call PCO_ForceTrigger returned 0x%x", err);
+
+    if (*success)
+        pco->latent_trigger_count = 0;
+
     RETURN_ANY_CODE(err);
 }
 
@@ -684,7 +688,7 @@ unsigned int pco_get_trigger_count(pco_handle *pco, uint32_t *count)
 
     // The camera does not reset its imagecount field before/after recording sessions.
     // This check ensures that zero is returned until the internal field is updated.
-    if (cnt > 0 && cnt == pco->latent_trigger_count)
+    if (!pco_is_recording(pco) || (cnt > 0 && cnt == pco->latent_trigger_count))
     {
         *count = 0;
     }
