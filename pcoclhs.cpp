@@ -692,8 +692,8 @@ unsigned int pco_get_sensor_signal_status(pco_handle *pco, uint32_t *status, uin
 
 unsigned int pco_get_trigger_count(pco_handle *pco, uint32_t *count)
 {
-    uint32_t cnt = 0;
-    DWORD err = pco_get_sensor_signal_status(pco, &discard.ui32, &cnt);
+    uint32_t cnt = 0, sts = 0;
+    DWORD err = pco_get_sensor_signal_status(pco, &sts, &cnt);
     RETURN_IF_ERROR(err);
 
     // The camera does not reset its imagecount field before/after recording sessions.
