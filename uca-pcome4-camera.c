@@ -430,7 +430,7 @@ static void uca_pco_me4_camera_trigger(UcaCamera *camera, GError **error)
     if (!success)
     {
         g_set_error(error, UCA_PCO_ME4_CAMERA_ERROR, UCA_PCO_ME4_CAMERA_ERROR_GENERAL,
-                    "Could not trigger frame acquisition");
+                    "Could not trigger frame, camera busy");
     }
 }
 

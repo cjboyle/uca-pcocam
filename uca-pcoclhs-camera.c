@@ -356,7 +356,7 @@ static void uca_pco_clhs_camera_trigger(UcaCamera *camera, GError **error)
     if (!success)
     {
         g_set_error(error, UCA_PCO_CLHS_CAMERA_ERROR, UCA_PCO_CLHS_CAMERA_ERROR_GENERAL,
-                    "Could not trigger frame acquisition");
+                    "Could not trigger frame, camera busy");
     }
 
     pco_get_trigger_count(priv->pco, &priv->num_triggers);
