@@ -391,9 +391,9 @@ static gboolean uca_pco_clhs_camera_grab(UcaCamera *camera, gpointer data, GErro
         g_get_current_time(&timeout);
 
         // Don't worry about the timeout when saving to the ring buffer.
-        if (is_buffered)
-            g_time_val_add(&timeout, G_MAXUINT16 * 1000);
-        else
+        // if (is_buffered)
+        //     g_time_val_add(&timeout, G_MAXUINT16 * 1000);
+        // else
             g_time_val_add(&timeout, get_max_timeout_millis(priv) * 1000); // millis to micros
 
         while (priv->last_trigger_grabbed >= priv->num_triggers)
@@ -426,7 +426,7 @@ static gboolean uca_pco_clhs_camera_grab(UcaCamera *camera, gpointer data, GErro
         pco_get_fps(priv->pco, &fps);
         rt = 1 / fps;
 
-        g_warning("Forced delay: #trigs=%d, #behind=%d, rt=%f s", priv->num_triggers, frames2go, (float)rt);
+        g_warning("Forced delay: #trigs=%d, last=%d, #behind=%d, rt=%f s", priv->num_triggers, priv->last_trigger_grabbed, frames2go, (float)rt);
 
         if (rt > 1)
             sleep((int)round(rt));
