@@ -430,9 +430,9 @@ static gboolean uca_pco_clhs_camera_grab(UcaCamera *camera, gpointer data, GErro
             sleep((int)round(rt));
         else
             usleep((int)ceil(rt * 1e3));
-        
+
         if (frames2go <= 2)
-            sleep(1)
+            sleep(1);
     }
 
     gpointer frame = g_malloc0(size);
