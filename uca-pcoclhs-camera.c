@@ -426,6 +426,8 @@ static gboolean uca_pco_clhs_camera_grab(UcaCamera *camera, gpointer data, GErro
         pco_get_fps(priv->pco, &fps);
         rt = 1 / fps;
 
+        g_warning("Forced delay: #trigs=%d, #behind=%d, rt=%f s", priv->num_triggers, frames2go, (float)rt);
+
         if (rt > 1)
             sleep((int)round(rt));
         else
