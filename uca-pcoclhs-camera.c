@@ -424,7 +424,7 @@ static gboolean uca_pco_clhs_camera_grab(UcaCamera *camera, gpointer data, GErro
     {
         double fps, rt;
         pco_get_fps(priv->pco, &fps);
-        rt = 1 / rt;
+        rt = 1 / fps;
 
         if (rt > 1)
             sleep((int)round(rt));
