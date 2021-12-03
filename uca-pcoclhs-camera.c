@@ -419,14 +419,13 @@ static gboolean uca_pco_clhs_camera_grab(UcaCamera *camera, gpointer data, GErro
     // we should be able to delay the final few grabs to ensure complete frame
     // transfers. This will have an accordion effect, and will accelerate as
     // more triggers occur such that we can still keep up with the triggers.
+    // This is moreso an issue when using to the ring buffer.
     int frames2go = priv->num_triggers - priv->last_trigger_grabbed;
     if (is_buffered && frames2go <= 10)
     {
         double fps, rt;
         pco_get_fps(priv->pco, &fps);
         rt = 1 / fps;
-
-        g_warning("Forced delay: #trigs=%d, last=%d, #behind=%d, rt=%f s", priv->num_triggers, priv->last_trigger_grabbed, frames2go, (float)rt);
 
         if (rt > 1)
             sleep((int)round(rt));
