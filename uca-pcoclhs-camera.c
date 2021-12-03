@@ -391,9 +391,9 @@ static gboolean uca_pco_clhs_camera_grab(UcaCamera *camera, gpointer data, GErro
         g_get_current_time(&timeout);
 
         // Don't worry about the timeout when saving to the ring buffer.
-        if (is_buffered)
-            g_time_val_add(&timeout, G_MAXUINT16 * 1000);
-        else
+        // if (is_buffered)
+        //     g_time_val_add(&timeout, G_MAXUINT16 * 1000);
+        // else
             g_time_val_add(&timeout, get_max_timeout_millis(priv) * 1000); // millis to micros
 
         while (priv->last_trigger_grabbed >= priv->num_triggers)
