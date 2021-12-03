@@ -351,6 +351,15 @@ extern "C"
     uint32_t pco_set_pixelrate(pco_handle *pco, uint32_t rate);
 
     /**
+     * Get the time required to grab a new frame.
+     * (exposure + delay + readout)
+     * @param pco handle
+     * @param rate output the frames per second rate
+     * @return 0 on success, otherwise less than 0
+     */
+    uint32_t pco_get_frame_time(pco_handle *pco, double *seconds);
+
+    /**
      * Get the framerate of the camera, in Hz.
      * @param pco handle
      * @param rate output the frames per second rate

@@ -423,9 +423,8 @@ static gboolean uca_pco_clhs_camera_grab(UcaCamera *camera, gpointer data, GErro
     int frames2go = priv->num_triggers - priv->last_trigger_grabbed;
     if (is_buffered && frames2go <= 10)
     {
-        double fps, rt;
-        pco_get_fps(priv->pco, &fps);
-        rt = 1 / fps;
+        double rt;
+        pco_get_frame_time(priv->pco, &rt);
 
         if (rt > 1)
             sleep((int)round(rt));

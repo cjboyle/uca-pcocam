@@ -565,6 +565,15 @@ unsigned int pco_set_fps(pco_handle *pco, double fps)
     RETURN_ANY_CODE(err);
 }
 
+unsigned int pco_get_frame_time(pco_handle *pco, double *seconds)
+{
+    uint32_t s, ns;
+    DWORD err = pco->com->PCO_GetCOCRuntime(&s, &ns);
+    RETURN_IF_ERROR(err);
+    *seconds = ((double)s) + (ns * 1e-4);
+    RETURN_ANY_CODE(err);
+}
+
 unsigned int pco_get_fps(pco_handle *pco, double *fps)
 {
     WORD status;
@@ -576,12 +585,10 @@ unsigned int pco_get_fps(pco_handle *pco, double *fps)
     }
     else
     {
-        // try calculate from delay and exposure time.
-        // may get here if PCO_GetFrameRate is not supported.
-        double expo, delay;
-        err = pco_get_delay_exposure(pco, &delay, &expo);
+        double coc_time;
+        err = pco_get_frame_time(pco, &coc_time);
         RETURN_IF_ERROR(err);
-        *fps = 1.0 / (expo + delay);
+        *fps = 1.0 / coc_time;
     }
     RETURN_ANY_CODE(err);
 }
