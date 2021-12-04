@@ -33,12 +33,6 @@
         return val;                                        \
     }
 
-#define DEBUG(...)               \
-    if (getenv("DEBUG") != NULL) \
-    {                            \
-        g_warning(__VA_ARGS__);  \
-    }
-
 static void uca_pco_clhs_camera_initable_iface_init(GInitableIface *iface);
 
 G_DEFINE_TYPE_WITH_CODE(UcaPcoClhsCamera, uca_pco_clhs_camera, UCA_TYPE_CAMERA,
@@ -151,6 +145,7 @@ struct _UcaPcoClhsCameraPrivate
     UcaCameraTriggerSource trigger_source;
     guint32 num_triggers, last_trigger_grabbed;
     gint timeout_sec, ext_timeout_sec;
+    gdouble secs_per_frame;
 
     //
     /* threading */
@@ -318,11 +313,15 @@ static void uca_pco_clhs_camera_start_recording(UcaCamera *camera, GError **erro
     err = pco_grabber_set_timeout(priv->pco, get_max_timeout_millis(priv));
     CHECK_AND_RETURN_VOID_ON_PCO_ERROR(err);
 
+    err = pco_get_frame_time(priv->pco, &priv->secs_per_frame);
+
     if (transfer_async)
         setup_async_grab_thread(camera, error);
 
     err = pco_start_recording(priv->pco);
     CHECK_AND_RETURN_VOID_ON_PCO_ERROR(err);
+
+    g_debug("Recording started.");
 }
 
 static void uca_pco_clhs_camera_stop_recording(UcaCamera *camera, GError **error)
@@ -344,6 +343,8 @@ static void uca_pco_clhs_camera_stop_recording(UcaCamera *camera, GError **error
         priv->grab_thread_running = FALSE;
         g_thread_join(priv->grab_thread);
     }
+
+    g_debug("Recording stopped.");
 }
 
 static void uca_pco_clhs_camera_trigger(UcaCamera *camera, GError **error)
@@ -416,15 +417,9 @@ static gboolean uca_pco_clhs_camera_grab(UcaCamera *camera, gpointer data, GErro
                 return FALSE;
             }
 
-            err = pco_get_trigger_count(priv->pco, &priv->num_triggers);
-            if (err != PCO_NOERROR)
-            {
-                DEBUG("Failed to get trigger count: last=%d, timer=%d sec", priv->last_trigger_grabbed, now.tv_sec - timeout.tv_sec);
-            }
+            pco_get_trigger_count(priv->pco, &priv->num_triggers);
         }
     }
-
-    DEBUG("Frame available: last=%d, all=%d", priv->last_trigger_grabbed, priv->num_triggers);
 
     // Updating the trigger count may report frames before they are completely
     // exposed and transfered. The grabber can store ~50 2560x2160 frames, so
@@ -435,17 +430,14 @@ static gboolean uca_pco_clhs_camera_grab(UcaCamera *camera, gpointer data, GErro
     int frames2go = priv->num_triggers - priv->last_trigger_grabbed;
     if (is_buffered && frames2go <= 10)
     {
-        double rt;
-        err = pco_get_frame_time(priv->pco, &rt);
-        if (err != PCO_NOERROR)
-            DEBUG("Failed to get COC runtime: err=0x%08x", err);
+        pco_get_frame_time(priv->pco, &priv->secs_per_frame);
 
-        DEBUG("Forced delay: rt=%f sec, last=%d, f2g=%d", (float)rt, priv->last_trigger_grabbed, frames2go);
+        g_debug("Forced delay: rt=%f sec, last=%d, f2g=%d", (float)priv->secs_per_frame, priv->last_trigger_grabbed, frames2go);
 
-        if (rt > 1)
-            sleep((int)round(rt));
+        if (priv->secs_per_frame > 1)
+            sleep((int)ceil(priv->secs_per_frame));
         else
-            usleep((int)ceil(rt * 1e3));
+            usleep((int)ceil(priv->secs_per_frame * 1e3));
 
         if (frames2go <= 2)
             sleep(1);
@@ -471,6 +463,8 @@ static gboolean uca_pco_clhs_camera_grab(UcaCamera *camera, gpointer data, GErro
 
     memcpy(data, frame, size);
     priv->last_trigger_grabbed++;
+
+    g_debug("Frame grabbed: frame=%d, all=%d", priv->last_trigger_grabbed, priv->num_triggers);
 
     g_free(frame);
     frame = NULL;
@@ -1166,6 +1160,8 @@ static void uca_pco_clhs_camera_finalize(GObject *object)
     g_clear_error(&priv->construct_error);
 
     G_OBJECT_CLASS(uca_pco_clhs_camera_parent_class)->finalize(object);
+
+    g_debug("Camera interface destroyed.");
 }
 
 static gboolean uca_pco_clhs_camera_initable_init(GInitable *initable, GCancellable *cancellable, GError **error)
@@ -1430,12 +1426,6 @@ static gboolean setup_pco_camera(UcaPcoClhsCameraPrivate *priv)
     g_free(priv->version);
     priv->version = g_strdup_printf("%u, %u.%u, %u.%u", serial, version[0], version[1], version[2], version[3]);
 
-    {
-        double rt;
-        err = pco_get_frame_time(priv->pco, &rt);
-        DEBUG("COC Runtime: returned 0x%08x, rt=%f", err, (float)rt);
-    }
-
     return TRUE;
 }
 
@@ -1482,8 +1472,6 @@ static void override_property_ranges(UcaPcoClhsCamera *camera)
 static void
 uca_pco_clhs_camera_init(UcaPcoClhsCamera *self)
 {
-    DEBUG("DEBUGGING ENABLED");
-
     UcaCamera *camera;
     UcaPcoClhsCameraPrivate *priv;
 
@@ -1514,6 +1502,8 @@ uca_pco_clhs_camera_init(UcaPcoClhsCamera *self)
     uca_camera_register_unit(camera, "frame-grabber-timeout", UCA_UNIT_SECOND);
     uca_camera_register_unit(camera, "frame-grabber-ext-timeout", UCA_UNIT_SECOND);
     uca_camera_set_writable(camera, "frames-per-second", TRUE);
+
+    g_debug("Camera interface initialized.");
 }
 
 G_MODULE_EXPORT GType camera_plugin_get_type(void)
