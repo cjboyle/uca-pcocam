@@ -33,10 +33,10 @@
         return val;                                        \
     }
 
-#define DEBUG(...)            \
-    if (getenv("DEBUG"))      \
-    {                         \
-        g_debug(__VA_ARGS__); \
+#define DEBUG(...)               \
+    if (getenv("DEBUG") != NULL) \
+    {                            \
+        g_warning(__VA_ARGS__);  \
     }
 
 static void uca_pco_clhs_camera_initable_iface_init(GInitableIface *iface);
@@ -423,6 +423,8 @@ static gboolean uca_pco_clhs_camera_grab(UcaCamera *camera, gpointer data, GErro
             }
         }
     }
+
+    DEBUG("Frame available: last=%d, all=%d", priv->last_trigger_grabbed, priv->num_triggers);
 
     // Updating the trigger count may report frames before they are completely
     // exposed and transfered. The grabber can store ~50 2560x2160 frames, so
@@ -1428,6 +1430,12 @@ static gboolean setup_pco_camera(UcaPcoClhsCameraPrivate *priv)
     g_free(priv->version);
     priv->version = g_strdup_printf("%u, %u.%u, %u.%u", serial, version[0], version[1], version[2], version[3]);
 
+    {
+        double rt;
+        err = pco_get_frame_time(priv->pco, &rt);
+        DEBUG("COC Runtime: returned 0x%08x, rt=%f", err, (float)rt);
+    }
+
     return TRUE;
 }
 
@@ -1474,6 +1482,8 @@ static void override_property_ranges(UcaPcoClhsCamera *camera)
 static void
 uca_pco_clhs_camera_init(UcaPcoClhsCamera *self)
 {
+    DEBUG("DEBUGGING ENABLED");
+
     UcaCamera *camera;
     UcaPcoClhsCameraPrivate *priv;
 
