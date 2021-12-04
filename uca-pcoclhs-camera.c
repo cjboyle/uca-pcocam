@@ -33,6 +33,12 @@
         return val;                                        \
     }
 
+#define DEBUG(...)            \
+    if (getenv("DEBUG"))      \
+    {                         \
+        g_debug(__VA_ARGS__); \
+    }
+
 static void uca_pco_clhs_camera_initable_iface_init(GInitableIface *iface);
 
 G_DEFINE_TYPE_WITH_CODE(UcaPcoClhsCamera, uca_pco_clhs_camera, UCA_TYPE_CAMERA,
@@ -394,7 +400,7 @@ static gboolean uca_pco_clhs_camera_grab(UcaCamera *camera, gpointer data, GErro
         // if (is_buffered)
         //     g_time_val_add(&timeout, G_MAXUINT16 * 1000);
         // else
-            g_time_val_add(&timeout, get_max_timeout_millis(priv) * 1000); // millis to micros
+        g_time_val_add(&timeout, get_max_timeout_millis(priv) * 1000); // millis to micros
 
         while (priv->last_trigger_grabbed >= priv->num_triggers)
         {
@@ -410,7 +416,11 @@ static gboolean uca_pco_clhs_camera_grab(UcaCamera *camera, gpointer data, GErro
                 return FALSE;
             }
 
-            pco_get_trigger_count(priv->pco, &priv->num_triggers);
+            err = pco_get_trigger_count(priv->pco, &priv->num_triggers);
+            if (err != PCO_NOERROR)
+            {
+                DEBUG("Failed to get trigger count: last=%d, timer=%d sec", priv->last_trigger_grabbed, now.tv_sec - timeout.tv_sec);
+            }
         }
     }
 
@@ -424,7 +434,11 @@ static gboolean uca_pco_clhs_camera_grab(UcaCamera *camera, gpointer data, GErro
     if (is_buffered && frames2go <= 10)
     {
         double rt;
-        pco_get_frame_time(priv->pco, &rt);
+        err = pco_get_frame_time(priv->pco, &rt);
+        if (err != PCO_NOERROR)
+            DEBUG("Failed to get COC runtime: err=0x%08x", err);
+
+        DEBUG("Forced delay: rt=%f sec, last=%d, f2g=%d", (float)rt, priv->last_trigger_grabbed, frames2go);
 
         if (rt > 1)
             sleep((int)round(rt));
