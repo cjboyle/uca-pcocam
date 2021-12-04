@@ -487,7 +487,7 @@ unsigned int pco_get_frame_time(pco_handle *pco, double *seconds)
     uint32_t s, ns;
     DWORD err = pco->com->PCO_GetCOCRuntime(&s, &ns);
     RETURN_IF_ERROR(err);
-    *seconds = ((double)s) + (ns * 1e-4);
+    *seconds = ((double)s) + CNV_NANO_TO_UNIT(ns);
     RETURN_ANY_CODE(err);
 }
 
