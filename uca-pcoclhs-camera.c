@@ -369,6 +369,14 @@ static void uca_pco_clhs_camera_trigger(UcaCamera *camera, GError **error)
     pco_get_trigger_count(priv->pco, &priv->num_triggers);
 }
 
+static gint get_updated_trigger_count(UcaPcoClhsCameraPrivate *priv)
+{
+    gint count;
+    if (pco_get_trigger_count(priv->pco, &count) == PCO_NOERROR)
+        priv->num_triggers = count;
+    return priv->num_triggers;
+}
+
 static gboolean uca_pco_clhs_camera_grab(UcaCamera *camera, gpointer data, GError **error)
 {
     g_return_val_if_fail(UCA_IS_PCO_CLHS_CAMERA(camera), FALSE);
@@ -427,21 +435,18 @@ static gboolean uca_pco_clhs_camera_grab(UcaCamera *camera, gpointer data, GErro
         // more triggers occur such that we can still keep up with the triggers.
         // This is moreso an issue when using to the ring buffer.
         pco_get_trigger_count(priv->pco, &priv->num_triggers);
-        // int frames2go = priv->num_triggers - priv->last_trigger_grabbed;
-        // if (is_buffered && frames2go <= 10)
-        // {
-        //     pco_get_frame_time(priv->pco, &priv->secs_per_frame);
+        int frames2go = priv->num_triggers - priv->last_trigger_grabbed;
+        if (is_buffered && frames2go <= 3)
+        {
+            pco_get_frame_time(priv->pco, &priv->secs_per_frame);
 
-        //     g_debug("Forced delay: rt=%f sec, last=%d, f2g=%d", (float)priv->secs_per_frame, priv->last_trigger_grabbed, frames2go);
+            g_debug("Forced delay: rt=%f sec, last=%d, f2g=%d", (float)priv->secs_per_frame, priv->last_trigger_grabbed, frames2go);
 
-        //     if (priv->secs_per_frame > 1)
-        //         sleep((int)ceil(priv->secs_per_frame));
-        //     else
-        //         usleep((int)ceil(priv->secs_per_frame * 1e3));
-
-        //     if (frames2go <= 2)
-        //         sleep(1);
-        // }
+            if (priv->secs_per_frame > 1)
+                sleep((int)ceil(priv->secs_per_frame));
+            else
+                usleep((int)ceil(priv->secs_per_frame * 1e3));
+        }
     }
 
     gpointer frame = g_malloc0(size);
