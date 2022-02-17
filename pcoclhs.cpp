@@ -67,10 +67,16 @@ static unsigned int _pco_init(pco_handle *pco, int board, int port)
     grab = new CPco_grab_clhs(com);
     pco->grabber = grab;
 
-    CPco_Log *logger;
+    char *logdir = getenv("PCO_LOG_DIR");
+    if (logdir == NULL || strlen(logdir) == 0)
+        logdir = "";
     char logname[35];
     pco_get_log_filename(logname, 35);
-    logger = new CPco_Log(logname);
+
+    char *logpath = strcat(logdir, logname);
+
+    CPco_Log *logger;
+    logger = new CPco_Log(logpath);
     logger->set_logbits(LOG_LEVEL_BITS);
     pco->logger = logger;
 
@@ -90,6 +96,13 @@ static unsigned int _pco_init(pco_handle *pco, int board, int port)
     RETURN_IF_ERROR(err);
 
     err = pco->grabber->Set_Grabber_Timeout(10000);
+    RETURN_IF_ERROR(err);
+
+    PCO_SC2_CL_TRANSFER_PARAM tx_param;
+    err = pco->com->PCO_GetTransferParameter(&tx_param, sizeof(tx_param));
+    RETURN_IF_ERROR(err);
+    tx_param.Transmit = 0x00000001;
+    err = pco->com->PCO_SetTransferParameter(&tx_param, sizeof(tx_param));
     RETURN_IF_ERROR(err);
 
     err = pco->com->PCO_SetCameraToCurrentTime();
@@ -688,12 +701,12 @@ unsigned int pco_force_trigger(pco_handle *pco, uint16_t *success)
 unsigned int pco_get_sensor_signal_status(pco_handle *pco, uint32_t *status, uint32_t *count)
 {
     DWORD err = pco->com->PCO_GetSensorSignalStatus(status, count);
-    int retry = 20;
-    while (err != PCO_NOERROR && retry--)
-    {
-        usleep(500);
-        err = pco->com->PCO_GetSensorSignalStatus(status, count);
-    }
+    // int retry = 20;
+    // while (err != PCO_NOERROR && retry--)
+    // {
+    //     usleep(500);
+    //     err = pco->com->PCO_GetSensorSignalStatus(status, count);
+    // }
     RETURN_ANY_CODE(err);
 }
 

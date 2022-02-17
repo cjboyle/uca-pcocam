@@ -400,7 +400,7 @@ static gboolean uca_pco_clhs_camera_grab(UcaCamera *camera, gpointer data, GErro
 
     // Validate manual trigger count before attempting to grab a frame.
     // Otherwise, a trigger after a timed-out grab may seg fault.
-    if (priv->trigger_source != UCA_CAMERA_TRIGGER_SOURCE_AUTO)
+    if (FALSE && priv->trigger_source != UCA_CAMERA_TRIGGER_SOURCE_AUTO)
     {
         GTimeVal timeout, now;
         g_get_current_time(&timeout);
