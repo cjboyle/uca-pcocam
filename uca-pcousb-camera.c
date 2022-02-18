@@ -147,8 +147,8 @@ struct _UcaPcoUsbCameraPrivate
 
     UcaCameraTriggerSource trigger_source;
     guint32 num_triggers, last_trigger_grabbed;
-
     gint timeout_sec, ext_timeout_sec;
+    gdouble secs_per_frame;
 
     //
     /* threading */
@@ -316,6 +316,8 @@ static void uca_pco_usb_camera_start_recording(UcaCamera *camera, GError **error
     err = pco_grabber_set_timeout(priv->pco, get_max_timeout_millis(priv));
     CHECK_AND_RETURN_VOID_ON_PCO_ERROR(err);
 
+    err = pco_get_frame_time(priv->pco, &priv->secs_per_frame);
+
     if (transfer_async)
         setup_async_grab_thread(camera, error);
 
@@ -344,6 +346,14 @@ static void uca_pco_usb_camera_stop_recording(UcaCamera *camera, GError **error)
     }
 }
 
+static guint get_updated_trigger_count(UcaPcoUsbCameraPrivate *priv)
+{
+    guint count;
+    if (pco_get_trigger_count(priv->pco, &count) == PCO_NOERROR)
+        priv->num_triggers = count;
+    return priv->num_triggers;
+}
+
 static void uca_pco_usb_camera_trigger(UcaCamera *camera, GError **error)
 {
     UcaPcoUsbCameraPrivate *priv;
@@ -363,7 +373,7 @@ static void uca_pco_usb_camera_trigger(UcaCamera *camera, GError **error)
                     "Could not trigger frame, camera busy");
     }
 
-    pco_get_trigger_count(priv->pco, &priv->num_triggers);
+    get_updated_trigger_count(priv);
 }
 
 static gboolean uca_pco_usb_camera_grab(UcaCamera *camera, gpointer data, GError **error)
@@ -393,15 +403,13 @@ static gboolean uca_pco_usb_camera_grab(UcaCamera *camera, gpointer data, GError
     {
         GTimeVal timeout, now;
         g_get_current_time(&timeout);
-
-        // Don't worry about the timeout when saving to the ring buffer
-        if (is_buffered)
-            g_time_val_add(&timeout, G_MAXUINT16 * 1000);
-        else
-            g_time_val_add(&timeout, get_max_timeout_millis(priv) * 1000); // millis to micros
+        g_time_val_add(&timeout, get_max_timeout_millis(priv) * 1000); // millis to micros
 
         while (priv->last_trigger_grabbed >= priv->num_triggers)
         {
+            if (uca_camera_stopped_recording(camera))
+                return FALSE;
+
             g_get_current_time(&now);
             if (now.tv_sec >= timeout.tv_sec)
             {
@@ -411,30 +419,26 @@ static gboolean uca_pco_usb_camera_grab(UcaCamera *camera, gpointer data, GError
                 return FALSE;
             }
 
-            pco_get_trigger_count(priv->pco, &priv->num_triggers);
+            priv->num_triggers = get_updated_trigger_count(priv);
         }
-    }
 
-    // Updating the trigger count may report frames before they are completely
-    // exposed and transfered. The camera can store ~400 2560x2160 frames, so
-    // we should be able to delay the final few grabs to ensure complete frame
-    // transfers. This will have an accordion effect, and will accelerate as
-    // more triggers occur such that we can still keep up with the triggers.
-    // This is moreso an issue when using to the ring buffer.
-    int frames2go = priv->num_triggers - priv->last_trigger_grabbed;
-    if (is_buffered && frames2go <= 10)
-    {
-        double fps, rt;
-        pco_get_fps(priv->pco, &fps);
-        rt = 1 / fps;
+        // Updating the trigger count may report frames before they are completely
+        // exposed and transfered. The camera can store ~400 2560x2160 frames, so
+        // we should be able to delay the final few grabs to ensure complete frame
+        // transfers. This will have an accordion effect, and will accelerate as
+        // more triggers occur such that we can still keep up with the triggers.
+        // This is moreso an issue when using to the ring buffer.
+        int frames2go = priv->num_triggers - priv->last_trigger_grabbed;
+        if (is_buffered && frames2go <= 3)
+        {
+            g_debug("Forced delay: rt=%f sec, last=%d, f2g=%d",
+                    (float)priv->secs_per_frame, priv->last_trigger_grabbed, frames2go);
 
-        if (rt > 1)
-            sleep((int)round(rt));
-        else
-            usleep((int)ceil(rt * 1e3));
-
-        if (frames2go <= 2)
-            sleep(1);
+            if (priv->secs_per_frame >= 1)
+                sleep((int)ceil(priv->secs_per_frame));
+            else
+                usleep((int)ceil(CNV_UNIT_TO_MICRO(priv->secs_per_frame)));
+        }
     }
 
     gpointer frame = g_malloc0(size);
@@ -673,7 +677,7 @@ static void uca_pco_usb_camera_set_property(GObject *object, guint property_id, 
 
     case PROP_TRIGGER_SOURCE:
     {
-        UcaCameraTriggerSource trigger_source = g_value_get_enum(value);
+        UcaCameraTriggerSource trigger_source = (UcaCameraTriggerSource)g_value_get_enum(value);
 
         switch (trigger_source)
         {
@@ -851,7 +855,7 @@ static void uca_pco_usb_camera_get_property(GObject *object, guint property_id, 
 
     case PROP_SENSOR_ADCS:
     {
-        guint mode;
+        guint16 mode;
         pco_get_adc_mode(priv->pco, &mode);
         g_value_set_uint(value, mode);
     }

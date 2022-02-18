@@ -683,12 +683,12 @@ unsigned int pco_force_trigger(pco_handle *pco, uint16_t *success)
 unsigned int pco_get_sensor_signal_status(pco_handle *pco, uint32_t *status, uint32_t *count)
 {
     DWORD err = pco->com->PCO_GetSensorSignalStatus(status, count);
-    int retry = 20;
-    while (err != PCO_NOERROR && retry--)
-    {
-        usleep(500);
-        err = pco->com->PCO_GetSensorSignalStatus(status, count);
-    }
+    // int retry = 20;
+    // while (err != PCO_NOERROR && retry--)
+    // {
+    //     usleep(500);
+    //     err = pco->com->PCO_GetSensorSignalStatus(status, count);
+    // }
     RETURN_ANY_CODE(err);
 }
 

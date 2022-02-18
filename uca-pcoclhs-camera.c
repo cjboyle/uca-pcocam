@@ -347,6 +347,14 @@ static void uca_pco_clhs_camera_stop_recording(UcaCamera *camera, GError **error
     g_debug("Recording stopped.");
 }
 
+static guint get_updated_trigger_count(UcaPcoClhsCameraPrivate *priv)
+{
+    guint count;
+    if (pco_get_trigger_count(priv->pco, &count) == PCO_NOERROR)
+        priv->num_triggers = count;
+    return priv->num_triggers;
+}
+
 static void uca_pco_clhs_camera_trigger(UcaCamera *camera, GError **error)
 {
     UcaPcoClhsCameraPrivate *priv;
@@ -366,15 +374,7 @@ static void uca_pco_clhs_camera_trigger(UcaCamera *camera, GError **error)
                     "Could not trigger frame, camera busy");
     }
 
-    pco_get_trigger_count(priv->pco, &priv->num_triggers);
-}
-
-static gint get_updated_trigger_count(UcaPcoClhsCameraPrivate *priv)
-{
-    gint count;
-    if (pco_get_trigger_count(priv->pco, &count) == PCO_NOERROR)
-        priv->num_triggers = count;
-    return priv->num_triggers;
+    get_updated_trigger_count(priv);
 }
 
 static gboolean uca_pco_clhs_camera_grab(UcaCamera *camera, gpointer data, GError **error)
@@ -400,15 +400,10 @@ static gboolean uca_pco_clhs_camera_grab(UcaCamera *camera, gpointer data, GErro
 
     // Validate manual trigger count before attempting to grab a frame.
     // Otherwise, a trigger after a timed-out grab may seg fault.
-    if (FALSE && priv->trigger_source != UCA_CAMERA_TRIGGER_SOURCE_AUTO)
+    if (priv->trigger_source != UCA_CAMERA_TRIGGER_SOURCE_AUTO)
     {
         GTimeVal timeout, now;
         g_get_current_time(&timeout);
-
-        // Don't worry about the timeout when saving to the ring buffer.
-        // if (is_buffered)
-        //     g_time_val_add(&timeout, G_MAXUINT16 * 1000);
-        // else
         g_time_val_add(&timeout, get_max_timeout_millis(priv) * 1000); // millis to micros
 
         while (priv->last_trigger_grabbed >= priv->num_triggers)
@@ -685,7 +680,7 @@ static void uca_pco_clhs_camera_set_property(GObject *object, guint property_id,
 
     case PROP_TRIGGER_SOURCE:
     {
-        UcaCameraTriggerSource trigger_source = g_value_get_enum(value);
+        UcaCameraTriggerSource trigger_source = (UcaCameraTriggerSource)g_value_get_enum(value);
 
         switch (trigger_source)
         {
