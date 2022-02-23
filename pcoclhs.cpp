@@ -73,7 +73,7 @@ static unsigned int _pco_init(pco_handle *pco, int board, int port)
     char logname[35];
     pco_get_log_filename(logname, 35);
 
-    char *logpath = strcat(logdir, logname);
+    char *logpath = logname;  // strcat(logdir, logname);
 
     CPco_Log *logger;
     logger = new CPco_Log(logpath);
