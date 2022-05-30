@@ -84,6 +84,8 @@ static unsigned int _pco_init(pco_handle *pco, int board, int port)
     logger->set_logbits(LOG_LEVEL_BITS);
     pco->logger = logger;
 
+    fprintf(stderr, "PCO log file: %s\n", pco->logpath);
+
     pco->grabber->SetLog(pco->logger);
     pco->com->SetLog(pco->logger);
 
