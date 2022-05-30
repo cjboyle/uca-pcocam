@@ -45,6 +45,8 @@ struct _pco_handle
     CPco_grab_usb *grabber; /* Frame-grabber interface */
     CPco_Log *logger;
 
+    char *logpath;
+
     uint16_t cameraType, cameraSubType;
     SC2_Camera_Description_Response description;
 
@@ -68,10 +70,18 @@ static unsigned int _pco_init(pco_handle *pco, int board, int port)
     grab = new CPco_grab_usb(com);
     pco->grabber = grab;
 
-    CPco_Log *logger;
+    char *logdir = getenv("PCO_LOG_DIR");
+    if (logdir == NULL || strlen(logdir) == 0)
+        logdir = "";
     char logname[35];
     pco_get_log_filename(logname, 35);
-    logger = new CPco_Log(logname);
+
+    pco->logpath = (char *)malloc(strlen(logdir) + strlen(logname));
+    strcat(pco->logpath, logdir);
+    strcat(pco->logpath, logname);
+
+    CPco_Log *logger;
+    logger = new CPco_Log(pco->logpath);
     logger->set_logbits(LOG_LEVEL_BITS);
     pco->logger = logger;
 
@@ -155,6 +165,9 @@ void pco_destroy(pco_handle *pco)
 
     delete pco->com;
     pco->com = NULL;
+
+    delete pco->logpath;
+    pco->logpath = NULL;
 
     free(pco);
 }
