@@ -89,27 +89,20 @@ static unsigned int _pco_init(pco_handle *pco, int board, int port)
     pco->grabber->SetLog(pco->logger);
     pco->com->SetLog(pco->logger);
 
-    fprintf(stderr, "PCO log file: %s\n", pco->logpath);
-
     err = pco_open_camera(pco, port);
     RETURN_IF_ERROR(err);
-    fprintf(stderr, "Camera opened\n");
 
     err = pco->grabber->Open_Grabber(board);
     RETURN_IF_ERROR(err);
-    fprintf(stderr, "Grabber opened\n");
 
     err = pco->com->PCO_GetCameraDescriptor(&pco->description);
     RETURN_IF_ERROR(err);
-    fprintf(stderr, "Camera descriptor received\n");
 
     err = pco_get_camera_type(pco, &pco->cameraType, &pco->cameraSubType);
     RETURN_IF_ERROR(err);
-    fprintf(stderr, "Camera type and sub-type received\n");
 
     err = pco->grabber->Set_Grabber_Timeout(10000);
     RETURN_IF_ERROR(err);
-    fprintf(stderr, "Camera timeout set to 10 sec\n");
 
     PCO_SC2_CL_TRANSFER_PARAM tx_param;
     err = pco->com->PCO_GetTransferParameter(&tx_param, sizeof(tx_param));
@@ -117,31 +110,24 @@ static unsigned int _pco_init(pco_handle *pco, int board, int port)
     tx_param.Transmit = 0x00000001;
     err = pco->com->PCO_SetTransferParameter(&tx_param, sizeof(tx_param));
     RETURN_IF_ERROR(err);
-    fprintf(stderr, "Added Transmit flag to Tx mode\n");
 
     err = pco->com->PCO_SetCameraToCurrentTime();
     RETURN_IF_ERROR(err);
-    fprintf(stderr, "Camera clock synchronized\n");
 
     err = pco_set_recording_state(pco, 0);
     RETURN_IF_ERROR(err);
-    fprintf(stderr, "Camera recording ensured off\n");
 
     err = pco->com->PCO_ResetSettingsToDefault();
     RETURN_IF_ERROR(err);
-    fprintf(stderr, "Camera settings reset\n");
 
     err = pco_set_timestamp_mode(pco, TIMESTAMP_MODE_BINARYANDASCII);
     RETURN_IF_ERROR(err);
-    fprintf(stderr, "Camera timestamp mode set to full\n");
 
     err = pco_set_timebase(pco, TIMEBASE_MS, TIMEBASE_MS);
     RETURN_IF_ERROR(err);
-    fprintf(stderr, "Camera timebases set to milliseconds\n");
 
     err = pco_set_delay_exposure(pco, 0.0, 0.01);
     RETURN_IF_ERROR(err);
-    fprintf(stderr, "Camera set delay+exposure to default\n");
 
     if (pco->description.wNumADCsDESC > 1)
     {
@@ -151,11 +137,9 @@ static unsigned int _pco_init(pco_handle *pco, int board, int port)
 
     err = pco->com->PCO_SetBitAlignment(BIT_ALIGNMENT_LSB);
     RETURN_IF_ERROR(err);
-    fprintf(stderr, "Camera bit alignment set to LSB\n");
 
     err = pco->com->PCO_GetSensorSignalStatus(&discard.ui32, &pco->latent_trigger_count);
     RETURN_IF_ERROR(err);
-    fprintf(stderr, "Camera latent trigger count received\n");
 
     return PCO_NOERROR;
 }
@@ -173,7 +157,6 @@ pco_handle *pco_init(int board, int port)
         pco = NULL;
     }
 
-    fprintf(stderr, "Camera device layer initialized\n");
     return pco;
 }
 
