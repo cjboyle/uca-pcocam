@@ -71,12 +71,14 @@ static unsigned int _pco_init(pco_handle *pco, int board, int port)
 
     char *logdir = getenv("PCO_LOG_DIR");
     if (logdir == NULL || strlen(logdir) == 0)
-        logdir = "";
-    char logname[35];
-    pco_get_log_filename(logname, 35);
+        logdir = ".";
+    char logname[50];
+    pco_get_log_filename(logname, 50);
 
-    pco->logpath = (char *)malloc(strlen(logdir) + strlen(logname));
+    pco->logpath = (char *)malloc(strlen(logdir) + strlen(logname) + 5);
+    *pco->logpath = '\0';
     strcat(pco->logpath, logdir);
+    strcat(pco->logpath, "/");
     strcat(pco->logpath, logname);
 
     CPco_Log *logger;
