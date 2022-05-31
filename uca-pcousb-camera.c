@@ -136,6 +136,8 @@ struct _UcaPcoUsbCameraPrivate
     pco_handle *pco;
     pco_map_entry *description;
 
+    gboolean is_recording;
+
     guint16 board;
     guint16 port;
 
@@ -323,6 +325,9 @@ static void uca_pco_usb_camera_start_recording(UcaCamera *camera, GError **error
 
     err = pco_start_recording(priv->pco);
     CHECK_AND_RETURN_VOID_ON_PCO_ERROR(err);
+
+    priv->is_recording = TRUE;
+    g_debug("Recording started.");
 }
 
 static void uca_pco_usb_camera_stop_recording(UcaCamera *camera, GError **error)
@@ -344,6 +349,9 @@ static void uca_pco_usb_camera_stop_recording(UcaCamera *camera, GError **error)
         priv->grab_thread_running = FALSE;
         g_thread_join(priv->grab_thread);
     }
+
+    priv->is_recording = FALSE;
+    g_debug("Recording stopped.");
 }
 
 static guint get_updated_trigger_count(UcaPcoUsbCameraPrivate *priv)
@@ -484,7 +492,7 @@ static void uca_pco_usb_camera_set_property(GObject *object, guint property_id, 
     UcaPcoUsbCameraPrivate *priv = UCA_PCO_USB_CAMERA_GET_PRIVATE(object);
     guint err = PCO_NOERROR;
 
-    if (uca_camera_is_recording(UCA_CAMERA(object)) && !uca_camera_is_writable_during_acquisition(UCA_CAMERA(object), pspec->name))
+    if (priv->is_recording && !uca_camera_is_writable_during_acquisition(UCA_CAMERA(object), pspec->name))
     {
         g_warning("Property '%s' cannot be changed during acquisition", pspec->name);
         return;
@@ -777,7 +785,7 @@ static void uca_pco_usb_camera_get_property(GObject *object, guint property_id, 
     priv = UCA_PCO_USB_CAMERA_GET_PRIVATE(object);
 
     /* https://github.com/ufo-kit/libuca/issues/20 - Avoid property access while recording */
-    if (uca_camera_is_recording(UCA_CAMERA(object)) && priv->description->type == CAMERATYPE_PCO4000)
+    if (priv->is_recording && priv->description->type == CAMERATYPE_PCO4000)
     {
         g_warning("Property '%s' cannot be accessed during acquisition", pspec->name);
         return;
@@ -1086,8 +1094,8 @@ static void uca_pco_usb_camera_get_property(GObject *object, guint property_id, 
 
     case PROP_IS_RECORDING:
     {
-        bool is_recording = pco_is_recording(priv->pco);
-        g_value_set_boolean(value, (gboolean)is_recording);
+        priv->is_recording = (gboolean)pco_is_recording(priv->pco);
+        g_value_set_boolean(value, priv->is_recording);
     }
     break;
 
