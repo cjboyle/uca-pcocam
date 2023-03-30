@@ -147,6 +147,8 @@ struct _UcaPcoClhsCameraPrivate
     gint timeout_sec, ext_timeout_sec;
     gdouble secs_per_frame;
 
+    gboolean is_recording;
+
     //
     /* threading */
     //
@@ -344,6 +346,8 @@ static void uca_pco_clhs_camera_stop_recording(UcaCamera *camera, GError **error
         g_thread_join(priv->grab_thread);
     }
 
+    priv->is_recording = FALSE;
+    priv->last_trigger_grabbed = 0;
     g_debug("Recording stopped.");
 }
 
@@ -371,7 +375,7 @@ static void uca_pco_clhs_camera_trigger(UcaCamera *camera, GError **error)
 
 static gint get_updated_trigger_count(UcaPcoClhsCameraPrivate *priv)
 {
-    gint count;
+    guint count;
     if (pco_get_trigger_count(priv->pco, &count) == PCO_NOERROR)
         priv->num_triggers = count;
     return priv->num_triggers;
@@ -400,15 +404,10 @@ static gboolean uca_pco_clhs_camera_grab(UcaCamera *camera, gpointer data, GErro
 
     // Validate manual trigger count before attempting to grab a frame.
     // Otherwise, a trigger after a timed-out grab may seg fault.
-    if (priv->trigger_source != UCA_CAMERA_TRIGGER_SOURCE_AUTO)
+    if (is_buffered || priv->trigger_source != UCA_CAMERA_TRIGGER_SOURCE_AUTO)
     {
         GTimeVal timeout, now;
         g_get_current_time(&timeout);
-
-        // Don't worry about the timeout when saving to the ring buffer.
-        // if (is_buffered)
-        //     g_time_val_add(&timeout, G_MAXUINT16 * 1000);
-        // else
         g_time_val_add(&timeout, get_max_timeout_millis(priv) * 1000); // millis to micros
 
         while (priv->last_trigger_grabbed >= priv->num_triggers)
@@ -425,7 +424,7 @@ static gboolean uca_pco_clhs_camera_grab(UcaCamera *camera, gpointer data, GErro
                 return FALSE;
             }
 
-            pco_get_trigger_count(priv->pco, &priv->num_triggers);
+            get_updated_trigger_count(priv);
         }
 
         // Updating the trigger count may report frames before they are completely
@@ -434,18 +433,26 @@ static gboolean uca_pco_clhs_camera_grab(UcaCamera *camera, gpointer data, GErro
         // transfers. This will have an accordion effect, and will accelerate as
         // more triggers occur such that we can still keep up with the triggers.
         // This is moreso an issue when using to the ring buffer.
-        pco_get_trigger_count(priv->pco, &priv->num_triggers);
-        int frames2go = priv->num_triggers - priv->last_trigger_grabbed;
-        if (is_buffered && frames2go <= 3)
+        if (is_buffered)
         {
-            pco_get_frame_time(priv->pco, &priv->secs_per_frame);
+            int frames2go = priv->num_triggers - priv->last_trigger_grabbed;
 
-            g_debug("Forced delay: rt=%f sec, last=%d, f2g=%d", (float)priv->secs_per_frame, priv->last_trigger_grabbed, frames2go);
+            // Getting the trigger count can be slow, but we need to determine
+            // where we are in the trigger sequence...
+            if (frames2go <= 3)
+                frames2go = get_updated_trigger_count(priv) - priv->last_trigger_grabbed;
 
-            if (priv->secs_per_frame > 1)
-                sleep((int)ceil(priv->secs_per_frame));
-            else
-                usleep((int)ceil(priv->secs_per_frame * 1e3));
+            // ... and if we're too fast, or nearing the end, sleep some.
+            if (frames2go <= 3)
+            {
+                g_debug("Forced delay: rt=%f sec, last=%d, f2g=%d",
+                        (float)priv->secs_per_frame, priv->last_trigger_grabbed, frames2go);
+
+                if (priv->secs_per_frame >= 1)
+                    sleep((int)ceil(priv->secs_per_frame));
+                else
+                    usleep((int)ceil(CNV_UNIT_TO_MICRO(priv->secs_per_frame)));
+            }
         }
     }
 
@@ -687,7 +694,7 @@ static void uca_pco_clhs_camera_set_property(GObject *object, guint property_id,
 
     case PROP_TRIGGER_SOURCE:
     {
-        UcaCameraTriggerSource trigger_source = g_value_get_enum(value);
+        UcaCameraTriggerSource trigger_source = (UcaCameraTriggerSource)g_value_get_enum(value);
 
         switch (trigger_source)
         {
@@ -770,7 +777,7 @@ static void uca_pco_clhs_camera_get_property(GObject *object, guint property_id,
     priv = UCA_PCO_CLHS_CAMERA_GET_PRIVATE(object);
 
     /* https://github.com/ufo-kit/libuca/issues/20 - Avoid property access while recording */
-    if (uca_camera_is_recording(UCA_CAMERA(object)) && priv->description->type == CAMERATYPE_PCO4000)
+    if (priv->description->type == CAMERATYPE_PCO4000 && priv->is_recording && property_id != PROP_IS_RECORDING)
     {
         g_warning("Property '%s' cannot be accessed during acquisition", pspec->name);
         return;
@@ -1071,8 +1078,8 @@ static void uca_pco_clhs_camera_get_property(GObject *object, guint property_id,
 
     case PROP_IS_RECORDING:
     {
-        bool is_recording = pco_is_recording(priv->pco);
-        g_value_set_boolean(value, (gboolean)is_recording);
+        priv->is_recording = (gboolean)pco_is_recording(priv->pco);
+        g_value_set_boolean(value, priv->is_recording);
     }
     break;
 

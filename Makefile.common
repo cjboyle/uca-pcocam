@@ -22,7 +22,7 @@ LIB_DIRS += $(GLIB_LIB_DIR)
 LIB_NAMES += glib-2.0
 
 # base deps
-INC_DIRS += /usr/local/include /opt/ufo/include
+INC_DIRS += /usr/local/include /opt/ufo/include /usr/include/c++/11/i686-redhat-linux
 LIB_DIRS += /usr/local/lib /usr/local/lib64 /opt/ufo/lib /opt/ufo/lib64
 LIB_NAMES += pthread rt dl
 
@@ -35,7 +35,7 @@ HDRS += uca-$(TYPE_NAME)-camera.h uca-$(TYPE_NAME)-enums.h $(TYPE_NAME).h pco.h
 
 OUTFILE = libuca$(TYPE_NAME).so
 BUILD_DIR = ./build
-INST_DIR = $(UCA_LIB_DIR)/uca
+INST_DIR = /opt/ufo/lib64/uca
 
 OBJS := $(SRCS:%=$(BUILD_DIR)/%.o)
 DEPS := $(OBJS:.o=.d)
