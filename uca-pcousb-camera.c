@@ -396,7 +396,7 @@ static gboolean uca_pco_usb_camera_grab(UcaCamera *camera, gpointer data, GError
 
         // Don't worry about the timeout when saving to the ring buffer
         if (is_buffered)
-            g_time_val_add(&timeout, G_MAXUINT16 * 1000);
+            g_time_val_add(&timeout, G_MAXUINT16 * 1000); // timeout after ~18 hours of inactivity
         else
             g_time_val_add(&timeout, get_max_timeout_millis(priv) * 1000); // millis to micros
 
