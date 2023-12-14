@@ -413,28 +413,6 @@ static gboolean uca_pco_usb_camera_grab(UcaCamera *camera, gpointer data, GError
 
             pco_get_trigger_count(priv->pco, &priv->num_triggers);
         }
-
-        // Updating the trigger count may report frames before they are completely
-        // exposed and transfered. The camera can store ~400 2560x2160 frames, so
-        // we should be able to delay the final few grabs to ensure complete frame
-        // transfers. This will have an accordion effect, and will accelerate as
-        // more triggers occur such that we can still keep up with the triggers.
-        // This is moreso an issue when using to the ring buffer.
-        int frames2go = priv->num_triggers - priv->last_trigger_grabbed;
-        if (is_buffered && frames2go <= 10)
-        {
-            double fps, rt;
-            pco_get_fps(priv->pco, &fps);
-            rt = 1 / fps;
-
-            if (rt > 1)
-                sleep((int)round(rt));
-            else
-                usleep((int)ceil(rt * 1e3));
-
-            if (frames2go <= 2)
-                sleep(1);
-        }
     }
 
     gpointer frame = g_malloc0(size);

@@ -426,34 +426,6 @@ static gboolean uca_pco_clhs_camera_grab(UcaCamera *camera, gpointer data, GErro
 
             get_updated_trigger_count(priv);
         }
-
-        // Updating the trigger count may report frames before they are completely
-        // exposed and transfered. The grabber can store ~50 2560x2160 frames, so
-        // we should be able to delay the final few grabs to ensure complete frame
-        // transfers. This will have an accordion effect, and will accelerate as
-        // more triggers occur such that we can still keep up with the triggers.
-        // This is moreso an issue when using to the ring buffer.
-        if (is_buffered)
-        {
-            int frames2go = priv->num_triggers - priv->last_trigger_grabbed;
-
-            // Getting the trigger count can be slow, but we need to determine
-            // where we are in the trigger sequence...
-            if (frames2go <= 3)
-                frames2go = get_updated_trigger_count(priv) - priv->last_trigger_grabbed;
-
-            // ... and if we're too fast, or nearing the end, sleep some.
-            if (frames2go <= 3)
-            {
-                g_debug("Forced delay: rt=%f sec, last=%d, f2g=%d",
-                        (float)priv->secs_per_frame, priv->last_trigger_grabbed, frames2go);
-
-                if (priv->secs_per_frame >= 1)
-                    sleep((int)ceil(priv->secs_per_frame));
-                else
-                    usleep((int)ceil(CNV_UNIT_TO_MICRO(priv->secs_per_frame)));
-            }
-        }
     }
 
     gpointer frame = g_malloc0(size);
