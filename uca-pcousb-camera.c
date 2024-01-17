@@ -402,6 +402,9 @@ static gboolean uca_pco_usb_camera_grab(UcaCamera *camera, gpointer data, GError
 
         while (priv->last_trigger_grabbed >= priv->num_triggers)
         {
+            if (uca_camera_stopped_recording(camera))
+                return FALSE;
+
             g_get_current_time(&now);
             if (now.tv_sec >= timeout.tv_sec)
             {
